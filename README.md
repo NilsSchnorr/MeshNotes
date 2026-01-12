@@ -1,6 +1,6 @@
 # MeshNotes
 
-A free, browser-based tool for annotating 3D models with points, lines, polygons, and surfaces — designed for cultural heritage documentation.
+A browser-based tool for annotating 3D models with points, lines, polygons, and surfaces — designed for cultural heritage documentation.
 
 ## About
 
@@ -21,7 +21,7 @@ The tool runs entirely in your browser — no installation or server required. S
 
 ## Getting Started
 
-1. Open `meshnotes.html` in a modern web browser (Chrome, Firefox, Edge, or Safari)
+1. Open `meshnotes.html` in a modern web browser (Chrome, Firefox, Edge, or Safari - a chromium-based browser was used for most of the testing)
 2. Click **Load GLB** to open a 3D model (`.glb` or `.gltf` format). This format is rather lightweight, has texture embedded and works best with the viewer architecture this tool uses (three.js)
 3. Use the toolbar to add annotations
 4. Export your work as JSON for backup/saving or team collaboration
