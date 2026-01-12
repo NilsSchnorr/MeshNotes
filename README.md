@@ -4,7 +4,7 @@ A browser-based tool for annotating 3D models with points, lines, polygons, and 
 
 ## About
 
-**MeshNotes** allows teams to collaboratively mark and describe features on 3D models (photogrammetry, laser-scanning, structured light scanning, etc.) of archaeological sites, architecture, and artifacts (basically any king of object).
+**MeshNotes** allows teams to collaboratively mark and describe features on 3D models (photogrammetry, laser-scanning, structured light scanning, etc.) of archaeological sites, architecture, and artifacts (basically any kind of object).
 
 ![MeshNotes Screenshot 1](readmescreenshots/MNscreen1.png)
 
@@ -56,8 +56,7 @@ MeshNotes uses the following open-source libraries (loaded via CDN):
 
 **Nils Schnorr**  
 Department of Classical Archaeology  
-Saarland University, Saarbrücken, Germany  
-nils.schnorr@uni-saarland.de
+Saarland University, Saarbrücken, Germany
 
 ## License
 
