@@ -55,8 +55,7 @@ MeshNotes uses the following open-source libraries (loaded via CDN):
 
 **Nils Schnorr**  
 Department of Classical Archaeology  
-Saarland University, Saarbrücken, Germany  
-nils.schnorr@uni-saarland.de
+Saarland University, Saarbrücken, Germany
 
 ## License
 
