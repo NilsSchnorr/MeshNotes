@@ -41,6 +41,7 @@ If your model is in OBJ or PLY format, convert it to GLB using [Blender](https:/
 - **Drag annotation points** when no tool is active to reposition them
 - **Surface tool**: Right-click and drag to rotate the view while painting — paint a continuous surface annotation from multiple angles (e.g., wrapping around a statue's arm)
 - **Measurements** are displayed in "units" — the actual unit (meters, millimeters, etc.) depends on how your 3D model was created or exported
+- **Camera toggle**: Click "Perspective/Orthographic" in the top-right to switch views — orthographic removes perspective distortion for accurate documentation
 - Use the **opacity slider** to see annotations on the back side of the model
 - **Hide groups** before generating a PDF to exclude them from the report
 - Press **Escape** to cancel drawing or clear measurements
