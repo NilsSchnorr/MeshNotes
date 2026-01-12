@@ -6,6 +6,10 @@ A browser-based tool for annotating 3D models with points, lines, polygons, and 
 
 **MeshNotes** allows teams to collaboratively mark and describe features on 3D models (photogrammetry, laser-scanning, structured light scanning, etc.) of archaeological sites, architecture, and artifacts (basically any king of object).
 
+![MeshNotes Screenshot 1](readmescreenshots/MNscreen1.png)
+
+![MeshNotes Screenshot 2](readmescreenshots/MNscreen2.png)
+
 Key features include:
 - **Multi-entry annotations** — multiple users can add observations to the same feature with individual timestamps
 - **Annotation types** — points, lines, polygons, and surface painting (surface painting works only for objects up to about 1m faces)
