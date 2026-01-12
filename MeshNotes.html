@@ -1297,7 +1297,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Surface</strong> to paint directly on the 3D model's mesh faces. Adjust the brush size using the slider (0.5-20% of model size), then click and drag to highlight faces. <strong>Right-click and drag</strong> to rotate the view while painting — this lets you paint a continuous surface annotation from multiple angles (e.g., wrapping around a statue's arm). Hold <strong>Shift</strong> while painting to erase. Double-click to finish and open the annotation popup.</p>
+                            <p>Click <strong>Surface</strong> to paint directly on the 3D model's mesh faces. Adjust the brush size using the slider (0.1-20% of model size), then click and drag to highlight faces. <strong>Right-click and drag</strong> to rotate the view while painting — this lets you paint a continuous surface annotation from multiple angles (e.g., wrapping around a statue's arm). Hold <strong>Shift</strong> while painting to erase. Double-click to finish and open the annotation popup.</p>
                             <p style="margin-top: 10px;">Surface annotations are ideal for marking 3D regions like weathered areas, specific architectural features, or body parts on sculptures that can't be easily captured with flat polygons.</p>
                             <div class="limitation-note">
                                 <strong>Performance Note:</strong> The Surface tool works best on smaller models (statues, ceramics, artifacts). Performance depends on face count:
@@ -1476,7 +1476,7 @@
                         <span>Brush Size</span>
                         <span id="brush-value">5%</span>
                     </label>
-                    <input type="range" id="brush-slider" min="0.5" max="20" value="5" step="0.5">
+                    <input type="range" id="brush-slider" min="0.1" max="20" value="5" step="0.1">
                 </div>
                 <div class="hint">Click/drag to paint. Hold Shift to erase. Double-click to finish.</div>
             </div>
@@ -1668,6 +1668,9 @@
         let draggedPointIndex = -1;
         let draggedMarker = null;
         let wasDragging = false; // Prevent click event after drag
+        
+        // Point tool - capture position on mousedown to prevent slipping
+        let pendingPointPosition = null;
 
         // Surface painting
         let isPaintingSurface = false;
@@ -2485,7 +2488,11 @@
             if (!point) return;
 
             if (currentTool === 'point') {
-                openAnnotationPopup(event, 'point', [point]);
+                // Use position captured on mousedown to prevent slipping
+                const pointToUse = pendingPointPosition || point;
+                pendingPointPosition = null;
+                if (!pointToUse) return;
+                openAnnotationPopup(event, 'point', [pointToUse]);
                 setTool(null);
             } else if (currentTool === 'line') {
                 tempPoints.push(point);
@@ -2556,6 +2563,12 @@
         }
 
         function onCanvasMouseDown(event) {
+            // Handle point tool - capture position on mousedown to prevent slipping
+            if (currentTool === 'point' && currentModel && event.button === 0) {
+                pendingPointPosition = getIntersection(event);
+                return;
+            }
+            
             // Handle surface painting - only on left click (button 0)
             // Right click (button 2) allows panning to rotate view while painting
             if (currentTool === 'surface' && currentModel && event.button === 0) {
