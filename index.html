@@ -1336,7 +1336,7 @@
                     </p>
                     <p>
                         Key features include multi-entry annotations (multiple users can add observations to the same feature with individual timestamps), 
-                        measurement tools, customizable groups with color coding, draggable points for editing, and JSON export/import for team collaboration.
+                        measurement tools, customizable groups with color coding, draggable points for editing, and <strong>W3C Web Annotation</strong> compliant export/import for interoperability and team collaboration.
                     </p>
                     <p>
                         The tool runs entirely in your browser — no installation or server required. Simply open the HTML file and start annotating. 
@@ -1505,7 +1505,9 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p><strong>JSON:</strong> Click to download all annotations and groups as a JSON file. The file includes all entries, timestamps, and metadata. Use JSON for backup and team collaboration. <strong>Import:</strong> Click to load annotations from a JSON file. Imported annotations merge with existing ones — groups with the same name are combined, and all annotations are preserved.</p>
+                            <p><strong>JSON Export:</strong> Click to download all annotations in <strong>W3C Web Annotation</strong> format (.jsonld). This standard format ensures interoperability with other annotation tools and IIIF-compatible viewers. The export includes all entries, timestamps, metadata, groups, and model information.</p>
+                            <p style="margin-top: 10px;"><strong>Import:</strong> Click to load annotations from a .json or .jsonld file. MeshNotes supports both the new W3C format and legacy MeshNotes files for backward compatibility. Imported annotations merge with existing ones — groups with the same name are combined.</p>
+                            <p style="margin-top: 10px; font-size: 12px; color: #888;">The W3C Web Annotation Data Model is a standard for interoperable annotations. Learn more at <a href="https://www.w3.org/TR/annotation-model/" target="_blank">w3.org/TR/annotation-model</a></p>
                         </div>
                     </div>
 
@@ -1707,7 +1709,7 @@
             
             <div id="toolbar">
                 <input type="file" id="file-input" accept=".glb,.gltf">
-                <input type="file" id="import-input" accept=".json">
+                <input type="file" id="import-input" accept=".json,.jsonld">
                 
                 <button class="tool-btn" id="btn-load" title="Load 3D Model">📂 Load GLB</button>
                 <button class="tool-btn" id="btn-texture" disabled title="Toggle Texture">🖼️ Texture</button>
@@ -4288,28 +4290,321 @@
         }
 
         // ============ Export/Import ============
-        function exportAnnotations() {
-            const data = {
-                software: 'MeshNotes',
-                version: '1.0',
-                modelFileName,
-                exportDate: new Date().toISOString(),
-                modelInfo,
-                groups,
-                annotations
+        // ============ W3C Web Annotation Export/Import ============
+        
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+        
+        function formatPointsAsSelector(ann) {
+            // Create W3C-compliant selector for 3D geometry
+            if (ann.type === 'point') {
+                return {
+                    type: 'PointSelector',
+                    refinedBy: {
+                        type: 'FragmentSelector',
+                        conformsTo: 'https://github.com/IIIF/3d',
+                        value: `point=${ann.points[0].x},${ann.points[0].y},${ann.points[0].z}`
+                    }
+                };
+            } else if (ann.type === 'line') {
+                const coords = ann.points.map(p => `${p.x},${p.y},${p.z}`).join(';');
+                return {
+                    type: 'SvgSelector',
+                    refinedBy: {
+                        type: 'FragmentSelector',
+                        conformsTo: 'https://github.com/IIIF/3d',
+                        value: `polyline=${coords}`
+                    }
+                };
+            } else if (ann.type === 'polygon') {
+                const coords = ann.points.map(p => `${p.x},${p.y},${p.z}`).join(';');
+                return {
+                    type: 'SvgSelector',
+                    refinedBy: {
+                        type: 'FragmentSelector',
+                        conformsTo: 'https://github.com/IIIF/3d',
+                        value: `polygon=${coords}`
+                    }
+                };
+            } else if (ann.type === 'surface' && ann.faceData) {
+                return {
+                    type: 'FragmentSelector',
+                    conformsTo: 'https://github.com/IIIF/3d',
+                    value: `faces=${ann.faceData.join(',')}`,
+                    refinedBy: ann.points.length > 0 ? {
+                        type: 'PointSelector',
+                        value: `centroid=${ann.points[0].x},${ann.points[0].y},${ann.points[0].z}`
+                    } : undefined
+                };
+            }
+            return null;
+        }
+        
+        function parseSelector(selector, ann) {
+            // Parse W3C selector back to internal format
+            if (!selector) return;
+            
+            // Handle refined selectors
+            let fragmentValue = null;
+            if (selector.refinedBy && selector.refinedBy.value) {
+                fragmentValue = selector.refinedBy.value;
+            } else if (selector.value) {
+                fragmentValue = selector.value;
+            }
+            
+            if (!fragmentValue) return;
+            
+            // Parse point=x,y,z
+            if (fragmentValue.startsWith('point=')) {
+                const coords = fragmentValue.replace('point=', '').split(',').map(Number);
+                if (coords.length === 3) {
+                    ann.points = [{ x: coords[0], y: coords[1], z: coords[2] }];
+                    ann.type = 'point';
+                }
+            }
+            // Parse polyline=x1,y1,z1;x2,y2,z2;...
+            else if (fragmentValue.startsWith('polyline=')) {
+                const pointsStr = fragmentValue.replace('polyline=', '').split(';');
+                ann.points = pointsStr.map(p => {
+                    const coords = p.split(',').map(Number);
+                    return { x: coords[0], y: coords[1], z: coords[2] };
+                });
+                ann.type = 'line';
+            }
+            // Parse polygon=x1,y1,z1;x2,y2,z2;...
+            else if (fragmentValue.startsWith('polygon=')) {
+                const pointsStr = fragmentValue.replace('polygon=', '').split(';');
+                ann.points = pointsStr.map(p => {
+                    const coords = p.split(',').map(Number);
+                    return { x: coords[0], y: coords[1], z: coords[2] };
+                });
+                ann.type = 'polygon';
+            }
+            // Parse faces=0_1,0_2,...
+            else if (fragmentValue.startsWith('faces=')) {
+                ann.faceData = fragmentValue.replace('faces=', '').split(',');
+                ann.type = 'surface';
+                ann.points = [];
+                // Check for centroid in refinedBy
+                if (selector.refinedBy && selector.refinedBy.value && selector.refinedBy.value.startsWith('centroid=')) {
+                    const coords = selector.refinedBy.value.replace('centroid=', '').split(',').map(Number);
+                    if (coords.length === 3) {
+                        ann.points = [{ x: coords[0], y: coords[1], z: coords[2] }];
+                    }
+                }
+            }
+            // Parse centroid for surface types
+            else if (fragmentValue.startsWith('centroid=')) {
+                const coords = fragmentValue.replace('centroid=', '').split(',').map(Number);
+                if (coords.length === 3) {
+                    ann.points = [{ x: coords[0], y: coords[1], z: coords[2] }];
+                }
+            }
+        }
+        
+        function convertToW3CAnnotation(ann, group) {
+            // Convert internal annotation to W3C Web Annotation format
+            const w3cAnn = {
+                '@context': 'http://www.w3.org/ns/anno.jsonld',
+                type: 'Annotation',
+                id: `urn:meshnotes:annotation:${generateUUID()}`,
+                motivation: ann.type === 'surface' ? 'tagging' : 'describing',
+                created: ann.entries && ann.entries.length > 0 ? ann.entries[0].timestamp : new Date().toISOString(),
+                modified: ann.entries && ann.entries.length > 1 ? ann.entries[ann.entries.length - 1].timestamp : undefined,
+                'schema:name': ann.name || 'Unnamed',
+                target: {
+                    type: 'SpecificResource',
+                    source: {
+                        id: `urn:meshnotes:model:${modelFileName || 'unknown'}`,
+                        type: 'Dataset',
+                        format: 'model/gltf-binary'
+                    },
+                    selector: formatPointsAsSelector(ann)
+                }
             };
-
-            const json = JSON.stringify(data, null, 2);
-            const blob = new Blob([json], { type: 'application/json' });
+            
+            // Add styleClass for group color
+            if (group) {
+                w3cAnn.target.styleClass = `group-${group.id}`;
+            }
+            
+            // Convert entries to body array
+            if (ann.entries && ann.entries.length > 0) {
+                w3cAnn.body = ann.entries.map(entry => {
+                    const body = {
+                        type: 'TextualBody',
+                        value: entry.description || '',
+                        format: 'text/plain',
+                        language: 'en'
+                    };
+                    
+                    if (entry.author) {
+                        body.creator = {
+                            type: 'Person',
+                            name: entry.author
+                        };
+                    }
+                    
+                    if (entry.timestamp) {
+                        body.created = entry.timestamp;
+                    }
+                    
+                    // Store links as custom property
+                    if (entry.links && entry.links.length > 0) {
+                        body['schema:url'] = entry.links;
+                    }
+                    
+                    return body;
+                });
+            }
+            
+            // Store internal ID mapping for round-trip
+            w3cAnn['meshnotes:internalId'] = ann.id;
+            w3cAnn['meshnotes:groupId'] = ann.groupId;
+            w3cAnn['meshnotes:annotationType'] = ann.type;
+            
+            return w3cAnn;
+        }
+        
+        function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
+            // Convert W3C Web Annotation back to internal format
+            const ann = {
+                id: Date.now() + Math.floor(Math.random() * 10000),
+                type: w3cAnn['meshnotes:annotationType'] || 'point',
+                name: w3cAnn['schema:name'] || 'Unnamed',
+                groupId: null,
+                points: [],
+                entries: []
+            };
+            
+            // Map group ID
+            const origGroupId = w3cAnn['meshnotes:groupId'];
+            if (origGroupId && groupIdMap[origGroupId]) {
+                ann.groupId = groupIdMap[origGroupId];
+            }
+            
+            // Parse selector to get points/faceData
+            if (w3cAnn.target && w3cAnn.target.selector) {
+                parseSelector(w3cAnn.target.selector, ann);
+            }
+            
+            // Convert body to entries
+            if (w3cAnn.body) {
+                const bodies = Array.isArray(w3cAnn.body) ? w3cAnn.body : [w3cAnn.body];
+                ann.entries = bodies.map((body, idx) => {
+                    const entry = {
+                        id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                        description: body.value || '',
+                        author: body.creator ? body.creator.name : '',
+                        timestamp: body.created || w3cAnn.created || new Date().toISOString(),
+                        links: body['schema:url'] || []
+                    };
+                    return entry;
+                });
+            }
+            
+            return ann;
+        }
+        
+        function exportAnnotations() {
+            // Create W3C Web Annotation Collection
+            const collectionId = `urn:meshnotes:collection:${generateUUID()}`;
+            
+            // Convert groups to stylesheet
+            const stylesheet = {
+                type: 'CssStylesheet',
+                value: groups.map(g => `.group-${g.id} { color: ${g.color}; }`).join('\n')
+            };
+            
+            // Convert all annotations to W3C format
+            const w3cAnnotations = annotations.map(ann => {
+                const group = groups.find(g => g.id === ann.groupId);
+                return convertToW3CAnnotation(ann, group);
+            });
+            
+            // Build the W3C AnnotationCollection
+            const collection = {
+                '@context': [
+                    'http://www.w3.org/ns/anno.jsonld',
+                    {
+                        'meshnotes': 'https://github.com/NilsSchnorr/MeshNotes#',
+                        'schema': 'http://schema.org/'
+                    }
+                ],
+                type: 'AnnotationCollection',
+                id: collectionId,
+                label: `MeshNotes: ${modelFileName || 'Annotations'}`,
+                generator: {
+                    type: 'Software',
+                    name: 'MeshNotes',
+                    'schema:version': '2.0',
+                    homepage: 'https://github.com/NilsSchnorr/MeshNotes'
+                },
+                generated: new Date().toISOString(),
+                
+                // Target model
+                'meshnotes:modelSource': {
+                    id: `urn:meshnotes:model:${modelFileName || 'unknown'}`,
+                    type: 'Dataset',
+                    'schema:name': modelFileName,
+                    format: 'model/gltf-binary'
+                },
+                
+                // Stylesheet for group colors
+                stylesheet: stylesheet,
+                
+                // Groups metadata (custom extension)
+                'meshnotes:groups': groups.map(g => ({
+                    id: g.id,
+                    'schema:name': g.name,
+                    'schema:color': g.color,
+                    'meshnotes:visible': g.visible
+                })),
+                
+                // Model information entries
+                'meshnotes:modelInfo': modelInfo.entries.length > 0 ? {
+                    type: 'Annotation',
+                    motivation: 'describing',
+                    'schema:name': 'Model Information',
+                    body: modelInfo.entries.map(entry => ({
+                        type: 'TextualBody',
+                        value: entry.description || '',
+                        format: 'text/plain',
+                        creator: entry.author ? { type: 'Person', name: entry.author } : undefined,
+                        created: entry.timestamp,
+                        'schema:url': entry.links && entry.links.length > 0 ? entry.links : undefined
+                    }))
+                } : undefined,
+                
+                // Annotations
+                total: w3cAnnotations.length,
+                first: {
+                    type: 'AnnotationPage',
+                    items: w3cAnnotations
+                }
+            };
+            
+            // Clean up undefined values
+            const cleanJSON = JSON.stringify(collection, (key, value) => {
+                if (value === undefined) return undefined;
+                return value;
+            }, 2);
+            
+            const blob = new Blob([cleanJSON], { type: 'application/ld+json' });
             const url = URL.createObjectURL(blob);
 
             const link = document.createElement('a');
-            link.download = `meshnotes-${modelFileName || 'export'}-${Date.now()}.json`;
+            link.download = `meshnotes-${modelFileName || 'export'}-${Date.now()}.jsonld`;
             link.href = url;
             link.click();
 
             URL.revokeObjectURL(url);
-            showStatus('Annotations exported');
+            showStatus('W3C annotations exported');
         }
 
         // ============ PDF Export ============
@@ -4772,63 +5067,16 @@
                 try {
                     const data = JSON.parse(e.target.result);
                     
-                    if (data.groups && data.annotations) {
-                        // Import model info if present
-                        if (data.modelInfo && data.modelInfo.entries) {
-                            // Merge entries from imported modelInfo
-                            data.modelInfo.entries.forEach(entry => {
-                                modelInfo.entries.push({
-                                    ...entry,
-                                    id: Date.now() + Math.floor(Math.random() * 10000)
-                                });
-                            });
-                            updateModelInfoDisplay();
-                        }
-                        
-                        // Merge groups (avoid duplicates by name)
-                        data.groups.forEach(importedGroup => {
-                            const existing = groups.find(g => g.name === importedGroup.name);
-                            if (!existing) {
-                                // Create new group with new ID (integer)
-                                const newGroupId = Date.now() + Math.floor(Math.random() * 10000);
-                                const newGroup = {
-                                    ...importedGroup,
-                                    id: newGroupId
-                                };
-                                
-                                // Update annotations to reference new group ID
-                                data.annotations.forEach(ann => {
-                                    if (ann.groupId === importedGroup.id) {
-                                        ann.groupId = newGroupId;
-                                    }
-                                });
-                                
-                                groups.push(newGroup);
-                            } else {
-                                // Map to existing group
-                                data.annotations.forEach(ann => {
-                                    if (ann.groupId === importedGroup.id) {
-                                        ann.groupId = existing.id;
-                                    }
-                                });
-                            }
-                        });
-
-                        // Add annotations with new IDs (integers)
-                        let idOffset = 0;
-                        data.annotations.forEach(ann => {
-                            idOffset++;
-                            annotations.push({
-                                ...ann,
-                                id: Date.now() + idOffset
-                            });
-                        });
-
-                        updateGroupsList();
-                        renderAnnotations();
-                        showStatus(`Imported ${data.annotations.length} annotations`);
-                    } else {
-                        showStatus('Invalid annotation file');
+                    // Check if this is W3C format (has @context and type: AnnotationCollection)
+                    if (data['@context'] && data.type === 'AnnotationCollection') {
+                        importW3CAnnotations(data);
+                    }
+                    // Legacy format support (old MeshNotes format)
+                    else if (data.groups && data.annotations) {
+                        importLegacyAnnotations(data);
+                    }
+                    else {
+                        showStatus('Invalid annotation file format');
                     }
                 } catch (error) {
                     console.error('Import error:', error);
@@ -4836,6 +5084,130 @@
                 }
             };
             reader.readAsText(file);
+        }
+        
+        function importW3CAnnotations(data) {
+            // Import W3C Web Annotation Collection format
+            const groupIdMap = {};
+            
+            // Import model info if present
+            if (data['meshnotes:modelInfo'] && data['meshnotes:modelInfo'].body) {
+                const bodies = Array.isArray(data['meshnotes:modelInfo'].body) 
+                    ? data['meshnotes:modelInfo'].body 
+                    : [data['meshnotes:modelInfo'].body];
+                    
+                bodies.forEach((body, idx) => {
+                    modelInfo.entries.push({
+                        id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                        description: body.value || '',
+                        author: body.creator ? body.creator.name : '',
+                        timestamp: body.created || new Date().toISOString(),
+                        links: body['schema:url'] || []
+                    });
+                });
+                updateModelInfoDisplay();
+            }
+            
+            // Import groups
+            if (data['meshnotes:groups']) {
+                data['meshnotes:groups'].forEach(importedGroup => {
+                    const groupName = importedGroup['schema:name'] || importedGroup.name || 'Imported Group';
+                    const existing = groups.find(g => g.name === groupName);
+                    
+                    if (!existing) {
+                        const newGroupId = Date.now() + Math.floor(Math.random() * 10000);
+                        const newGroup = {
+                            id: newGroupId,
+                            name: groupName,
+                            color: importedGroup['schema:color'] || importedGroup.color || '#4CAF50',
+                            visible: importedGroup['meshnotes:visible'] !== false
+                        };
+                        groupIdMap[importedGroup.id] = newGroupId;
+                        groups.push(newGroup);
+                    } else {
+                        groupIdMap[importedGroup.id] = existing.id;
+                    }
+                });
+            }
+            
+            // Import annotations from first page
+            let importedCount = 0;
+            if (data.first && data.first.items) {
+                data.first.items.forEach(w3cAnn => {
+                    const ann = convertFromW3CAnnotation(w3cAnn, groupIdMap);
+                    
+                    // If no group assigned, use default
+                    if (!ann.groupId) {
+                        if (groups.length === 0) {
+                            groups.push({ id: Date.now(), name: 'Default', color: '#4CAF50', visible: true });
+                        }
+                        ann.groupId = groups[0].id;
+                    }
+                    
+                    annotations.push(ann);
+                    importedCount++;
+                });
+            }
+            
+            updateGroupsList();
+            renderAnnotations();
+            showStatus(`Imported ${importedCount} W3C annotations`);
+        }
+        
+        function importLegacyAnnotations(data) {
+            // Import legacy MeshNotes format (for backward compatibility)
+            console.warn('Importing legacy format - consider re-exporting to W3C format');
+            
+            // Import model info if present
+            if (data.modelInfo && data.modelInfo.entries) {
+                data.modelInfo.entries.forEach(entry => {
+                    modelInfo.entries.push({
+                        ...entry,
+                        id: Date.now() + Math.floor(Math.random() * 10000)
+                    });
+                });
+                updateModelInfoDisplay();
+            }
+            
+            // Merge groups (avoid duplicates by name)
+            data.groups.forEach(importedGroup => {
+                const existing = groups.find(g => g.name === importedGroup.name);
+                if (!existing) {
+                    const newGroupId = Date.now() + Math.floor(Math.random() * 10000);
+                    const newGroup = {
+                        ...importedGroup,
+                        id: newGroupId
+                    };
+                    
+                    data.annotations.forEach(ann => {
+                        if (ann.groupId === importedGroup.id) {
+                            ann.groupId = newGroupId;
+                        }
+                    });
+                    
+                    groups.push(newGroup);
+                } else {
+                    data.annotations.forEach(ann => {
+                        if (ann.groupId === importedGroup.id) {
+                            ann.groupId = existing.id;
+                        }
+                    });
+                }
+            });
+
+            // Add annotations with new IDs
+            let idOffset = 0;
+            data.annotations.forEach(ann => {
+                idOffset++;
+                annotations.push({
+                    ...ann,
+                    id: Date.now() + idOffset
+                });
+            });
+
+            updateGroupsList();
+            renderAnnotations();
+            showStatus(`Imported ${data.annotations.length} annotations (legacy format)`);
         }
 
         // ============ Utilities ============

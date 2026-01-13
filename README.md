@@ -17,7 +17,7 @@ Key features include:
 - **Groups** — organize annotations with customizable colors and visibility toggles
 - **Model Information** — add general notes about the entire model
 - **Draggable points** — reposition annotation markers without recreating them
-- **JSON export/import** — share annotations with team members
+- **W3C Web Annotation export/import** — interoperable format (.jsonld) compatible with IIIF viewers and other annotation tools
 - **PDF reports** — generate a PDF file for documentation/communication with auto-captured screenshots and all information gathered in the annotation process
 - **Display controls** — adjust brightness, opacity, and toggle textures
 
@@ -45,6 +45,17 @@ If your model is in OBJ or PLY format, convert it to GLB using [Blender](https:/
 - Use the **opacity slider** to see annotations on the back side of the model
 - **Hide groups** before generating a PDF to exclude them from the report
 - Press **Escape** to cancel drawing or clear measurements
+
+## Export Format
+
+MeshNotes exports annotations in the [W3C Web Annotation Data Model](https://www.w3.org/TR/annotation-model/) format (.jsonld). This standard format ensures:
+
+- **Interoperability** with other annotation tools and viewers
+- **Compatibility** with IIIF-based systems used in cultural heritage institutions
+- **Future-proofing** through adherence to web standards
+- **Extensibility** via custom namespaces for 3D-specific data
+
+The export includes custom selectors for 3D geometry (points, polylines, polygons, and mesh faces) aligned with the emerging [IIIF 3D specifications](https://github.com/IIIF/3d). Legacy MeshNotes files (.json) can still be imported for backward compatibility.
 
 ## Dependencies
 
