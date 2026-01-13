@@ -1823,6 +1823,18 @@
                 </div>
             </div>
 
+            <!-- Scalebar Confirmation Dialog -->
+            <div class="confirm-overlay" id="scalebar-confirm-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <p id="scalebar-confirm-message">You are currently in <strong>Perspective</strong> view. A scalebar can only be included in <strong>Orthographic</strong> view where scale is uniform across the image.</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Would you like to switch to Orthographic view to include a scalebar?</p>
+                    <div class="btn-row" style="margin-top: 16px;">
+                        <button class="btn-cancel" id="scalebar-no-switch">Continue without scalebar</button>
+                        <button class="btn-save" id="scalebar-switch">Switch & include scalebar</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Group Popup -->
             <div class="popup" id="group-popup">
                 <h3 id="group-popup-title">New Group</h3>
@@ -1989,6 +2001,10 @@
         const confirmOk = document.getElementById('confirm-ok');
         const confirmCancel = document.getElementById('confirm-cancel');
         
+        const scalebarConfirmOverlay = document.getElementById('scalebar-confirm-overlay');
+        const scalebarNoSwitch = document.getElementById('scalebar-no-switch');
+        const scalebarSwitch = document.getElementById('scalebar-switch');
+        
         const modelInfoItem = document.getElementById('model-info-item');
         const modelInfoSubtitle = document.getElementById('model-info-subtitle');
         
@@ -2030,6 +2046,8 @@
         let editingEntryId = null;
         let isAddingEntry = false;
         let confirmCallback = null;
+        let scalebarConfirmCallback = null;
+        let scalebarNoSwitchCallback = null;
         
         // Get last used author from localStorage
         const AUTHOR_STORAGE_KEY = 'meshnotes_author';
@@ -3732,6 +3750,118 @@
             confirmCallback = null;
         }
 
+        // ============ Scalebar Functions ============
+        function getNiceScaleValue(value) {
+            // Find a "nice" round number for the scale
+            const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+            const normalized = value / magnitude;
+            
+            let nice;
+            if (normalized < 1.5) nice = 1;
+            else if (normalized < 3.5) nice = 2;
+            else if (normalized < 7.5) nice = 5;
+            else nice = 10;
+            
+            return nice * magnitude;
+        }
+
+        function calculateScalebarParams() {
+            // Only works in orthographic mode
+            if (!isOrthographic || !currentModel) return null;
+            
+            const viewportWidth = window.innerWidth - 320;
+            
+            // Account for the camera's zoom factor!
+            // The effective frustum width is the base frustum divided by zoom
+            const baseFrustumWidth = orthographicCamera.right - orthographicCamera.left;
+            const effectiveFrustumWidth = baseFrustumWidth / orthographicCamera.zoom;
+            
+            // We want the scalebar to be roughly 1/4 of the viewport width
+            const targetScalebarUnits = effectiveFrustumWidth * 0.25;
+            const niceValue = getNiceScaleValue(targetScalebarUnits);
+            
+            // Calculate pixel width for this nice value
+            const pixelsPerUnit = viewportWidth / effectiveFrustumWidth;
+            const scalebarPixelWidth = niceValue * pixelsPerUnit;
+            
+            return {
+                units: niceValue,
+                pixelWidth: scalebarPixelWidth
+            };
+        }
+
+        function drawScalebarOnCanvas(targetCanvas) {
+            const params = calculateScalebarParams();
+            if (!params) return;
+            
+            const ctx = targetCanvas.getContext('2d');
+            const canvasWidth = targetCanvas.width;
+            const canvasHeight = targetCanvas.height;
+            
+            // Scale for high DPI displays
+            const dpr = window.devicePixelRatio || 1;
+            const scalebarWidth = params.pixelWidth * dpr;
+            const segmentCount = 4; // Number of black/white segments
+            const segmentWidth = scalebarWidth / segmentCount;
+            const barHeight = 12 * dpr;
+            
+            // Position: bottom-left with padding
+            const padding = 20 * dpr;
+            const x = padding;
+            const y = canvasHeight - padding - barHeight - 25 * dpr; // Extra space for text
+            
+            // Draw background box for better visibility
+            const bgPadding = 10 * dpr;
+            ctx.fillStyle = 'rgba(4, 29, 49, 0.85)';
+            ctx.fillRect(
+                x - bgPadding, 
+                y - bgPadding, 
+                scalebarWidth + bgPadding * 2, 
+                barHeight + 45 * dpr + bgPadding
+            );
+            
+            // Draw alternating black and white rectangles
+            for (let i = 0; i < segmentCount; i++) {
+                ctx.fillStyle = i % 2 === 0 ? '#000000' : '#ffffff';
+                ctx.fillRect(x + i * segmentWidth, y, segmentWidth, barHeight);
+            }
+            
+            // Draw border around the entire bar
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1 * dpr;
+            ctx.strokeRect(x, y, scalebarWidth, barHeight);
+            
+            // Draw numbers
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `${12 * dpr}px Arial`;
+            ctx.textAlign = 'center';
+            
+            // Number at start (0)
+            ctx.fillText('0', x, y + barHeight + 15 * dpr);
+            
+            // Number at end
+            const endLabel = params.units >= 1 ? params.units.toString() : params.units.toFixed(2);
+            ctx.fillText(endLabel, x + scalebarWidth, y + barHeight + 15 * dpr);
+            
+            // Units label
+            ctx.font = `${10 * dpr}px Arial`;
+            ctx.fillStyle = '#aaaaaa';
+            ctx.textAlign = 'left';
+            ctx.fillText('units (scale depends on model source)', x, y + barHeight + 30 * dpr);
+        }
+
+        function showScalebarConfirm(switchCallback, noSwitchCallback) {
+            scalebarConfirmCallback = switchCallback;
+            scalebarNoSwitchCallback = noSwitchCallback;
+            scalebarConfirmOverlay.classList.add('visible');
+        }
+
+        function hideScalebarConfirm() {
+            scalebarConfirmOverlay.classList.remove('visible');
+            scalebarConfirmCallback = null;
+            scalebarNoSwitchCallback = null;
+        }
+
         function positionPopup(popup, x, y) {
             popup.style.transform = 'none';
             popup.style.left = `${x + 10}px`;
@@ -4109,8 +4239,42 @@
 
         // ============ Screenshot ============
         function takeScreenshot() {
+            if (!isOrthographic) {
+                // Show confirmation dialog for perspective mode
+                showScalebarConfirm(
+                    () => {
+                        // User chose to switch to orthographic
+                        toggleCamera();
+                        setTimeout(() => {
+                            captureScreenshot(true);
+                        }, 100);
+                    },
+                    () => {
+                        // User chose to continue without scalebar
+                        captureScreenshot(false);
+                    }
+                );
+            } else {
+                captureScreenshot(true);
+            }
+        }
+        
+        function captureScreenshot(includeScalebar) {
             renderer.render(scene, camera);
-            const dataURL = renderer.domElement.toDataURL('image/png');
+            
+            // Create a copy of the canvas to draw scalebar on
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const ctx = tempCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, 0);
+            
+            // Draw scalebar if in orthographic mode
+            if (includeScalebar && isOrthographic) {
+                drawScalebarOnCanvas(tempCanvas);
+            }
+            
+            const dataURL = tempCanvas.toDataURL('image/png');
             
             const link = document.createElement('a');
             link.download = `meshnotes-screenshot-${Date.now()}.png`;
@@ -4151,6 +4315,28 @@
                 showStatus('No model loaded');
                 return;
             }
+            
+            if (!isOrthographic) {
+                // Show confirmation dialog for perspective mode
+                showScalebarConfirm(
+                    () => {
+                        // User chose to switch to orthographic
+                        toggleCamera();
+                        setTimeout(() => {
+                            doExportPdfReport(true);
+                        }, 100);
+                    },
+                    () => {
+                        // User chose to continue without scalebar
+                        doExportPdfReport(false);
+                    }
+                );
+            } else {
+                doExportPdfReport(true);
+            }
+        }
+        
+        async function doExportPdfReport(includeScalebar) {
 
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4');
@@ -4216,7 +4402,20 @@
             // Overview screenshot
             await delay(100);
             renderer.render(scene, camera);
-            const overviewImg = renderer.domElement.toDataURL('image/jpeg', 0.9);
+            
+            // Create canvas with scalebar if applicable
+            let overviewImg;
+            if (includeScalebar && isOrthographic) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                const ctx = tempCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, 0);
+                drawScalebarOnCanvas(tempCanvas);
+                overviewImg = tempCanvas.toDataURL('image/jpeg', 0.9);
+            } else {
+                overviewImg = renderer.domElement.toDataURL('image/jpeg', 0.9);
+            }
             // Calculate height based on canvas aspect ratio
             const canvasAspect = canvas.width / canvas.height;
             const imgHeight = contentWidth / canvasAspect;
@@ -4425,8 +4624,19 @@
                     await delay(50);
                     renderer.render(scene, camera);
 
-                    // Capture screenshot
-                    const screenshot = renderer.domElement.toDataURL('image/jpeg', 0.9);
+                    // Capture screenshot with scalebar if applicable
+                    let screenshot;
+                    if (includeScalebar && isOrthographic) {
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = canvas.width;
+                        tempCanvas.height = canvas.height;
+                        const ctx = tempCanvas.getContext('2d');
+                        ctx.drawImage(canvas, 0, 0);
+                        drawScalebarOnCanvas(tempCanvas);
+                        screenshot = tempCanvas.toDataURL('image/jpeg', 0.9);
+                    } else {
+                        screenshot = renderer.domElement.toDataURL('image/jpeg', 0.9);
+                    }
 
                     // Restore original marker scales
                     originalScales.forEach(({ obj, scale }) => {
@@ -4766,6 +4976,20 @@
         confirmOverlay.addEventListener('click', (e) => {
             if (e.target === confirmOverlay) hideConfirm();
         });
+        
+        // Scalebar confirmation dialog
+        scalebarSwitch.addEventListener('click', () => {
+            if (scalebarConfirmCallback) scalebarConfirmCallback();
+            hideScalebarConfirm();
+        });
+        scalebarNoSwitch.addEventListener('click', () => {
+            const callback = scalebarNoSwitchCallback;
+            hideScalebarConfirm();
+            if (callback) callback();
+        });
+        scalebarConfirmOverlay.addEventListener('click', (e) => {
+            if (e.target === scalebarConfirmOverlay) hideScalebarConfirm();
+        });
 
         canvas.addEventListener('click', onCanvasClick);
         canvas.addEventListener('dblclick', onCanvasDblClick);
@@ -4825,6 +5049,12 @@
                 // Close legal modal if open
                 if (legalOverlay.classList.contains('visible')) {
                     legalOverlay.classList.remove('visible');
+                    return;
+                }
+                
+                // Close scalebar confirm dialog if open
+                if (scalebarConfirmOverlay.classList.contains('visible')) {
+                    hideScalebarConfirm();
                     return;
                 }
                 
