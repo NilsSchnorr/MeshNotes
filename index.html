@@ -1354,6 +1354,18 @@
                 </section>
 
                 <section>
+                    <h3>Quick Start</h3>
+                    <div style="background: #041D31; padding: 16px; border-radius: 6px;">
+                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Load GLB</strong> and select a 3D model file (.glb or .gltf format). If your model is OBJ or PLY, convert it first using Blender or MeshLab.</p>
+                        <p style="margin-bottom: 12px;"><strong>2. Add annotations</strong> — Select a tool (Point, Line, Polygon, or Surface) and click on the model. Double-click to finish lines/polygons/surfaces.</p>
+                        <p style="margin-bottom: 12px;"><strong>3. Navigate annotations</strong> — Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing.</p>
+                        <p style="margin-bottom: 12px;"><strong>4. Adjust annotations</strong> — When no tool is active, drag any annotation point to reposition it. Use groups to organize and color-code your work.</p>
+                        <p style="margin-bottom: 12px;"><strong>5. Take measurements</strong> — Use the Measure tool to click two points and get the distance. Press Escape to clear.</p>
+                        <p style="margin-bottom: 0;"><strong>6. Export your work</strong> — Click <strong>JSON</strong> to save annotations for backup or team sharing. Click <strong>PDF</strong> to generate a documentation report with screenshots.</p>
+                    </div>
+                </section>
+
+                <section>
                     <h3>Manual</h3>
 
                     <div class="manual-item">
@@ -1362,7 +1374,8 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Load GLB</strong> to open a 3D model file. The tool supports <code>.glb</code> and <code>.gltf</code> formats. Convert your OBJ or PLY models to GLB using Blender or MeshLab for best compatibility. After loading, the face count is displayed in the bottom-right corner.</p>
+                            <p>Click <strong>Load GLB</strong> to open a 3D model file. The tool supports <code>.glb</code> and <code>.gltf</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
+                            <p style="margin-top: 10px;"><strong>Converting Models:</strong> If your model is in OBJ or PLY format, convert it to GLB using <a href="https://www.blender.org/" target="_blank">Blender</a> or <a href="https://www.meshlab.net/" target="_blank">MeshLab</a> for best compatibility. GLB is lightweight, embeds textures, and works best with the Three.js viewer architecture.</p>
                         </div>
                     </div>
 
@@ -1546,6 +1559,16 @@
                         </div>
                     </div>
 
+                </section>
+
+                <section>
+                    <h3>Credits & License</h3>
+                    <p>MeshNotes uses the following open-source libraries:</p>
+                    <ul style="margin: 12px 0 12px 20px; color: #ccc;">
+                        <li><a href="https://threejs.org/" target="_blank">Three.js</a> (MIT License) — 3D rendering</li>
+                        <li><a href="https://github.com/parallax/jsPDF" target="_blank">jsPDF</a> (MIT License) — PDF generation</li>
+                    </ul>
+                    <p>MeshNotes itself is licensed under the <strong>MIT License</strong> — free to use, modify, and distribute. See the <a href="https://github.com/NilsSchnorr/MeshNotes/blob/main/LICENSE" target="_blank">LICENSE file</a> for details.</p>
                 </section>
             </div>
         </div>
