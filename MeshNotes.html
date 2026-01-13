@@ -46,7 +46,7 @@
             font-size: 22px;
         }
 
-        #btn-about {
+        #btn-about, #btn-legal {
             padding: 8px 16px;
             background: #1A5A8A;
             border: none;
@@ -57,8 +57,13 @@
             transition: background 0.2s;
         }
 
-        #btn-about:hover {
+        #btn-about:hover, #btn-legal:hover {
             background: #2A6A9A;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
         }
 
         #container {
@@ -961,6 +966,113 @@
             display: flex;
         }
 
+        /* Legal Modal */
+        #legal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #legal-overlay.visible {
+            display: flex;
+        }
+
+        #legal-modal {
+            background: #0A3559;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        #legal-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #1A5A8A;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #legal-modal-header h2 {
+            font-size: 18px;
+            color: #eee;
+        }
+
+        #legal-modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        #legal-modal-close:hover {
+            background: #1A5A8A;
+            color: #eee;
+        }
+
+        #legal-modal-content {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        #legal-modal-content section {
+            margin-bottom: 24px;
+        }
+
+        #legal-modal-content section:last-child {
+            margin-bottom: 0;
+        }
+
+        #legal-modal-content h3 {
+            font-size: 16px;
+            color: #EDC040;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #1A5A8A;
+        }
+
+        #legal-modal-content p {
+            color: #ccc;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        #legal-modal-content a {
+            color: #EDC040;
+            text-decoration: none;
+        }
+
+        #legal-modal-content a:hover {
+            text-decoration: underline;
+        }
+
+        #legal-modal-content h4 {
+            font-size: 14px;
+            color: #EDC040;
+            margin: 20px 0 8px 0;
+            font-weight: 600;
+        }
+
+        #legal-modal-content strong {
+            color: #eee;
+        }
+
         #about-modal {
             background: #0A3559;
             border-radius: 12px;
@@ -1201,7 +1313,10 @@
     <!-- Header -->
     <header id="header">
         <h1>MeshNotes</h1>
-        <button id="btn-about">About / Help</button>
+        <div class="header-buttons">
+            <button id="btn-about">About / Help</button>
+            <button id="btn-legal">Legal / Data</button>
+        </div>
     </header>
 
     <!-- About Modal -->
@@ -1431,6 +1546,128 @@
                         </div>
                     </div>
 
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legal Modal -->
+    <div id="legal-overlay">
+        <div id="legal-modal">
+            <div id="legal-modal-header">
+                <h2>Legal Information and Data Policy / Impressum und Datenschutz</h2>
+                <button id="legal-modal-close">✕</button>
+            </div>
+            <div id="legal-modal-content">
+                <section>
+                    <div style="background: #041D31; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+                        <p style="margin-bottom: 8px;"><strong>🔗 Open Source Repository</strong></p>
+                        <p style="margin-bottom: 0;">Want to use the tool without accessing this website? Feel free to download or clone the repository at <a href="https://github.com/NilsSchnorr/MeshNotes" target="_blank">github.com/NilsSchnorr/MeshNotes</a></p>
+                    </div>
+                </section>
+
+                <!-- ENGLISH VERSION -->
+                <section>
+                    <h3>Legal Notice (English)</h3>
+                    <p>
+                        <strong>Nils Schnorr</strong><br>
+                        <a href="mailto:nils.schnorr@uni-saarland.de">nils.schnorr@uni-saarland.de</a><br>
+                        Gartenstr. 8<br>
+                        66125 Saarbrücken, Germany
+                    </p>
+                    
+                    <h4>Disclaimer</h4>
+                    
+                    <p><strong>Liability for Content</strong><br>
+                    As a service provider, we are responsible for our own content on these pages in accordance with general legislation pursuant to Section 7 (1) of the German Telemedia Act (TMG). However, according to Sections 8 to 10 TMG, we are not obligated to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity. Obligations to remove or block the use of information under general law remain unaffected. However, liability in this regard is only possible from the time of knowledge of a specific infringement. Upon becoming aware of such violations, we will remove this content immediately.</p>
+                    
+                    <p><strong>Liability for Links</strong><br>
+                    Our website contains links to external third-party websites over whose content we have no control. Therefore, we cannot accept any liability for this third-party content. The respective provider or operator of the linked pages is always responsible for the content of those pages. The linked pages were checked for possible legal violations at the time of linking. Illegal content was not recognizable at the time of linking. Permanent content control of the linked pages is not reasonable without concrete evidence of a violation of the law. Upon becoming aware of legal violations, we will remove such links immediately.</p>
+                    
+                    <p><strong>Copyright</strong><br>
+                    The content and works created by the site operators on these pages are subject to German copyright law. Duplication, processing, distribution, and any kind of exploitation outside the limits of copyright law require the written consent of the respective author or creator. Insofar as the content on this site was not created by the operator, the copyrights of third parties are respected. In particular, third-party content is marked as such. Should you nevertheless become aware of a copyright infringement, please inform us accordingly. Upon becoming aware of legal violations, we will remove such content immediately.</p>
+                </section>
+
+                <section>
+                    <h3>Data Policy (English)</h3>
+                    
+                    <p>The GDPR requires transparency about how and why your personal data is processed.</p>
+                    
+                    <h4>Hosting</h4>
+                    <p>The host operates a web server to deliver static pages.</p>
+                    
+                    <p><strong>Hosting via GitHub Pages</strong><br>
+                    This tool is open source and hosted on "GitHub Pages". GitHub declares its handling of data in their <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank">Privacy Policy</a>.</p>
+                    
+                    <p style="font-style: italic; padding-left: 16px; border-left: 3px solid #1A5A8A;">"... we only collect the minimum amount of personal information that is necessary to fulfill the purpose of your interaction with us ..."</p>
+                    
+                    <p>As a US company, GitHub complies with the Privacy Shield requirements for users from the EU.</p>
+                    
+                    <p><strong>Hosting as a Static Website</strong><br>
+                    This is a static website, meaning this "tool" is pre-built on the host's web server and delivered unchanged when you open the tool in your browser. During such an HTTP request, your browser transmits your IP address and the path of the requested page. This is necessary for the server to load and deliver the requested page to your browser.</p>
+                    
+                    <p><strong>Server Logs</strong><br>
+                    During the HTTP request, in addition to your IP address and the requested page, the referrer (the page where you clicked the link), information about your browser, and your operating system are transmitted to the web server. The host stores this information in server logs to monitor operations so that disruptions and misuse can be quickly detected and resolved.</p>
+                    
+                    <h4>Business-Related Processing</h4>
+                    <p>This tool is open-source and non-commercial. No data from you is processed in this regard by the author of "MeshNotes".</p>
+                    
+                    <h4>Open Source Contributions</h4>
+                    <p>"MeshNotes" is an open-source project hosted at <a href="https://github.com/NilsSchnorr/MeshNotes" target="_blank">github.com/NilsSchnorr/MeshNotes</a>. You can contribute if you wish, for example by submitting a pull request on GitHub. Please note: This project is published under an MIT license, which will also apply to your contributions if the pull requests are accepted.</p>
+                </section>
+
+                <hr style="border: none; border-top: 2px solid #1A5A8A; margin: 32px 0;">
+
+                <!-- GERMAN VERSION -->
+                <section>
+                    <h3>Legal / Impressum (Deutsch)</h3>
+                    <p>
+                        <strong>Nils Schnorr</strong><br>
+                        <a href="mailto:nils.schnorr@uni-saarland.de">nils.schnorr@uni-saarland.de</a><br>
+                        Gartenstr. 8<br>
+                        66125 Saarbrücken
+                    </p>
+                    
+                    <h4>Haftungsausschluss (Disclaimer)</h4>
+                    
+                    <p><strong>Haftung für Inhalte</strong><br>
+                    Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese Inhalte umgehend entfernen.</p>
+                    
+                    <p><strong>Haftung für Links</strong><br>
+                    Unser Angebot enthält Links zu externen Webseiten Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend entfernen.</p>
+                    
+                    <p><strong>Urheberrecht</strong><br>
+                    Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Soweit die Inhalte auf dieser Seite nicht vom Betreiber erstellt wurden, werden die Urheberrechte Dritter beachtet. Insbesondere werden Inhalte Dritter als solche gekennzeichnet. Sollten Sie trotzdem auf eine Urheberrechtsverletzung aufmerksam werden, bitten wir um einen entsprechenden Hinweis. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Inhalte umgehend entfernen.</p>
+                    
+                    <p style="color: #888; font-size: 12px;">Quelle: eRecht24</p>
+                </section>
+
+                <section>
+                    <h3>Datenschutz (Deutsch)</h3>
+                    
+                    <p>Die DSGVO sieht vor, dass Sie Transparenz darüber erhalten, wie und wozu Ihre personenbezogenen Daten verarbeitet werden.</p>
+                    
+                    <h4>Hosting</h4>
+                    <p>Der Hoster betreibt einen Web-Server zur Auslieferung der statischer Seiten.</p>
+                    
+                    <p><strong>Hosting durch GitHub Pages</strong><br>
+                    Dieses Tool ist Open Source und wird bei "GitHub Pages" gehosted. GitHub deklariert seinen Umgang mit Daten in dieser <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank">Privacy Policy</a>.</p>
+                    
+                    <p style="font-style: italic; padding-left: 16px; border-left: 3px solid #1A5A8A;">"... we only collect the minimum amount of personal information that is necessary to fulfill the purpose of your interaction with us ..."</p>
+                    
+                    <p>GitHub erfüllt als US-Unternehmen die Anforderungen des Privacy Shield für Nutzer aus der EU.</p>
+                    
+                    <p><strong>Hosting als statische Website</strong><br>
+                    Dies ist eine statische Website, d.h. dieses „Tool" liegt vorgefertigt auf dem Web-Server des Hosters und wird unverändert ausgeliefert, sobald Sie das Tool im Browser öffnen. Bei einem solchen http-Request überträgt Ihr Browser Ihre IP-Adresse und den Pfad der angeforderten Seite. Dies ist notwendig, damit der Browser die angeforderte Seite laden und an Ihren Browser ausliefern kann.</p>
+                    
+                    <p><strong>Server-Logs</strong><br>
+                    Beim http-Request werden neben Ihrer IP-Adresse und der angeforderten Seite auch der Referrer (die Seite auf der Sie den Link geklickt haben), Informationen über Ihren Browser und Ihr Betriebssystem an den Web-Server übermittelt. Der Hoster speichert diese Informationen in Server-Logs, um den Betrieb zu überwachen, damit Störungen und Missbrauchsfälle schnell erkannt und behoben werden können.</p>
+                    
+                    <h4>Geschäftsbezogene Verarbeitung</h4>
+                    <p>Dieses Tool ist Open-Source und nicht kommerziell. Es werden keine Daten von Ihnen in diesem Hinblick vom Autor von „MeshNotes" verarbeitet.</p>
+                    
+                    <h4>Open-Source-Beiträge</h4>
+                    <p>„MeshNotes" ist ein Open-Source-Projekt, gehostet auf <a href="https://github.com/NilsSchnorr/MeshNotes" target="_blank">github.com/NilsSchnorr/MeshNotes</a>. Sie können dazu beitragen, wenn Sie möchten, z. B. durch einen Pull-Request auf GitHub. Beachten Sie dabei: Dieses Projekt ist unter einer MIT Lizenz veröffentlicht, diese gilt dann auch für Ihre Beiträge, wenn die Pull-Requests angenommen werden.</p>
                 </section>
             </div>
         </div>
@@ -1760,6 +1997,9 @@
         const aboutOverlay = document.getElementById('about-overlay');
         const btnAbout = document.getElementById('btn-about');
         const aboutModalClose = document.getElementById('about-modal-close');
+        const legalOverlay = document.getElementById('legal-overlay');
+        const btnLegal = document.getElementById('btn-legal');
+        const legalModalClose = document.getElementById('legal-modal-close');
         const cameraToggle = document.getElementById('camera-toggle');
 
         let pendingLinks = [];
@@ -4528,6 +4768,21 @@
             }
         });
 
+        // Legal modal
+        btnLegal.addEventListener('click', () => {
+            legalOverlay.classList.add('visible');
+        });
+
+        legalModalClose.addEventListener('click', () => {
+            legalOverlay.classList.remove('visible');
+        });
+
+        legalOverlay.addEventListener('click', (e) => {
+            if (e.target === legalOverlay) {
+                legalOverlay.classList.remove('visible');
+            }
+        });
+
         cameraToggle.addEventListener('click', toggleCamera);
 
         document.addEventListener('keydown', (e) => {
@@ -4541,6 +4796,12 @@
                 // Close about modal if open
                 if (aboutOverlay.classList.contains('visible')) {
                     aboutOverlay.classList.remove('visible');
+                    return;
+                }
+                
+                // Close legal modal if open
+                if (legalOverlay.classList.contains('visible')) {
+                    legalOverlay.classList.remove('visible');
                     return;
                 }
                 
