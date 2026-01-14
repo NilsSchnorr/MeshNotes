@@ -379,6 +379,20 @@
             color: #EDC040;
             margin-bottom: 12px;
             font-size: 14px;
+            cursor: move;
+            user-select: none;
+            padding: 4px 8px;
+            margin: -4px -8px 12px -8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .popup h3:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .popup h3:active {
+            background: rgba(255, 255, 255, 0.15);
         }
 
         .popup label {
@@ -442,6 +456,13 @@
             width: 400px;
             max-height: 80vh;
             overflow-y: auto;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #annotation-popup.visible {
+            transform: none;
         }
 
         /* Entries in annotation popup */
@@ -2151,6 +2172,21 @@
         let confirmCallback = null;
         let scalebarConfirmCallback = null;
         let scalebarNoSwitchCallback = null;
+        
+        // Popup dragging
+        let isDraggingPopup = false;
+        let popupDragOffsetX = 0;
+        let popupDragOffsetY = 0;
+        
+        function resetPopupPosition() {
+            // Center the popup in the viewport
+            const viewportWidth = window.innerWidth - 320;
+            const viewportHeight = window.innerHeight - 50;
+            annotationPopup.style.left = Math.max(20, (viewportWidth - 400) / 2) + 'px';
+            annotationPopup.style.top = Math.max(20, (viewportHeight - 400) / 2) + 'px';
+            annotationPopup.style.right = 'auto';
+            annotationPopup.style.bottom = 'auto';
+        }
         
         // Get last used author from localStorage
         const AUTHOR_STORAGE_KEY = 'meshnotes_author';
@@ -5567,6 +5603,39 @@
         lightToggle.addEventListener('click', toggleLightMode);
         lightAzimuthSlider.addEventListener('input', (e) => setLightAzimuth(parseInt(e.target.value)));
         lightElevationSlider.addEventListener('input', (e) => setLightElevation(parseInt(e.target.value)));
+
+        // Popup dragging
+        popupTitle.addEventListener('mousedown', (e) => {
+            isDraggingPopup = true;
+            const rect = annotationPopup.getBoundingClientRect();
+            popupDragOffsetX = e.clientX - rect.left;
+            popupDragOffsetY = e.clientY - rect.top;
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingPopup) return;
+            
+            const viewportWidth = window.innerWidth - 320; // Account for sidebar
+            const viewportHeight = window.innerHeight - 50; // Account for header
+            const popupRect = annotationPopup.getBoundingClientRect();
+            
+            let newX = e.clientX - popupDragOffsetX;
+            let newY = e.clientY - popupDragOffsetY - 50; // Offset for header
+            
+            // Keep popup within viewport bounds
+            newX = Math.max(0, Math.min(newX, viewportWidth - popupRect.width));
+            newY = Math.max(0, Math.min(newY, viewportHeight - popupRect.height));
+            
+            annotationPopup.style.left = newX + 'px';
+            annotationPopup.style.top = newY + 'px';
+            annotationPopup.style.right = 'auto';
+            annotationPopup.style.bottom = 'auto';
+        });
+        
+        document.addEventListener('mouseup', () => {
+            isDraggingPopup = false;
+        });
 
         // About modal
         btnAbout.addEventListener('click', () => {
