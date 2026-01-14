@@ -847,7 +847,7 @@
             display: none;
             position: absolute;
             bottom: 10px;
-            right: 10px;
+            right: 230px;
             background: rgba(10, 53, 89, 0.8);
             color: #888;
             padding: 6px 10px;
@@ -939,13 +939,71 @@
         /* Sliders panel */
         #sliders-panel {
             position: absolute;
-            bottom: 50px;
-            right: 340px;
+            bottom: 10px;
+            right: 10px;
             background: rgba(10, 53, 89, 0.95);
             padding: 12px 16px;
             border-radius: 6px;
             z-index: 100;
-            min-width: 180px;
+            min-width: 210px;
+        }
+
+        /* Light mode toggle */
+        .light-mode-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .light-mode-row label {
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .light-toggle-btn {
+            padding: 4px 10px;
+            background: #041D31;
+            border: 1px solid #1A5A8A;
+            border-radius: 4px;
+            color: #eee;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .light-toggle-btn:hover {
+            border-color: #EDC040;
+        }
+
+        .light-toggle-btn.active {
+            background: #AA8101;
+            border-color: #AA8101;
+        }
+
+        #light-direction-row {
+            display: none;
+        }
+
+        #light-direction-row.visible {
+            display: block;
+        }
+
+        /* Light direction sliders */
+        .light-sliders-group {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+
+        .light-sliders-group .slider-row {
+            margin-bottom: 8px;
+        }
+
+        .light-sliders-group .slider-row:last-child {
+            margin-bottom: 0;
         }
 
         /* About Modal */
@@ -1388,6 +1446,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p><strong>Texture:</strong> Toggle the model's texture on/off to see the underlying geometry. <strong>Brightness slider:</strong> Adjust scene lighting from 0% to 300%. <strong>Opacity slider:</strong> Make the model transparent (10-100%) to see annotations that pass through it.</p>
+                            <p style="margin-top: 10px;"><strong>Light Source:</strong> By default, the main light follows your camera view, ensuring consistent illumination from any angle. Click the toggle to switch to <strong>Fixed Direction</strong> mode, which reveals two sliders: <strong>Horizontal</strong> (0°-360°) rotates the light around the model, and <strong>Vertical</strong> (-90° to +90°) adjusts the light height from below (-90°) through the horizon (0°) to directly above (+90°). This is ideal for raking light analysis of surface details like tool marks, inscriptions, or weathering patterns. The light is automatically boosted in fixed mode for better shadow visibility.</p>
                         </div>
                     </div>
 
@@ -1520,6 +1579,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>PDF</strong> to generate a professional PDF report of your annotations. The report includes: a title page with model overview and model information, a table of contents, and one page per annotation with an auto-captured screenshot and all entry details. Only visible annotations are included — hide groups you don't want in the report. The PDF is formatted for A4 paper and suitable for academic documentation and publication.</p>
+                            <p style="margin-top: 10px;"><strong>Note:</strong> PDF screenshots always use camera-linked lighting for consistent illumination across all views, regardless of your current light source setting.</p>
                         </div>
                     </div>
 
@@ -1760,6 +1820,28 @@
             </div>
 
             <div id="sliders-panel">
+                <div class="light-mode-row">
+                    <label>Light Source</label>
+                    <button class="light-toggle-btn active" id="light-toggle" title="Toggle between camera-linked and fixed light">Follows Camera</button>
+                </div>
+                <div id="light-direction-row">
+                    <div class="light-sliders-group">
+                        <div class="slider-row">
+                            <label>
+                                <span>Horizontal</span>
+                                <span id="light-azimuth-value">0°</span>
+                            </label>
+                            <input type="range" id="light-azimuth-slider" min="0" max="360" value="0">
+                        </div>
+                        <div class="slider-row">
+                            <label>
+                                <span>Vertical</span>
+                                <span id="light-elevation-value">45°</span>
+                            </label>
+                            <input type="range" id="light-elevation-slider" min="-90" max="90" value="45">
+                        </div>
+                    </div>
+                </div>
                 <div class="slider-row">
                     <label>
                         <span>Brightness</span>
@@ -1923,6 +2005,11 @@
         let textureVisible = true;
         let modelOpacity = 1.0;
         
+        // Light controls
+        let lightFollowsCamera = true;
+        let fixedLightAzimuth = 0; // degrees (horizontal angle, 0 = front)
+        let fixedLightElevation = 45; // degrees (vertical angle, 0 = horizon, 90 = top, -90 = bottom)
+        
         // Tools
         let currentTool = null; // 'point', 'line', 'polygon', 'measure'
         let tempPoints = [];
@@ -2042,6 +2129,12 @@
         const brightnessValue = document.getElementById('brightness-value');
         const opacitySlider = document.getElementById('opacity-slider');
         const opacityValue = document.getElementById('opacity-value');
+        const lightToggle = document.getElementById('light-toggle');
+        const lightDirectionRow = document.getElementById('light-direction-row');
+        const lightAzimuthSlider = document.getElementById('light-azimuth-slider');
+        const lightAzimuthValue = document.getElementById('light-azimuth-value');
+        const lightElevationSlider = document.getElementById('light-elevation-slider');
+        const lightElevationValue = document.getElementById('light-elevation-value');
 
         const aboutOverlay = document.getElementById('about-overlay');
         const btnAbout = document.getElementById('btn-about');
@@ -2102,14 +2195,16 @@
             controls.dampingFactor = 0.05;
 
             // Lights
-            ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
             scene.add(ambientLight);
 
-            dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight1 = new THREE.DirectionalLight(0xffffff, 0.96);
             dirLight1.position.set(5, 10, 7);
+            dirLight1.target = new THREE.Object3D(); // Add target for camera-linked mode
             scene.add(dirLight1);
+            scene.add(dirLight1.target);
 
-            dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+            dirLight2 = new THREE.DirectionalLight(0xffffff, 0.48);
             dirLight2.position.set(-5, -5, -5);
             scene.add(dirLight2);
 
@@ -2156,6 +2251,12 @@
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
+            
+            // Update light position if following camera
+            if (lightFollowsCamera) {
+                updateLightFromCamera();
+            }
+            
             renderer.render(scene, camera);
         }
 
@@ -2321,9 +2422,11 @@
         // ============ Brightness Control ============
         function setBrightness(value) {
             const factor = value / 100;
-            ambientLight.intensity = 0.6 * factor;
-            dirLight1.intensity = 0.8 * factor;
-            dirLight2.intensity = 0.4 * factor;
+            ambientLight.intensity = 0.72 * factor;
+            // Apply 1.5x boost when in fixed direction mode for better raking light effect
+            const dirLightMultiplier = lightFollowsCamera ? 1.0 : 1.5;
+            dirLight1.intensity = 0.96 * factor * dirLightMultiplier;
+            dirLight2.intensity = 0.48 * factor;
             brightnessValue.textContent = `${value}%`;
         }
 
@@ -2342,6 +2445,75 @@
                     child.material.needsUpdate = true;
                 }
             });
+        }
+
+        // ============ Light Controls ============
+        function toggleLightMode() {
+            lightFollowsCamera = !lightFollowsCamera;
+            
+            if (lightFollowsCamera) {
+                lightToggle.textContent = 'Follows Camera';
+                lightToggle.classList.add('active');
+                lightDirectionRow.classList.remove('visible');
+                // Restore normal light intensity
+                dirLight1.intensity = 0.96 * (parseInt(brightnessSlider.value) / 100);
+                updateLightFromCamera();
+            } else {
+                lightToggle.textContent = 'Fixed Direction';
+                lightToggle.classList.remove('active');
+                lightDirectionRow.classList.add('visible');
+                // Boost light intensity 1.5x for better raking light shadow visibility
+                dirLight1.intensity = 0.96 * (parseInt(brightnessSlider.value) / 100) * 1.5;
+                updateFixedLightDirection();
+            }
+        }
+        
+        function updateLightFromCamera() {
+            // Position light relative to camera direction
+            const cameraDir = new THREE.Vector3();
+            camera.getWorldDirection(cameraDir);
+            
+            // Light comes from camera direction (slightly above)
+            const lightDistance = 10;
+            const lightPos = camera.position.clone().sub(cameraDir.multiplyScalar(lightDistance));
+            lightPos.y += 5; // Slightly above camera level
+            
+            dirLight1.position.copy(lightPos);
+            dirLight1.target.position.copy(controls.target);
+        }
+        
+        function updateFixedLightDirection() {
+            // Convert spherical coordinates to Cartesian
+            const azimuthRad = (fixedLightAzimuth * Math.PI) / 180;
+            const elevationRad = (fixedLightElevation * Math.PI) / 180;
+            
+            const distance = 10;
+            
+            // Spherical to Cartesian conversion
+            // Elevation: 0° = horizon, 90° = straight up, -90° = straight down
+            const y = Math.sin(elevationRad) * distance;
+            const horizontalDist = Math.cos(elevationRad) * distance;
+            const x = Math.sin(azimuthRad) * horizontalDist;
+            const z = Math.cos(azimuthRad) * horizontalDist;
+            
+            dirLight1.position.set(x, y, z);
+            dirLight1.target.position.set(0, 0, 0);
+        }
+        
+        function setLightAzimuth(value) {
+            fixedLightAzimuth = value;
+            lightAzimuthValue.textContent = `${value}°`;
+            if (!lightFollowsCamera) {
+                updateFixedLightDirection();
+            }
+        }
+        
+        function setLightElevation(value) {
+            fixedLightElevation = value;
+            lightElevationValue.textContent = `${value}°`;
+            if (!lightFollowsCamera) {
+                updateFixedLightDirection();
+            }
         }
 
         // ============ Text Sprite Helper ============
@@ -4641,6 +4813,10 @@
         }
         
         async function doExportPdfReport(includeScalebar) {
+            // Store original light settings and temporarily enable camera-linked lighting
+            // This ensures consistent lighting across all annotation screenshots
+            const originalLightMode = lightFollowsCamera;
+            lightFollowsCamera = true;
 
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4');
@@ -5045,6 +5221,12 @@
             controls.target.copy(originalTarget);
             controls.update();
             
+            // Restore original light mode
+            lightFollowsCamera = originalLightMode;
+            if (!lightFollowsCamera) {
+                updateFixedLightDirection();
+            }
+            
             // Re-render annotations to ensure normal marker sizes
             renderAnnotations();
             renderer.render(scene, camera);
@@ -5380,6 +5562,11 @@
 
         brightnessSlider.addEventListener('input', (e) => setBrightness(parseInt(e.target.value)));
         opacitySlider.addEventListener('input', (e) => setModelOpacity(parseInt(e.target.value)));
+        
+        // Light controls
+        lightToggle.addEventListener('click', toggleLightMode);
+        lightAzimuthSlider.addEventListener('input', (e) => setLightAzimuth(parseInt(e.target.value)));
+        lightElevationSlider.addEventListener('input', (e) => setLightElevation(parseInt(e.target.value)));
 
         // About modal
         btnAbout.addEventListener('click', () => {
