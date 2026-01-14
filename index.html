@@ -4354,12 +4354,13 @@
             // Parse W3C selector back to internal format
             if (!selector) return;
             
-            // Handle refined selectors
+            // Get main selector value - check direct value first, then refinedBy
+            // (Surface annotations have value at top level, others have it in refinedBy)
             let fragmentValue = null;
-            if (selector.refinedBy && selector.refinedBy.value) {
-                fragmentValue = selector.refinedBy.value;
-            } else if (selector.value) {
+            if (selector.value) {
                 fragmentValue = selector.value;
+            } else if (selector.refinedBy && selector.refinedBy.value) {
+                fragmentValue = selector.refinedBy.value;
             }
             
             if (!fragmentValue) return;
