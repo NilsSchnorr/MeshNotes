@@ -456,13 +456,6 @@
             width: 400px;
             max-height: 80vh;
             overflow-y: auto;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        #annotation-popup.visible {
-            transform: none;
         }
 
         /* Entries in annotation popup */
@@ -1567,7 +1560,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing. In the edit popup you can: change the annotation name and group, view all entries, edit existing entries (with confirmation for older entries), delete individual entries, or delete the entire annotation. Your author name is remembered for convenience.</p>
+                            <p>Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing. In the edit popup you can: change the annotation name and group, view all entries, edit existing entries (with confirmation to encourage adding new entries), delete individual entries, or delete the entire annotation. Your author name is remembered for convenience.</p>
                         </div>
                     </div>
 
@@ -3522,9 +3515,7 @@
 
             // For surface annotations, center the popup since double-click position is arbitrary
             if (type === 'surface') {
-                annotationPopup.style.left = '50%';
-                annotationPopup.style.top = '50%';
-                annotationPopup.style.transform = 'translate(-50%, -50%)';
+                resetPopupPosition();
             } else {
                 positionPopup(annotationPopup, event.clientX, event.clientY);
             }
@@ -3556,9 +3547,7 @@
             // Render existing entries
             renderEntriesList(ann);
 
-            annotationPopup.style.left = '50%';
-            annotationPopup.style.top = '50%';
-            annotationPopup.style.transform = 'translate(-50%, -50%)';
+            resetPopupPosition();
             annotationPopup.classList.add('visible');
             annName.focus();
         }
@@ -3593,9 +3582,7 @@
             // Render existing entries
             renderModelInfoEntriesList();
 
-            annotationPopup.style.left = '50%';
-            annotationPopup.style.top = '50%';
-            annotationPopup.style.transform = 'translate(-50%, -50%)';
+            resetPopupPosition();
             annotationPopup.classList.add('visible');
         }
         
@@ -3664,16 +3651,9 @@
                     const action = btn.dataset.action;
                     
                     if (action === 'edit') {
-                        const entry = modelInfo.entries.find(en => en.id === entryId);
-                        const isOldEntry = modelInfo.entries.indexOf(entry) < modelInfo.entries.length - 1;
-                        
-                        if (isOldEntry) {
-                            showConfirm('This is an older entry. Are you sure you want to edit it instead of adding a new entry?', () => {
-                                startEditingModelInfoEntry(entryId);
-                            });
-                        } else {
+                        showConfirm('Are you sure you want to edit this entry instead of adding a new one?', () => {
                             startEditingModelInfoEntry(entryId);
-                        }
+                        });
                     } else if (action === 'delete') {
                         showConfirm('Are you sure you want to delete this entry? This cannot be undone.', () => {
                             deleteModelInfoEntry(entryId);
@@ -3836,16 +3816,9 @@
                     const action = btn.dataset.action;
                     
                     if (action === 'edit') {
-                        const entry = ann.entries.find(en => en.id === entryId);
-                        const isOldEntry = ann.entries.indexOf(entry) < ann.entries.length - 1;
-                        
-                        if (isOldEntry) {
-                            showConfirm('This is an older entry. Are you sure you want to edit it instead of adding a new entry?', () => {
-                                startEditingEntry(entryId);
-                            });
-                        } else {
+                        showConfirm('Are you sure you want to edit this entry instead of adding a new one?', () => {
                             startEditingEntry(entryId);
-                        }
+                        });
                     } else if (action === 'delete') {
                         showConfirm('Are you sure you want to delete this entry? This cannot be undone.', () => {
                             deleteEntry(entryId);
