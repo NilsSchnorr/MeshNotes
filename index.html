@@ -1343,6 +1343,11 @@
             margin-bottom: 0;
         }
 
+        .slider-row.slider-divider {
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
         .slider-row label {
             display: flex;
             justify-content: space-between;
@@ -1863,7 +1868,7 @@
                     </label>
                     <input type="range" id="brightness-slider" min="0" max="300" value="100">
                 </div>
-                <div class="slider-row">
+                <div class="slider-row slider-divider">
                     <label>
                         <span>Model Opacity</span>
                         <span id="opacity-value">100%</span>
@@ -1875,7 +1880,7 @@
                         <span>Point Size</span>
                         <span id="point-size-value">100%</span>
                     </label>
-                    <input type="range" id="point-size-slider" min="25" max="300" value="100">
+                    <input type="range" id="point-size-slider" min="25" max="500" value="100">
                 </div>
                 <div class="slider-row">
                     <label>
