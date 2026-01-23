@@ -1870,6 +1870,20 @@
                     </label>
                     <input type="range" id="opacity-slider" min="10" max="100" value="100">
                 </div>
+                <div class="slider-row">
+                    <label>
+                        <span>Point Size</span>
+                        <span id="point-size-value">100%</span>
+                    </label>
+                    <input type="range" id="point-size-slider" min="25" max="300" value="100">
+                </div>
+                <div class="slider-row">
+                    <label>
+                        <span>Text Size</span>
+                        <span id="text-size-value">100%</span>
+                    </label>
+                    <input type="range" id="text-size-slider" min="25" max="300" value="100">
+                </div>
             </div>
 
             <div id="status"></div>
@@ -2018,6 +2032,8 @@
         let originalMaterials = new Map();
         let textureVisible = true;
         let modelOpacity = 1.0;
+        let pointSizeMultiplier = 1.0;
+        let textSizeMultiplier = 1.0;
         
         // Light controls
         let lightFollowsCamera = true;
@@ -2149,6 +2165,10 @@
         const lightAzimuthValue = document.getElementById('light-azimuth-value');
         const lightElevationSlider = document.getElementById('light-elevation-slider');
         const lightElevationValue = document.getElementById('light-elevation-value');
+        const pointSizeSlider = document.getElementById('point-size-slider');
+        const pointSizeValue = document.getElementById('point-size-value');
+        const textSizeSlider = document.getElementById('text-size-slider');
+        const textSizeValue = document.getElementById('text-size-value');
 
         const aboutOverlay = document.getElementById('about-overlay');
         const btnAbout = document.getElementById('btn-about');
@@ -2476,6 +2496,22 @@
             });
         }
 
+        // ============ Point Size Control ============
+        function setPointSize(value) {
+            pointSizeMultiplier = value / 100;
+            pointSizeValue.textContent = `${value}%`;
+            localStorage.setItem('meshnotes_pointSize', value);
+            renderAnnotations();
+        }
+
+        // ============ Text Size Control ============
+        function setTextSize(value) {
+            textSizeMultiplier = value / 100;
+            textSizeValue.textContent = `${value}%`;
+            localStorage.setItem('meshnotes_textSize', value);
+            renderAnnotations();
+        }
+
         // ============ Light Controls ============
         function toggleLightMode() {
             lightFollowsCamera = !lightFollowsCamera;
@@ -2604,7 +2640,7 @@
                 const box = new THREE.Box3().setFromObject(currentModel);
                 const size = box.getSize(new THREE.Vector3());
                 const maxDim = Math.max(size.x, size.y, size.z);
-                sprite.scale.multiplyScalar(Math.pow(maxDim, 0.7) * 0.085 * scaleFactor);
+                sprite.scale.multiplyScalar(Math.pow(maxDim, 0.7) * 0.085 * scaleFactor * textSizeMultiplier);
             }
             
             return sprite;
@@ -3247,7 +3283,7 @@
                 const box = new THREE.Box3().setFromObject(currentModel);
                 const size = box.getSize(new THREE.Vector3());
                 const maxDim = Math.max(size.x, size.y, size.z);
-                marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05);  // Larger markers
+                marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * pointSizeMultiplier);  // Larger markers
             }
 
             annotationObjects.add(marker);
@@ -4248,7 +4284,7 @@
                     const material = new THREE.MeshBasicMaterial({ color });
                     const marker = new THREE.Mesh(geometry, material);
                     marker.position.set(ann.points[0].x, ann.points[0].y, ann.points[0].z);
-                    marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.025);
+                    marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.025 * pointSizeMultiplier);
                     marker.userData.annotationId = ann.id;
                     marker.userData.pointIndex = 0;
                     marker.userData.isAnnotationMarker = true;
@@ -4294,7 +4330,7 @@
                         const material = new THREE.MeshBasicMaterial({ color });
                         const marker = new THREE.Mesh(geometry, material);
                         marker.position.set(p.x, p.y, p.z);
-                        marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018);
+                        marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * pointSizeMultiplier);
                         marker.userData.annotationId = ann.id;
                         marker.userData.pointIndex = index;
                         marker.userData.isAnnotationMarker = true;
@@ -5576,6 +5612,8 @@
         lightToggle.addEventListener('click', toggleLightMode);
         lightAzimuthSlider.addEventListener('input', (e) => setLightAzimuth(parseInt(e.target.value)));
         lightElevationSlider.addEventListener('input', (e) => setLightElevation(parseInt(e.target.value)));
+        pointSizeSlider.addEventListener('input', (e) => setPointSize(parseInt(e.target.value)));
+        textSizeSlider.addEventListener('input', (e) => setTextSize(parseInt(e.target.value)));
 
         // Popup dragging
         popupTitle.addEventListener('mousedown', (e) => {
@@ -5687,6 +5725,21 @@
 
         // ============ Start ============
         init();
+        
+        // Load saved slider settings
+        const savedPointSize = localStorage.getItem('meshnotes_pointSize');
+        if (savedPointSize) {
+            pointSizeSlider.value = savedPointSize;
+            pointSizeMultiplier = parseInt(savedPointSize) / 100;
+            pointSizeValue.textContent = `${savedPointSize}%`;
+        }
+        
+        const savedTextSize = localStorage.getItem('meshnotes_textSize');
+        if (savedTextSize) {
+            textSizeSlider.value = savedTextSize;
+            textSizeMultiplier = parseInt(savedTextSize) / 100;
+            textSizeValue.textContent = `${savedTextSize}%`;
+        }
     </script>
 </body>
 </html>
