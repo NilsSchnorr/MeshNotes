@@ -14,14 +14,16 @@ You can either download the html file and documentation here or use the deployed
 
 Key features include:
 - **Multi-entry annotations** — multiple users can add observations to the same feature with individual timestamps
-- **Annotation types** — points, lines, polygons, and surface painting (surface painting works only for objects up to about 1m faces)
+- **Annotation types** — points, lines, polygons, and surface painting (surface painting works best on models under 500k faces)
 - **Measurement tools** — measure distances directly on the model
 - **Groups** — organize annotations with customizable colors and visibility toggles
 - **Model Information** — add general notes about the entire model
 - **Draggable points** — reposition annotation markers without recreating them
 - **W3C Web Annotation export/import** — interoperable format (.jsonld) compatible with IIIF viewers and other annotation tools
 - **PDF reports** — generate a PDF file for documentation/communication with auto-captured screenshots and all information gathered in the annotation process
-- **Display controls** — adjust brightness, opacity, and toggle textures
+- **Screenshots** — save the current view as a PNG image for documentation
+- **Display controls** — adjust brightness, opacity, point size, text size, and toggle textures
+- **Light controls** — camera-linked or fixed direction lighting with horizontal/vertical control for raking light analysis
 
 The tool runs entirely in your browser — no installation or server required. Simply open the HTML file and start annotating. Your data stays on your computer unless you share the exported JSON file.
 
@@ -37,6 +39,10 @@ The tool runs entirely in your browser — no installation or server required. S
 
 If your model is in OBJ or PLY format, convert it to GLB using [Blender](https://www.blender.org/) or [MeshLab](https://www.meshlab.net/) for best compatibility.
 
+### Model Orientation
+
+Ensure your model is oriented correctly (typically Y-up or Z-up) before exporting. The viewer's navigation is based on the model's original orientation and cannot be changed after loading. If your model appears upside down or sideways, re-export it with the correct orientation in your 3D software.
+
 ## Usage Tips
 
 - **Single-click** an annotation in the sidebar to focus the camera on it
@@ -45,7 +51,10 @@ If your model is in OBJ or PLY format, convert it to GLB using [Blender](https:/
 - **Surface tool**: Right-click and drag to rotate the view while painting — paint a continuous surface annotation from multiple angles (e.g., wrapping around a statue's arm)
 - **Measurements** are displayed in "units" — the actual unit (meters, millimeters, etc.) depends on how your 3D model was created or exported
 - **Camera toggle**: Click "Perspective/Orthographic" in the top-right to switch views — orthographic removes perspective distortion for accurate documentation
+- **Fixed light direction**: Switch to fixed lighting mode and use the horizontal/vertical sliders for raking light analysis of surface details like tool marks or inscriptions
 - Use the **opacity slider** to see annotations on the back side of the model
+- Use the **point size** and **text size** sliders to adjust annotation visibility for your model's scale
+- **Screenshots**: Click the Screenshot button to save the current view as a PNG image
 - **Hide groups** before generating a PDF to exclude them from the report
 - Press **Escape** to cancel drawing or clear measurements
 
