@@ -956,10 +956,53 @@
             bottom: 10px;
             right: 10px;
             background: rgba(10, 53, 89, 0.95);
-            padding: 12px 16px;
             border-radius: 6px;
             z-index: 100;
             min-width: 210px;
+        }
+
+        #sliders-panel.collapsed {
+            min-width: auto;
+            background: transparent;
+        }
+
+        #sliders-panel-toggle {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #aaa;
+            font-size: 12px;
+            background: rgba(10, 53, 89, 0.8);
+            border-radius: 4px;
+            user-select: none;
+            z-index: 1;
+        }
+
+        #sliders-panel-toggle:hover {
+            background: rgba(26, 90, 138, 0.9);
+            color: #eee;
+        }
+
+        #sliders-panel.collapsed #sliders-panel-toggle {
+            position: relative;
+            top: auto;
+            right: auto;
+            background: rgba(10, 53, 89, 0.95);
+        }
+
+        #sliders-panel-content {
+            padding: 12px 16px;
+            padding-top: 32px;
+        }
+
+        #sliders-panel.collapsed #sliders-panel-content {
+            display: none;
         }
 
         /* Light mode toggle */
@@ -1841,7 +1884,9 @@
             </div>
 
             <div id="sliders-panel">
-                <div class="light-mode-row">
+                <div id="sliders-panel-toggle">▼</div>
+                <div id="sliders-panel-content">
+                    <div class="light-mode-row">
                     <label>Light Source</label>
                     <button class="light-toggle-btn active" id="light-toggle" title="Toggle between camera-linked and fixed light">Follows Camera</button>
                 </div>
@@ -1890,6 +1935,7 @@
                         <span id="text-size-value">100%</span>
                     </label>
                     <input type="range" id="text-size-slider" min="25" max="300" value="100">
+                </div>
                 </div>
             </div>
 
@@ -2176,6 +2222,8 @@
         const pointSizeValue = document.getElementById('point-size-value');
         const textSizeSlider = document.getElementById('text-size-slider');
         const textSizeValue = document.getElementById('text-size-value');
+        const slidersPanel = document.getElementById('sliders-panel');
+        const slidersPanelToggle = document.getElementById('sliders-panel-toggle');
 
         const aboutOverlay = document.getElementById('about-overlay');
         const btnAbout = document.getElementById('btn-about');
@@ -5621,6 +5669,12 @@
         lightElevationSlider.addEventListener('input', (e) => setLightElevation(parseInt(e.target.value)));
         pointSizeSlider.addEventListener('input', (e) => setPointSize(parseInt(e.target.value)));
         textSizeSlider.addEventListener('input', (e) => setTextSize(parseInt(e.target.value)));
+
+        // Sliders panel toggle
+        slidersPanelToggle.addEventListener('click', () => {
+            slidersPanel.classList.toggle('collapsed');
+            slidersPanelToggle.textContent = slidersPanel.classList.contains('collapsed') ? '▲' : '▼';
+        });
 
         // Popup dragging
         popupTitle.addEventListener('mousedown', (e) => {
