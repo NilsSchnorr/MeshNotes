@@ -1508,9 +1508,13 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p><strong>Texture:</strong> Toggle the model's texture on/off to see the underlying geometry. <strong>Brightness slider:</strong> Adjust scene lighting from 0% to 300%. <strong>Opacity slider:</strong> Make the model transparent (10-100%) to see annotations that pass through it.</p>
+                            <p><strong>Display Mode:</strong> Click the display button to cycle through three modes: <strong>Texture</strong> (shows the model's texture maps), <strong>Colors</strong> (shows vertex colors only, if present), and <strong>Gray</strong> (plain geometry without any color). The Colors mode is only available if the model contains vertex color data.</p>
+                            <p style="margin-top: 10px;"><strong>Brightness slider:</strong> Adjust scene lighting from 0% to 300%. <strong>Opacity slider:</strong> Make the model transparent (10-100%) to see annotations that pass through it.</p>
                             <p style="margin-top: 10px;"><strong>Annotation Display:</strong> Use the <strong>Point Size</strong> slider (25-500%) to adjust the size of annotation markers, and the <strong>Text Size</strong> slider (25-300%) to adjust annotation label sizes. These settings are saved automatically.</p>
                             <p style="margin-top: 10px;"><strong>Light Source:</strong> By default, the main light follows your camera view, ensuring consistent illumination from any angle. Click the toggle to switch to <strong>Fixed Direction</strong> mode, which reveals two sliders: <strong>Horizontal</strong> (0°-360°) rotates the light around the model, and <strong>Vertical</strong> (-90° to +90°) adjusts the light height from below (-90°) through the horizon (0°) to directly above (+90°). This is ideal for raking light analysis of surface details like tool marks, inscriptions, or weathering patterns. The light is automatically boosted in fixed mode for better shadow visibility.</p>
+                            <div class="limitation-note" style="margin-top: 12px;">
+                                <strong>Exporting Vertex Colors from Blender:</strong> To include vertex colors in your GLB export, go to <code>File → Export → glTF 2.0</code>. In the export panel, expand <strong>Mesh</strong>, then <strong>Vertex Colors</strong>, and set <strong>Use Vertex Color</strong> to <strong>Active</strong>. This ensures that vertex color data is included in the GLB file and will be available in the Colors display mode.
+                            </div>
                         </div>
                     </div>
 
@@ -2083,7 +2087,8 @@
         let currentModel = null;
         let modelFileName = '';
         let originalMaterials = new Map();
-        let textureVisible = true;
+        let displayMode = 'texture'; // 'texture', 'vertexColors', 'gray'
+        let hasVertexColors = false; // Detected on model load
         let modelOpacity = 1.0;
         let pointSizeMultiplier = 1.0;
         let textSizeMultiplier = 1.0;
@@ -2432,11 +2437,17 @@
 
                     originalMaterials.clear();
                     modelMeshes = []; // Clear mesh cache
+                    hasVertexColors = false; // Reset vertex color detection
                     let totalFaces = 0;
                     currentModel.traverse((child) => {
                         if (child.isMesh) {
                             originalMaterials.set(child.uuid, child.material.clone());
                             modelMeshes.push(child); // Cache meshes for surface painting
+                            
+                            // Check for vertex colors (COLOR_0 attribute)
+                            if (child.geometry.attributes.color) {
+                                hasVertexColors = true;
+                            }
                             
                             // Count faces
                             const geometry = child.geometry;
@@ -2473,7 +2484,16 @@
                     btnScreenshot.disabled = false;
                     btnExport.disabled = false;
                     btnExportPdf.disabled = false;
-                    textureVisible = true;
+                    displayMode = 'texture';
+                    updateTextureButtonLabel();
+                    
+                    // Apply display mode to fix vertex color multiplicative issue on first load
+                    applyDisplayMode();
+                    
+                    // Log vertex color detection result
+                    if (hasVertexColors) {
+                        console.log('Vertex colors detected in model');
+                    }
 
                     // Apply current opacity setting
                     if (modelOpacity < 1.0) {
@@ -2493,34 +2513,79 @@
             );
         }
 
-        // ============ Texture Toggle ============
+        // ============ Texture Toggle (3-mode cycle) ============
         function toggleTexture() {
             if (!currentModel) return;
-            textureVisible = !textureVisible;
+            
+            // Cycle through modes: texture -> vertexColors (if available) -> gray -> texture
+            if (displayMode === 'texture') {
+                displayMode = hasVertexColors ? 'vertexColors' : 'gray';
+            } else if (displayMode === 'vertexColors') {
+                displayMode = 'gray';
+            } else {
+                displayMode = 'texture';
+            }
 
+            applyDisplayMode();
+            updateTextureButtonLabel();
+            
+            const modeLabels = {
+                'texture': 'Texture',
+                'vertexColors': 'Vertex Colors',
+                'gray': 'Gray'
+            };
+            showStatus(`Display: ${modeLabels[displayMode]}`);
+        }
+        
+        function applyDisplayMode() {
+            if (!currentModel) return;
+            
             currentModel.traverse((child) => {
                 if (child.isMesh) {
-                    if (textureVisible) {
-                        const original = originalMaterials.get(child.uuid);
+                    const original = originalMaterials.get(child.uuid);
+                    
+                    if (displayMode === 'texture') {
+                        // Restore original material with textures, but disable vertex colors
+                        // to prevent multiplicative darkening (glTF 2.0 multiplies vertex colors with texture)
                         if (original) {
                             child.material = original.clone();
+                            child.material.vertexColors = false;
                         }
+                    } else if (displayMode === 'vertexColors') {
+                        // Show vertex colors only (no texture)
+                        child.material = new THREE.MeshStandardMaterial({
+                            vertexColors: true,
+                            roughness: 0.7,
+                            metalness: 0.0
+                        });
                     } else {
+                        // Gray mode - no texture, no vertex colors
                         child.material = new THREE.MeshStandardMaterial({
                             color: 0x888888,
                             roughness: 0.7,
                             metalness: 0.0
                         });
                     }
+                    
                     // Preserve opacity setting
                     child.material.transparent = true;
                     child.material.opacity = modelOpacity;
                     child.material.depthWrite = modelOpacity > 0.9;
                 }
             });
-
-            btnTexture.classList.toggle('active', !textureVisible);
-            showStatus(textureVisible ? 'Texture ON' : 'Texture OFF');
+        }
+        
+        function updateTextureButtonLabel() {
+            // Update button text and style based on current mode
+            const labels = {
+                'texture': '🖼️ Texture',
+                'vertexColors': '🎨 Colors',
+                'gray': '⬜ Gray'
+            };
+            btnTexture.innerHTML = labels[displayMode] || '🖼️ Texture';
+            
+            // Button is "active" (highlighted) when NOT in texture mode
+            btnTexture.classList.toggle('active', displayMode !== 'texture');
         }
 
         // ============ Brightness Control ============
@@ -5786,6 +5851,61 @@
 
         // ============ Start ============
         init();
+        
+        // Expose key variables for console debugging
+        window.meshnotesDebug = {
+            getScene: () => scene,
+            getModel: () => currentModel,
+            checkColors: () => {
+                if (!currentModel) {
+                    console.log('No model loaded');
+                    return;
+                }
+                let report = { vertexColorsAttribute: [], vertexColorsWithData: [], materialColors: [], textures: [] };
+                currentModel.traverse((child) => {
+                    if (child.isMesh) {
+                        const name = child.name || 'unnamed mesh';
+                        if (child.geometry.attributes.color) {
+                            report.vertexColorsAttribute.push(name);
+                            // Check if vertex colors have actual data (not just white)
+                            const colorAttr = child.geometry.attributes.color;
+                            const count = colorAttr.count;
+                            let hasRealColors = false;
+                            const samplesToCheck = Math.min(50, count);
+                            for (let i = 0; i < samplesToCheck; i++) {
+                                const idx = Math.floor(i * count / samplesToCheck);
+                                const r = colorAttr.getX(idx);
+                                const g = colorAttr.getY(idx);
+                                const b = colorAttr.getZ(idx);
+                                if (r < 0.99 || g < 0.99 || b < 0.99) {
+                                    hasRealColors = true;
+                                    break;
+                                }
+                            }
+                            if (hasRealColors) {
+                                report.vertexColorsWithData.push(name);
+                            }
+                        }
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        materials.forEach((mat, i) => {
+                            if (mat.color && (mat.color.r !== 1 || mat.color.g !== 1 || mat.color.b !== 1)) {
+                                report.materialColors.push(`${name}: rgb(${mat.color.r.toFixed(2)}, ${mat.color.g.toFixed(2)}, ${mat.color.b.toFixed(2)})`);
+                            }
+                            if (mat.map) {
+                                report.textures.push(`${name}: has texture map`);
+                            }
+                        });
+                    }
+                });
+                console.log('=== Model Color Report ===');
+                console.log('Vertex color attribute exists:', report.vertexColorsAttribute.length > 0 ? report.vertexColorsAttribute : 'NONE');
+                console.log('Vertex colors with actual data:', report.vertexColorsWithData.length > 0 ? report.vertexColorsWithData : 'NONE (all white)');
+                console.log('Material Colors found:', report.materialColors.length > 0 ? report.materialColors : 'NONE');
+                console.log('Textures found:', report.textures.length > 0 ? report.textures : 'NONE');
+                console.log('hasVertexColors flag (enables Colors mode):', hasVertexColors);
+                return report;
+            }
+        };
         
         // Load saved slider settings
         const savedPointSize = localStorage.getItem('meshnotes_pointSize');
