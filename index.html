@@ -1356,6 +1356,26 @@
             color: #e8a33c;
         }
 
+        .btn-download-manual {
+            width: 100%;
+            padding: 12px 16px;
+            margin-top: 16px;
+            background: #1A5A8A;
+            border: 1px solid #EDC040;
+            border-radius: 6px;
+            color: #EDC040;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-download-manual:hover {
+            background: #2A6A9A;
+            border-color: #FFD54F;
+            color: #FFD54F;
+        }
+
         #about-modal-content code {
             background: #1A5A8A;
             padding: 2px 6px;
@@ -1690,6 +1710,8 @@
                             <p>Use the opacity slider to see annotations on the back side of the model. Group annotations by excavation phase, feature type, or team member for better organization. Export frequently to back up your work. The tool runs entirely in your browser — your data stays on your computer unless you share the exported JSON file.</p>
                         </div>
                     </div>
+
+                    <button class="btn-download-manual" id="btn-download-manual">📄 Download Manual as PDF</button>
 
                 </section>
 
@@ -2233,6 +2255,7 @@
         const aboutOverlay = document.getElementById('about-overlay');
         const btnAbout = document.getElementById('btn-about');
         const aboutModalClose = document.getElementById('about-modal-close');
+        const btnDownloadManual = document.getElementById('btn-download-manual');
         const legalOverlay = document.getElementById('legal-overlay');
         const btnLegal = document.getElementById('btn-legal');
         const legalModalClose = document.getElementById('legal-modal-close');
@@ -5414,6 +5437,200 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
+        // ============ Download Manual as PDF ============
+        function downloadManualAsPdf() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const margin = 20;
+            const contentWidth = pageWidth - (margin * 2);
+            const lineHeight = 6;
+            const headerLineHeight = 8;
+            
+            let yPos = margin;
+            
+            // ===== TITLE PAGE =====
+            pdf.setFontSize(28);
+            pdf.setTextColor(170, 129, 1); // Gold color
+            pdf.text('MeshNotes', pageWidth / 2, 50, { align: 'center' });
+            
+            pdf.setFontSize(20);
+            pdf.setTextColor(60, 60, 60);
+            pdf.text('User Manual', pageWidth / 2, 65, { align: 'center' });
+            
+            // Date
+            pdf.setFontSize(11);
+            pdf.setTextColor(120, 120, 120);
+            const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            pdf.text(`Generated: ${dateStr}`, pageWidth / 2, 80, { align: 'center' });
+            
+            // Subtitle/description
+            pdf.setFontSize(11);
+            pdf.setTextColor(80, 80, 80);
+            const subtitle = 'A browser-based tool for annotating 3D models with points, lines, polygons, and surfaces, designed for cultural heritage documentation.';
+            const subtitleLines = pdf.splitTextToSize(subtitle, contentWidth - 20);
+            pdf.text(subtitleLines, pageWidth / 2, 100, { align: 'center' });
+            
+            // Website
+            pdf.setFontSize(10);
+            pdf.setTextColor(170, 129, 1);
+            pdf.textWithLink('github.com/NilsSchnorr/MeshNotes', pageWidth / 2, 130, { 
+                align: 'center', 
+                url: 'https://github.com/NilsSchnorr/MeshNotes' 
+            });
+            
+            // ===== EXTRACT MANUAL CONTENT =====
+            const manualItems = document.querySelectorAll('#about-modal-content .manual-item');
+            const manualContent = [];
+            
+            manualItems.forEach(item => {
+                const headerEl = item.querySelector('.manual-item-header');
+                const contentEl = item.querySelector('.manual-item-content');
+                
+                if (headerEl && contentEl) {
+                    // Get title text (without the toggle icon)
+                    let title = headerEl.textContent.trim();
+                    // Remove the toggle icon character at the end
+                    title = title.replace(/[\u25B6\u25BC]$/, '').trim();
+                    
+                    // Get content HTML and extract text
+                    // Clone the content to process it
+                    const contentClone = contentEl.cloneNode(true);
+                    
+                    // Extract paragraphs and lists
+                    const paragraphs = [];
+                    const children = contentClone.querySelectorAll('p, .limitation-note');
+                    
+                    if (children.length > 0) {
+                        children.forEach(child => {
+                            // Check if it's a limitation note
+                            if (child.classList && child.classList.contains('limitation-note')) {
+                                paragraphs.push({ type: 'note', text: child.textContent.trim() });
+                            } else {
+                                paragraphs.push({ type: 'paragraph', text: child.textContent.trim() });
+                            }
+                        });
+                    } else {
+                        // Fallback: just get all text
+                        paragraphs.push({ type: 'paragraph', text: contentEl.textContent.trim() });
+                    }
+                    
+                    manualContent.push({ title, paragraphs });
+                }
+            });
+            
+            // ===== ADD CONTENT PAGES =====
+            pdf.addPage();
+            yPos = margin;
+            
+            // Table of Contents
+            pdf.setFontSize(18);
+            pdf.setTextColor(170, 129, 1);
+            pdf.text('Table of Contents', margin, yPos);
+            yPos += 12;
+            
+            // List all sections in TOC
+            pdf.setFontSize(11);
+            pdf.setTextColor(60, 60, 60);
+            manualContent.forEach((section, index) => {
+                if (yPos > pageHeight - margin) {
+                    pdf.addPage();
+                    yPos = margin;
+                }
+                pdf.text(`${index + 1}. ${section.title}`, margin + 5, yPos);
+                yPos += 7;
+            });
+            
+            // ===== MANUAL SECTIONS =====
+            manualContent.forEach((section, index) => {
+                // Always start each section on a new position with some space
+                // Check if we need a new page
+                if (yPos > pageHeight - 60) {
+                    pdf.addPage();
+                    yPos = margin;
+                } else {
+                    yPos += 10; // Add spacing between sections
+                }
+                
+                // Section header
+                pdf.setFontSize(14);
+                pdf.setTextColor(170, 129, 1);
+                pdf.setFont(undefined, 'bold');
+                pdf.text(`${index + 1}. ${section.title}`, margin, yPos);
+                yPos += headerLineHeight + 2;
+                
+                // Underline
+                pdf.setDrawColor(170, 129, 1);
+                pdf.setLineWidth(0.3);
+                pdf.line(margin, yPos - 4, margin + contentWidth, yPos - 4);
+                yPos += 2;
+                
+                // Section content
+                pdf.setFont(undefined, 'normal');
+                pdf.setFontSize(10);
+                
+                section.paragraphs.forEach(para => {
+                    if (yPos > pageHeight - margin - 10) {
+                        pdf.addPage();
+                        yPos = margin;
+                    }
+                    
+                    if (para.type === 'note') {
+                        // Draw note box
+                        pdf.setFillColor(255, 248, 230); // Light yellow background
+                        pdf.setDrawColor(232, 163, 60); // Orange border
+                        
+                        const noteLines = pdf.splitTextToSize(para.text, contentWidth - 10);
+                        const noteHeight = noteLines.length * 5 + 8;
+                        
+                        // Check if note fits on page
+                        if (yPos + noteHeight > pageHeight - margin) {
+                            pdf.addPage();
+                            yPos = margin;
+                        }
+                        
+                        pdf.roundedRect(margin, yPos - 2, contentWidth, noteHeight, 2, 2, 'FD');
+                        
+                        pdf.setTextColor(100, 80, 40);
+                        pdf.text(noteLines, margin + 5, yPos + 4);
+                        yPos += noteHeight + 4;
+                    } else {
+                        pdf.setTextColor(60, 60, 60);
+                        const textLines = pdf.splitTextToSize(para.text, contentWidth);
+                        
+                        textLines.forEach(line => {
+                            if (yPos > pageHeight - margin) {
+                                pdf.addPage();
+                                yPos = margin;
+                            }
+                            pdf.text(line, margin, yPos);
+                            yPos += 5;
+                        });
+                        yPos += 3; // Extra space between paragraphs
+                    }
+                });
+            });
+            
+            // ===== FOOTER ON EACH PAGE =====
+            const pageCount = pdf.internal.getNumberOfPages();
+            pdf.setFontSize(8);
+            pdf.setTextColor(150, 150, 150);
+            
+            for (let i = 1; i <= pageCount; i++) {
+                pdf.setPage(i);
+                pdf.text(
+                    `MeshNotes Manual - Page ${i} of ${pageCount}`,
+                    pageWidth / 2,
+                    pageHeight - 10,
+                    { align: 'center' }
+                );
+            }
+            
+            // Save PDF
+            pdf.save(`MeshNotes-Manual-${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+
         function importAnnotations(file) {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -5788,6 +6005,9 @@
                 aboutOverlay.classList.remove('visible');
             }
         });
+
+        // Download Manual as PDF
+        btnDownloadManual.addEventListener('click', downloadManualAsPdf);
 
         // Legal modal
         btnLegal.addEventListener('click', () => {
