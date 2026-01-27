@@ -1499,6 +1499,9 @@
                             <p>Click <strong>Load GLB</strong> to open a 3D model file. The tool supports <code>.glb</code> and <code>.gltf</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
                             <p style="margin-top: 10px;"><strong>Model Orientation:</strong> Ensure your model is oriented correctly (typically Y-up or Z-up) before exporting. The viewer's navigation is based on the model's original orientation and cannot be changed after loading. If your model appears upside down or sideways, re-export it with the correct orientation in your 3D software.</p>
                             <p style="margin-top: 10px;"><strong>Converting Models:</strong> If your model is in OBJ or PLY format, convert it to GLB using <a href="https://www.blender.org/" target="_blank">Blender</a> or <a href="https://www.meshlab.net/" target="_blank">MeshLab</a> for best compatibility. GLB is lightweight, embeds textures, and works best with the Three.js viewer architecture.</p>
+                            <div class="limitation-note" style="margin-top: 12px;">
+                                <strong>Exporting Vertex Colors from Blender:</strong> To include vertex colors in your GLB export, go to <code>File → Export → glTF 2.0</code>. In the export panel, expand <strong>Mesh</strong>, then <strong>Vertex Colors</strong>, and set <strong>Use Vertex Color</strong> to <strong>Active</strong>. This ensures that vertex color data is included in the GLB file and will be available in the Colors display mode.
+                            </div>
                         </div>
                     </div>
 
@@ -1512,9 +1515,6 @@
                             <p style="margin-top: 10px;"><strong>Brightness slider:</strong> Adjust scene lighting from 0% to 300%. <strong>Opacity slider:</strong> Make the model transparent (10-100%) to see annotations that pass through it.</p>
                             <p style="margin-top: 10px;"><strong>Annotation Display:</strong> Use the <strong>Point Size</strong> slider (25-500%) to adjust the size of annotation markers, and the <strong>Text Size</strong> slider (25-300%) to adjust annotation label sizes. These settings are saved automatically.</p>
                             <p style="margin-top: 10px;"><strong>Light Source:</strong> By default, the main light follows your camera view, ensuring consistent illumination from any angle. Click the toggle to switch to <strong>Fixed Direction</strong> mode, which reveals two sliders: <strong>Horizontal</strong> (0°-360°) rotates the light around the model, and <strong>Vertical</strong> (-90° to +90°) adjusts the light height from below (-90°) through the horizon (0°) to directly above (+90°). This is ideal for raking light analysis of surface details like tool marks, inscriptions, or weathering patterns. The light is automatically boosted in fixed mode for better shadow visibility.</p>
-                            <div class="limitation-note" style="margin-top: 12px;">
-                                <strong>Exporting Vertex Colors from Blender:</strong> To include vertex colors in your GLB export, go to <code>File → Export → glTF 2.0</code>. In the export panel, expand <strong>Mesh</strong>, then <strong>Vertex Colors</strong>, and set <strong>Use Vertex Color</strong> to <strong>Active</strong>. This ensures that vertex color data is included in the GLB file and will be available in the Colors display mode.
-                            </div>
                         </div>
                     </div>
 
