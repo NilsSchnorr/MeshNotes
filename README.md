@@ -1,4 +1,4 @@
-# MeshNotes
+# MeshNotes – 3D Annotation Tool for Research & Heritage
 
 A browser-based tool for annotating 3D models with points, lines, polygons, and surfaces — designed for cultural heritage documentation.
 You can either download the html file and documentation here or use the deployed version at: https://nilsschnorr.github.io/MeshNotes/
