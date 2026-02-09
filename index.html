@@ -1841,6 +1841,7 @@
                     <p>MeshNotes uses the following open-source libraries:</p>
                     <ul style="margin: 12px 0 12px 20px; color: #ccc;">
                         <li><a href="https://threejs.org/" target="_blank">Three.js</a> (MIT License) — 3D rendering</li>
+                        <li><a href="https://github.com/gkjohnson/three-mesh-bvh" target="_blank">three-mesh-bvh</a> (MIT License) — Accelerated raycasting &amp; surface projection</li>
                         <li><a href="https://github.com/parallax/jsPDF" target="_blank">jsPDF</a> (MIT License) — PDF generation</li>
                     </ul>
                     <p>MeshNotes itself is licensed under the <strong>MIT License</strong> — free to use, modify, and distribute. See the <a href="https://github.com/NilsSchnorr/MeshNotes/blob/main/LICENSE" target="_blank">LICENSE file</a> for details.</p>
@@ -2238,7 +2239,8 @@
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.0/+esm"
             }
         }
     </script>
@@ -2254,6 +2256,12 @@
         import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
         import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
         import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
+        import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+        // Register BVH extensions for accelerated raycasting and spatial queries
+        THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+        THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+        THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
         // ============ State ============
         let scene, camera, renderer, controls;
@@ -2279,7 +2287,11 @@
         // Tools
         let currentTool = null; // 'point', 'line', 'polygon', 'measure'
         let tempPoints = [];
+        let tempProjectedEdges = []; // Cached projected edges during drawing
         let tempLine = null;
+        let surfaceProjectionEnabled = true; // Project lines/polygons onto mesh surface
+        let projectionDeviationRelative = 0.20; // Max deviation as fraction of edge length
+        let projectionDeviationAbsolute = 0.03; // Max deviation as fraction of model bounding size
         let measurePoints = [];
         let measureMarkers = [];
         let measureLine = null;
@@ -2700,6 +2712,11 @@
                 if (child.isMesh) {
                     originalMaterials.set(child.uuid, child.material.clone());
                     modelMeshes.push(child); // Cache meshes for surface painting
+                    
+                    // Build BVH for accelerated raycasting and surface projection
+                    if (!child.geometry.boundsTree) {
+                        child.geometry.computeBoundsTree();
+                    }
                     
                     // Check for vertex colors (COLOR_0 attribute)
                     if (child.geometry.attributes.color) {
@@ -3299,6 +3316,7 @@
 
         function clearTempDrawing() {
             tempPoints = [];
+            tempProjectedEdges = [];
             if (tempLine) {
                 annotationObjects.remove(tempLine);
                 tempLine = null;
@@ -3576,6 +3594,199 @@
             return intersects.length > 0 ? intersects[0].point.clone() : null;
         }
 
+        // ============ Surface Projection (BVH) ============
+        /**
+         * Projects a straight line between two points onto the mesh surface.
+         * Uses BVH closestPointToPoint for robust, direction-independent projection.
+         * @param {THREE.Vector3} pointA - Start point (world coordinates)
+         * @param {THREE.Vector3} pointB - End point (world coordinates)
+         * @param {number} segments - Number of intermediate sample points
+         * @returns {Array<{x,y,z}>|null} - Array of surface-projected points, or null if no mesh
+         */
+        function projectEdgeToSurface(pointA, pointB, segments = 30) {
+            if (modelMeshes.length === 0) return null;
+            
+            const projectedPoints = [];
+            const tempPoint = new THREE.Vector3();
+            const localPoint = new THREE.Vector3();
+            const invMatrix = new THREE.Matrix4();
+            
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                tempPoint.lerpVectors(pointA, pointB, t);
+                
+                let bestDistance = Infinity;
+                let bestPoint = null;
+                
+                for (const mesh of modelMeshes) {
+                    if (!mesh.geometry.boundsTree) continue;
+                    
+                    // Transform point to geometry's local space
+                    invMatrix.copy(mesh.matrixWorld).invert();
+                    localPoint.copy(tempPoint).applyMatrix4(invMatrix);
+                    
+                    const target = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+                    const result = mesh.geometry.boundsTree.closestPointToPoint(localPoint, target);
+                    
+                    if (result && result.distance < bestDistance) {
+                        bestDistance = result.distance;
+                        bestPoint = result.point.clone().applyMatrix4(mesh.matrixWorld);
+                    }
+                }
+                
+                if (bestPoint) {
+                    projectedPoints.push({ x: bestPoint.x, y: bestPoint.y, z: bestPoint.z });
+                } else {
+                    projectedPoints.push({ x: tempPoint.x, y: tempPoint.y, z: tempPoint.z });
+                }
+            }
+            
+            return projectedPoints;
+        }
+
+        /**
+         * Measures the maximum perpendicular deviation of projected points from
+         * the straight line between pointA and pointB.
+         * @returns {number} Maximum deviation as fraction of edge length (0 = no deviation)
+         */
+        /**
+         * Checks whether a projected edge stays close enough to the straight line.
+         * Uses two limits (whichever is stricter wins):
+         *  - Relative: max deviation as fraction of edge length (handles short edges)
+         *  - Absolute: max deviation as fraction of model size (catches long edges over rubble)
+         * @returns {boolean} true if projection is acceptable
+         */
+        function isProjectionAcceptable(projectedPoints, pointA, pointB) {
+            const lineDir = new THREE.Vector3().subVectors(pointB, pointA);
+            const lineLength = lineDir.length();
+            if (lineLength < 1e-10) return true;
+            lineDir.normalize();
+            
+            // Compute allowed deviation: minimum of relative and absolute limit
+            const relativeLimit = projectionDeviationRelative * lineLength;
+            const absoluteLimit = projectionDeviationAbsolute * modelBoundingSize;
+            const maxAllowed = Math.min(relativeLimit, absoluteLimit);
+            
+            const toPoint = new THREE.Vector3();
+            const closestOnLine = new THREE.Vector3();
+            
+            for (const p of projectedPoints) {
+                toPoint.set(p.x, p.y, p.z).sub(pointA);
+                const t = Math.max(0, Math.min(lineLength, toPoint.dot(lineDir)));
+                closestOnLine.copy(pointA).addScaledVector(lineDir, t);
+                const deviation = closestOnLine.distanceTo(new THREE.Vector3(p.x, p.y, p.z));
+                if (deviation > maxAllowed) return false; // Early exit
+            }
+            
+            return true;
+        }
+
+        /**
+         * Computes projected edges for all consecutive point pairs.
+         * @param {Array<{x,y,z}>} points - The user-clicked corner points
+         * @param {boolean} closePolygon - Whether to add a closing edge (last→first)
+         * @param {number} segments - Segments per edge
+         * @returns {Array<Array<{x,y,z}>>} - Array of projected edge arrays
+         */
+        function computeProjectedEdges(points, closePolygon = false, segments = 30) {
+            const edges = [];
+            const vec3Points = points.map(p => new THREE.Vector3(p.x, p.y, p.z));
+            
+            for (let i = 0; i < vec3Points.length - 1; i++) {
+                const projected = projectEdgeToSurface(vec3Points[i], vec3Points[i + 1], segments);
+                if (projected && isProjectionAcceptable(projected, vec3Points[i], vec3Points[i + 1])) {
+                    edges.push(projected);
+                } else {
+                    edges.push([points[i], points[i + 1]]); // Fallback: straight line
+                }
+            }
+            
+            if (closePolygon && vec3Points.length > 2) {
+                const lastEdge = projectEdgeToSurface(
+                    vec3Points[vec3Points.length - 1], vec3Points[0], segments
+                );
+                if (lastEdge && isProjectionAcceptable(lastEdge, vec3Points[vec3Points.length - 1], vec3Points[0])) {
+                    edges.push(lastEdge);
+                } else {
+                    edges.push([points[points.length - 1], points[0]]);
+                }
+            }
+            
+            return edges;
+        }
+
+        /**
+         * Recomputes only the edges adjacent to a moved point.
+         * @param {Object} ann - The annotation object
+         * @param {number} pointIndex - Index of the moved point
+         */
+        function recomputeAdjacentEdges(ann, pointIndex) {
+            if (!ann.projectedEdges) return;
+            const n = ann.points.length;
+            const vec3Points = ann.points.map(p => new THREE.Vector3(p.x, p.y, p.z));
+            
+            // Edge from previous point to this point
+            const prevIdx = (ann.type === 'polygon') 
+                ? (pointIndex - 1 + n) % n 
+                : pointIndex - 1;
+            if (prevIdx >= 0 && prevIdx < n) {
+                const edgeIdx = (ann.type === 'polygon') ? prevIdx : prevIdx;
+                if (edgeIdx < ann.projectedEdges.length) {
+                    const projected = projectEdgeToSurface(vec3Points[prevIdx], vec3Points[pointIndex], 15);
+                    if (projected && isProjectionAcceptable(projected, vec3Points[prevIdx], vec3Points[pointIndex])) {
+                        ann.projectedEdges[edgeIdx] = projected;
+                    } else {
+                        ann.projectedEdges[edgeIdx] = [ann.points[prevIdx], ann.points[pointIndex]];
+                    }
+                }
+            }
+            
+            // Edge from this point to next point
+            const nextIdx = pointIndex + 1;
+            if (nextIdx < n) {
+                const edgeIdx = pointIndex;
+                if (edgeIdx < ann.projectedEdges.length) {
+                    const projected = projectEdgeToSurface(vec3Points[pointIndex], vec3Points[nextIdx], 15);
+                    if (projected && isProjectionAcceptable(projected, vec3Points[pointIndex], vec3Points[nextIdx])) {
+                        ann.projectedEdges[edgeIdx] = projected;
+                    } else {
+                        ann.projectedEdges[edgeIdx] = [ann.points[pointIndex], ann.points[nextIdx]];
+                    }
+                }
+            } else if (ann.type === 'polygon' && pointIndex === n - 1) {
+                // Closing edge of polygon: last → first
+                const closingIdx = ann.projectedEdges.length - 1;
+                const projected = projectEdgeToSurface(vec3Points[pointIndex], vec3Points[0], 15);
+                if (projected && isProjectionAcceptable(projected, vec3Points[pointIndex], vec3Points[0])) {
+                    ann.projectedEdges[closingIdx] = projected;
+                } else {
+                    ann.projectedEdges[closingIdx] = [ann.points[pointIndex], ann.points[0]];
+                }
+            }
+        }
+
+        /**
+         * Re-projects all line/polygon annotations onto the current model surface.
+         * Call after importing annotations or loading a new model.
+         */
+        function reprojectAllAnnotations() {
+            if (modelMeshes.length === 0 || !surfaceProjectionEnabled) return;
+            
+            let count = 0;
+            annotations.forEach(ann => {
+                if ((ann.type === 'line' || ann.type === 'polygon') && ann.points.length >= 2) {
+                    ann.projectedEdges = computeProjectedEdges(ann.points, ann.type === 'polygon');
+                    ann.surfaceProjection = true;
+                    count++;
+                }
+            });
+            
+            if (count > 0) {
+                renderAnnotations();
+                showStatus(`Re-projected ${count} annotations onto surface`);
+            }
+        }
+
         // ============ Canvas Events ============
         function onCanvasClick(event) {
             // Prevent click event right after dragging
@@ -3755,6 +3966,11 @@
                             z: newPos.z
                         };
                         
+                        // Recompute adjacent projected edges (uses fewer segments for responsiveness)
+                        if (draggedAnnotation.projectedEdges && draggedAnnotation.surfaceProjection) {
+                            recomputeAdjacentEdges(draggedAnnotation, draggedPointIndex);
+                        }
+                        
                         // Re-render to update lines/polygons
                         renderAnnotations();
                         
@@ -3800,6 +4016,16 @@
             
             if (isDraggingPoint) {
                 wasDragging = true; // Prevent click event
+                
+                // Full-quality recompute of all projected edges after drag
+                if (draggedAnnotation && draggedAnnotation.surfaceProjection && 
+                    (draggedAnnotation.type === 'line' || draggedAnnotation.type === 'polygon')) {
+                    draggedAnnotation.projectedEdges = computeProjectedEdges(
+                        draggedAnnotation.points, 
+                        draggedAnnotation.type === 'polygon'
+                    );
+                }
+                
                 isDraggingPoint = false;
                 draggedAnnotation = null;
                 draggedPointIndex = -1;
@@ -3822,7 +4048,42 @@
             if (tempPoints.length < 2) return;
 
             const positions = [];
-            tempPoints.forEach(p => positions.push(p.x, p.y, p.z));
+            
+            if (surfaceProjectionEnabled && modelMeshes.length > 0) {
+                // Surface-projected preview
+                for (let i = 0; i < tempPoints.length - 1; i++) {
+                    let edgePoints;
+                    if (i < tempProjectedEdges.length && tempProjectedEdges[i]) {
+                        // Use cached projection for completed edges
+                        edgePoints = tempProjectedEdges[i];
+                    } else {
+                        // Compute projection for latest edge (fewer segments for responsiveness)
+                        const projected = projectEdgeToSurface(tempPoints[i], tempPoints[i + 1], 20);
+                        const straightFallback = [
+                            { x: tempPoints[i].x, y: tempPoints[i].y, z: tempPoints[i].z },
+                            { x: tempPoints[i + 1].x, y: tempPoints[i + 1].y, z: tempPoints[i + 1].z }
+                        ];
+                        // Check deviation threshold
+                        if (projected && isProjectionAcceptable(projected, tempPoints[i], tempPoints[i + 1])) {
+                            edgePoints = projected;
+                        } else {
+                            edgePoints = straightFallback;
+                        }
+                        // Cache completed edges (not the last one, which may change)
+                        if (i < tempPoints.length - 2) {
+                            tempProjectedEdges[i] = edgePoints;
+                        }
+                    }
+                    // Add points, skip first point of subsequent edges to avoid duplicates
+                    const startIdx = (i === 0) ? 0 : 1;
+                    for (let j = startIdx; j < edgePoints.length; j++) {
+                        positions.push(edgePoints[j].x, edgePoints[j].y, edgePoints[j].z);
+                    }
+                }
+            } else {
+                // Classic straight-line preview
+                tempPoints.forEach(p => positions.push(p.x, p.y, p.z));
+            }
 
             const geometry = new LineGeometry();
             geometry.setPositions(positions);
@@ -4769,6 +5030,12 @@
                     newAnnotation.faceData = JSON.parse(annotationPopup.dataset.faceData);
                 }
                 
+                // Compute surface-projected edges for lines and polygons
+                if (surfaceProjectionEnabled && (type === 'line' || type === 'polygon') && points.length >= 2) {
+                    newAnnotation.projectedEdges = computeProjectedEdges(points, type === 'polygon');
+                    newAnnotation.surfaceProjection = true;
+                }
+                
                 annotations.push(newAnnotation);
             }
 
@@ -4872,15 +5139,25 @@
                         ann.points[0].z
                     );
                 } else if (ann.type === 'line' || ann.type === 'polygon') {
-                    const points = ann.points.map(p => new THREE.Vector3(p.x, p.y, p.z));
-                    
-                    if (ann.type === 'polygon' && points.length > 0) {
-                        points.push(points[0].clone()); // Close the polygon
-                    }
-
                     // Build positions array for Line2
                     const positions = [];
-                    points.forEach(p => positions.push(p.x, p.y, p.z));
+                    
+                    if (ann.projectedEdges && ann.surfaceProjection && ann.projectedEdges.length > 0) {
+                        // Surface-projected rendering: use pre-computed edge polylines
+                        ann.projectedEdges.forEach((edge, edgeIdx) => {
+                            const startIdx = (edgeIdx === 0) ? 0 : 1; // Skip duplicate junction points
+                            for (let j = startIdx; j < edge.length; j++) {
+                                positions.push(edge[j].x, edge[j].y, edge[j].z);
+                            }
+                        });
+                    } else {
+                        // Classic straight-line rendering (fallback)
+                        const points = ann.points.map(p => new THREE.Vector3(p.x, p.y, p.z));
+                        if (ann.type === 'polygon' && points.length > 0) {
+                            points.push(points[0].clone());
+                        }
+                        points.forEach(p => positions.push(p.x, p.y, p.z));
+                    }
 
                     // Create thick line
                     const lineGeometry = new LineGeometry();
@@ -6296,6 +6573,9 @@
                 });
             }
             
+            // Re-project imported annotations onto current model surface
+            reprojectAllAnnotations();
+            
             updateGroupsList();
             renderAnnotations();
             showStatus(`Imported ${importedCount} W3C annotations`);
@@ -6353,6 +6633,9 @@
                 });
             });
 
+            // Re-project imported annotations onto current model surface
+            reprojectAllAnnotations();
+            
             updateGroupsList();
             renderAnnotations();
             showStatus(`Imported ${data.annotations.length} annotations (legacy format)`);
