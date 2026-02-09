@@ -37,7 +37,8 @@ The tool runs entirely in your browser — no installation or server required. S
 
 ### Converting Models
 
-If your model is in OBJ or PLY format, convert it to GLB using [Blender](https://www.blender.org/) or [MeshLab](https://www.meshlab.net/) for best compatibility.
+MeshNotes supports OBJ and GLB format, although GLB is recommended for best compatibility.
+If your model is in OBJ or PLY format, convert it to GLB using [Blender](https://www.blender.org/) for best compatibility.
 
 ### Model Orientation
 

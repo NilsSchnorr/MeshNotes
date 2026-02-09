@@ -130,8 +130,82 @@
             margin: 0 4px;
         }
 
-        #file-input, #import-input {
+        #file-input, #import-input, #obj-material-input {
             display: none;
+        }
+
+        /* OBJ Material Dialog */
+        #obj-dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #obj-dialog-overlay.visible {
+            display: flex;
+        }
+
+        .obj-dialog {
+            background: #0A3559;
+            border: 1px solid #1A5A8A;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        .obj-dialog h3 {
+            color: #eee;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .obj-dialog p {
+            color: #aaa;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-size: 13px;
+        }
+
+        .obj-dialog .btn-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .obj-dialog button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .obj-dialog .btn-primary {
+            background: #EDC040;
+            color: #041D31;
+            font-weight: 600;
+        }
+
+        .obj-dialog .btn-primary:hover {
+            background: #f0cc60;
+        }
+
+        .obj-dialog .btn-secondary {
+            background: #1A5A8A;
+            color: #eee;
+        }
+
+        .obj-dialog .btn-secondary:hover {
+            background: #2A6A9A;
         }
 
         /* Sidebar */
@@ -1504,7 +1578,7 @@
                 <section>
                     <h3>Quick Start</h3>
                     <div style="background: #041D31; padding: 16px; border-radius: 6px;">
-                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Load GLB</strong> and select a 3D model file (.glb or .gltf format). If your model is OBJ or PLY, convert it first using Blender or MeshLab.</p>
+                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Load Model</strong> and select a 3D model file (.glb, .gltf, or .obj format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files. If your model is in PLY format, convert it first using Blender.</p>
                         <p style="margin-bottom: 12px;"><strong>2. Add annotations</strong> — Select a tool (Point, Line, Polygon, or Surface) and click on the model. Double-click to finish lines/polygons/surfaces.</p>
                         <p style="margin-bottom: 12px;"><strong>3. Navigate annotations</strong> — Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing.</p>
                         <p style="margin-bottom: 12px;"><strong>4. Adjust annotations</strong> — When no tool is active, drag any annotation point to reposition it. Use groups to organize and color-code your work.</p>
@@ -1522,9 +1596,12 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Load GLB</strong> to open a 3D model file. The tool supports <code>.glb</code> and <code>.gltf</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
+                            <p>Click <strong>Load Model</strong> to open a 3D model file. The tool supports <code>.glb</code>, <code>.gltf</code>, and <code>.obj</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
+                            
+                            <p style="margin-top: 10px;"><strong>OBJ Files:</strong> When loading an OBJ file, you will be asked whether to add material and texture files. You can select a <code>.mtl</code> file together with texture images (<code>.jpg</code>, <code>.png</code>), or only texture images, or load the geometry without any materials. If only a texture is provided without an MTL file, it will be applied as a diffuse map (works best for single-texture models).</p>
+                            
                             <p style="margin-top: 10px;"><strong>Model Orientation:</strong> Ensure your model is oriented correctly (typically Y-up or Z-up) before exporting. The viewer's navigation is based on the model's original orientation and cannot be changed after loading. If your model appears upside down or sideways, re-export it with the correct orientation in your 3D software.</p>
-                            <p style="margin-top: 10px;"><strong>Converting Models:</strong> If your model is in OBJ or PLY format, convert it to GLB using <a href="https://www.blender.org/" target="_blank">Blender</a> or <a href="https://www.meshlab.net/" target="_blank">MeshLab</a> for best compatibility. GLB is lightweight, embeds textures, and works best with the Three.js viewer architecture.</p>
+                            <p style="margin-top: 10px;"><strong>Converting Models:</strong> If your model is in PLY format, convert it to GLB using <a href="https://www.blender.org/" target="_blank">Blender</a>. GLB is recommended for best compatibility as it embeds textures in a single file.</p>
                             <div class="limitation-note" style="margin-top: 12px;">
                                 <strong>Exporting Vertex Colors from Blender:</strong> To include vertex colors in your GLB export, go to <code>File → Export → glTF 2.0</code>. In the export panel, expand <strong>Mesh</strong>, then <strong>Vertex Colors</strong>, and set <strong>Use Vertex Color</strong> to <strong>Active</strong>. This ensures that vertex color data is included in the GLB file and will be available in the Colors display mode.
                             </div>
@@ -1869,10 +1946,11 @@
             <button id="camera-toggle" title="Toggle Orthographic/Perspective View">Perspective</button>
             
             <div id="toolbar">
-                <input type="file" id="file-input" accept=".glb,.gltf">
+                <input type="file" id="file-input" accept=".glb,.gltf,.obj">
                 <input type="file" id="import-input" accept=".json,.jsonld">
+                <input type="file" id="obj-material-input" accept=".mtl,.jpg,.jpeg,.png,.tif,.tiff" multiple>
                 
-                <button class="tool-btn" id="btn-load" title="Load 3D Model">📂 Load GLB</button>
+                <button class="tool-btn" id="btn-load" title="Load 3D Model (GLB, GLTF, OBJ)">📂 Load Model</button>
                 <button class="tool-btn" id="btn-texture" disabled title="Toggle Texture">🖼️ Texture</button>
                 
                 <div class="tool-separator"></div>
@@ -2040,6 +2118,18 @@
                 </div>
             </div>
 
+            <!-- OBJ Material Dialog -->
+            <div id="obj-dialog-overlay">
+                <div class="obj-dialog">
+                    <h3>OBJ File Detected</h3>
+                    <p>Would you like to add material (.mtl) and/or texture files (.jpg, .png)?<br>You can select one or multiple files.</p>
+                    <div class="btn-row">
+                        <button class="btn-secondary" id="obj-load-plain">Load without materials</button>
+                        <button class="btn-primary" id="obj-add-materials">Add Textures & Materials</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Group Popup -->
             <div class="popup" id="group-popup">
                 <h3 id="group-popup-title">New Group</h3>
@@ -2103,6 +2193,8 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
         import { Line2 } from 'three/addons/lines/Line2.js';
         import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
         import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
@@ -2173,6 +2265,11 @@
         const canvas = document.getElementById('canvas');
         const fileInput = document.getElementById('file-input');
         const importInput = document.getElementById('import-input');
+        const objMaterialInput = document.getElementById('obj-material-input');
+        const objDialogOverlay = document.getElementById('obj-dialog-overlay');
+        const objLoadPlain = document.getElementById('obj-load-plain');
+        const objAddMaterials = document.getElementById('obj-add-materials');
+        let pendingObjFile = null; // Holds OBJ file while dialog is open
         
         const btnLoad = document.getElementById('btn-load');
         const btnTexture = document.getElementById('btn-texture');
@@ -2441,6 +2538,16 @@
 
         // ============ Model Loading ============
         function loadModel(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            if (ext === 'obj') {
+                // Store OBJ file and show material dialog
+                pendingObjFile = file;
+                objDialogOverlay.classList.add('visible');
+                return;
+            }
+            
+            // GLB/GLTF path
             loading.classList.add('visible');
             modelFileName = file.name;
             
@@ -2454,83 +2561,7 @@
             loader.load(
                 url,
                 (gltf) => {
-                    if (currentModel) {
-                        scene.remove(currentModel);
-                    }
-
-                    const grid = scene.getObjectByName('gridHelper');
-                    if (grid) scene.remove(grid);
-
-                    currentModel = gltf.scene;
-                    scene.add(currentModel);
-
-                    originalMaterials.clear();
-                    modelMeshes = []; // Clear mesh cache
-                    hasVertexColors = false; // Reset vertex color detection
-                    let totalFaces = 0;
-                    currentModel.traverse((child) => {
-                        if (child.isMesh) {
-                            originalMaterials.set(child.uuid, child.material.clone());
-                            modelMeshes.push(child); // Cache meshes for surface painting
-                            
-                            // Check for vertex colors (COLOR_0 attribute)
-                            if (child.geometry.attributes.color) {
-                                hasVertexColors = true;
-                            }
-                            
-                            // Count faces
-                            const geometry = child.geometry;
-                            if (geometry.index) {
-                                totalFaces += geometry.index.count / 3;
-                            } else if (geometry.attributes.position) {
-                                totalFaces += geometry.attributes.position.count / 3;
-                            }
-                        }
-                    });
-                    
-                    // Display face count
-                    updateFaceCountDisplay(totalFaces);
-
-                    // Center and fit
-                    const box = new THREE.Box3().setFromObject(currentModel);
-                    const center = box.getCenter(new THREE.Vector3());
-                    const size = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(size.x, size.y, size.z);
-                    modelBoundingSize = maxDim; // Store for brush size calculation
-
-                    currentModel.position.sub(center);
-                    camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
-                    controls.target.set(0, 0, 0);
-                    controls.update();
-
-                    // Enable tools
-                    btnTexture.disabled = false;
-                    btnPoint.disabled = false;
-                    btnLine.disabled = false;
-                    btnPolygon.disabled = false;
-                    btnSurface.disabled = false;
-                    btnMeasure.disabled = false;
-                    btnScreenshot.disabled = false;
-                    btnExport.disabled = false;
-                    btnExportPdf.disabled = false;
-                    displayMode = 'texture';
-                    updateTextureButtonLabel();
-                    
-                    // Apply display mode to fix vertex color multiplicative issue on first load
-                    applyDisplayMode();
-                    
-                    // Log vertex color detection result
-                    if (hasVertexColors) {
-                        console.log('Vertex colors detected in model');
-                    }
-
-                    // Apply current opacity setting
-                    if (modelOpacity < 1.0) {
-                        setModelOpacity(parseInt(opacitySlider.value));
-                    }
-
-                    loading.classList.remove('visible');
-                    showStatus(`Loaded: ${file.name}`);
+                    setupLoadedModel(gltf.scene, file.name);
                     URL.revokeObjectURL(url);
                 },
                 undefined,
@@ -2538,6 +2569,220 @@
                     console.error('Error loading model:', error);
                     loading.classList.remove('visible');
                     showStatus('Error loading model!');
+                }
+            );
+        }
+        
+        // Shared setup after any model (GLB/GLTF/OBJ) is loaded
+        function setupLoadedModel(model, fileName) {
+            if (currentModel) {
+                scene.remove(currentModel);
+            }
+
+            const grid = scene.getObjectByName('gridHelper');
+            if (grid) scene.remove(grid);
+
+            currentModel = model;
+            scene.add(currentModel);
+
+            originalMaterials.clear();
+            modelMeshes = []; // Clear mesh cache
+            hasVertexColors = false; // Reset vertex color detection
+            let totalFaces = 0;
+            currentModel.traverse((child) => {
+                if (child.isMesh) {
+                    originalMaterials.set(child.uuid, child.material.clone());
+                    modelMeshes.push(child); // Cache meshes for surface painting
+                    
+                    // Check for vertex colors (COLOR_0 attribute)
+                    if (child.geometry.attributes.color) {
+                        hasVertexColors = true;
+                    }
+                    
+                    // Count faces
+                    const geometry = child.geometry;
+                    if (geometry.index) {
+                        totalFaces += geometry.index.count / 3;
+                    } else if (geometry.attributes.position) {
+                        totalFaces += geometry.attributes.position.count / 3;
+                    }
+                }
+            });
+            
+            // Display face count
+            updateFaceCountDisplay(totalFaces);
+
+            // Center and fit
+            const box = new THREE.Box3().setFromObject(currentModel);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            modelBoundingSize = maxDim; // Store for brush size calculation
+
+            currentModel.position.sub(center);
+            camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
+            controls.target.set(0, 0, 0);
+            controls.update();
+
+            // Enable tools
+            btnTexture.disabled = false;
+            btnPoint.disabled = false;
+            btnLine.disabled = false;
+            btnPolygon.disabled = false;
+            btnSurface.disabled = false;
+            btnMeasure.disabled = false;
+            btnScreenshot.disabled = false;
+            btnExport.disabled = false;
+            btnExportPdf.disabled = false;
+            displayMode = 'texture';
+            updateTextureButtonLabel();
+            
+            // Apply display mode to fix vertex color multiplicative issue on first load
+            applyDisplayMode();
+            
+            // Log vertex color detection result
+            if (hasVertexColors) {
+                console.log('Vertex colors detected in model');
+            }
+
+            // Apply current opacity setting
+            if (modelOpacity < 1.0) {
+                setModelOpacity(parseInt(opacitySlider.value));
+            }
+
+            loading.classList.remove('visible');
+            showStatus(`Loaded: ${fileName}`);
+        }
+        
+        // Load OBJ model with optional material/texture files
+        function loadOBJModel(objFile, materialFiles) {
+            loading.classList.add('visible');
+            modelFileName = objFile.name;
+            
+            // Reset model info for new model
+            modelInfo = { entries: [] };
+            updateModelInfoDisplay();
+            
+            const objUrl = URL.createObjectURL(objFile);
+            
+            // Separate material files by type
+            let mtlFile = null;
+            const textureFiles = [];
+            
+            if (materialFiles && materialFiles.length > 0) {
+                for (const f of materialFiles) {
+                    const fExt = f.name.split('.').pop().toLowerCase();
+                    if (fExt === 'mtl') {
+                        mtlFile = f;
+                    } else {
+                        textureFiles.push(f);
+                    }
+                }
+            }
+            
+            // Create object URLs for texture files (for MTLLoader to find them)
+            const textureUrlMap = {};
+            for (const tf of textureFiles) {
+                textureUrlMap[tf.name] = URL.createObjectURL(tf);
+            }
+            
+            if (mtlFile) {
+                // Path A: MTL + Textures
+                // Read MTL as text and use custom loading manager to resolve texture URLs
+                const mtlReader = new FileReader();
+                mtlReader.onload = (e) => {
+                    const mtlText = e.target.result;
+                    
+                    // Custom loading manager that resolves texture filenames to our object URLs
+                    const loadingManager = new THREE.LoadingManager();
+                    loadingManager.setURLModifier((url) => {
+                        // Extract just the filename from the URL path
+                        const fileName = url.split('/').pop().split('\\').pop();
+                        if (textureUrlMap[fileName]) {
+                            return textureUrlMap[fileName];
+                        }
+                        return url;
+                    });
+                    
+                    const mtlLoader = new MTLLoader(loadingManager);
+                    const materials = mtlLoader.parse(mtlText, '');
+                    materials.preload();
+                    
+                    const objLoader = new OBJLoader(loadingManager);
+                    objLoader.setMaterials(materials);
+                    
+                    objLoader.load(
+                        objUrl,
+                        (obj) => {
+                            // Ensure correct color space on all texture maps
+                            obj.traverse((child) => {
+                                if (child.isMesh && child.material) {
+                                    const mat = child.material;
+                                    if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+                                }
+                            });
+                            setupLoadedModel(obj, objFile.name);
+                            // Clean up object URLs
+                            URL.revokeObjectURL(objUrl);
+                            Object.values(textureUrlMap).forEach(u => URL.revokeObjectURL(u));
+                        },
+                        undefined,
+                        (error) => {
+                            console.error('Error loading OBJ:', error);
+                            loading.classList.remove('visible');
+                            showStatus('Error loading OBJ model!');
+                        }
+                    );
+                };
+                mtlReader.onerror = () => {
+                    console.error('Error reading MTL file');
+                    showStatus('MTL failed, loading OBJ without materials...');
+                    loadOBJPlain(objUrl, textureUrlMap, objFile.name);
+                };
+                mtlReader.readAsText(mtlFile);
+            } else if (textureFiles.length > 0) {
+                // Path B: Texture only (no MTL) - apply as diffuse map to all meshes
+                loadOBJPlain(objUrl, textureUrlMap, objFile.name);
+            } else {
+                // Path C: No materials at all
+                loadOBJPlain(objUrl, {}, objFile.name);
+            }
+        }
+        
+        // Load OBJ without MTL, optionally applying a single texture as diffuse map
+        function loadOBJPlain(objUrl, textureUrlMap, fileName) {
+            const objLoader = new OBJLoader();
+            
+            objLoader.load(
+                objUrl,
+                (obj) => {
+                    // If we have texture files, apply the first one as diffuse map
+                    const textureUrls = Object.values(textureUrlMap);
+                    if (textureUrls.length > 0) {
+                        const textureLoader = new THREE.TextureLoader();
+                        const texture = textureLoader.load(textureUrls[0]);
+                        texture.colorSpace = THREE.SRGBColorSpace;
+                        
+                        obj.traverse((child) => {
+                            if (child.isMesh) {
+                                child.material = new THREE.MeshStandardMaterial({
+                                    map: texture,
+                                    roughness: 0.7,
+                                    metalness: 0.0
+                                });
+                            }
+                        });
+                    }
+                    
+                    setupLoadedModel(obj, fileName);
+                    URL.revokeObjectURL(objUrl);
+                    Object.values(textureUrlMap).forEach(u => URL.revokeObjectURL(u));
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading OBJ:', error);
+                    loading.classList.remove('visible');
+                    showStatus('Error loading OBJ model!');
                 }
             );
         }
@@ -4794,7 +5039,7 @@
                     source: {
                         id: `urn:meshnotes:model:${modelFileName || 'unknown'}`,
                         type: 'Dataset',
-                        format: 'model/gltf-binary'
+                        format: modelFileName && modelFileName.toLowerCase().endsWith('.obj') ? 'model/obj' : 'model/gltf-binary'
                     },
                     selector: formatPointsAsSelector(ann)
                 }
@@ -4924,7 +5169,7 @@
                     id: `urn:meshnotes:model:${modelFileName || 'unknown'}`,
                     type: 'Dataset',
                     'schema:name': modelFileName,
-                    format: 'model/gltf-binary'
+                    format: modelFileName && modelFileName.toLowerCase().endsWith('.obj') ? 'model/obj' : 'model/gltf-binary'
                 },
                 
                 // Stylesheet for group colors
@@ -5860,6 +6105,42 @@
         btnLoad.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             if (e.target.files[0]) loadModel(e.target.files[0]);
+            fileInput.value = ''; // Reset so same file can be loaded again
+        });
+        
+        // OBJ dialog event listeners
+        objLoadPlain.addEventListener('click', () => {
+            objDialogOverlay.classList.remove('visible');
+            if (pendingObjFile) {
+                loadOBJModel(pendingObjFile, null);
+                pendingObjFile = null;
+            }
+        });
+        
+        objAddMaterials.addEventListener('click', () => {
+            objDialogOverlay.classList.remove('visible');
+            objMaterialInput.click();
+            
+            // Handle case where user cancels the file picker
+            const handleCancel = () => {
+                window.removeEventListener('focus', handleCancel);
+                setTimeout(() => {
+                    if (pendingObjFile && objMaterialInput.files.length === 0) {
+                        loadOBJModel(pendingObjFile, null);
+                        pendingObjFile = null;
+                    }
+                }, 300);
+            };
+            window.addEventListener('focus', handleCancel);
+        });
+        
+        objMaterialInput.addEventListener('change', (e) => {
+            if (pendingObjFile) {
+                const materialFiles = Array.from(e.target.files);
+                loadOBJModel(pendingObjFile, materialFiles);
+                pendingObjFile = null;
+            }
+            objMaterialInput.value = ''; // Reset
         });
 
         btnTexture.addEventListener('click', toggleTexture);
