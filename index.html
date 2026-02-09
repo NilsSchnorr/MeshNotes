@@ -4247,6 +4247,7 @@
             if (groups.length === 0) {
                 groups.push({
                     id: Date.now(),
+                    uuid: generateUUID(),
                     name: 'Default',
                     color: '#EDC040',
                     visible: true
@@ -4284,6 +4285,7 @@
             } else {
                 groups.push({
                     id: Date.now(),
+                    uuid: generateUUID(),
                     name,
                     color,
                     visible: true
@@ -4653,6 +4655,7 @@
             
             entry.description = description;
             entry.author = author;
+            entry.modified = new Date().toISOString();
             saveLastAuthor(author);
             
             editingEntryId = null;
@@ -4825,6 +4828,7 @@
             
             entry.description = description;
             entry.author = author;
+            entry.modified = new Date().toISOString();
             saveLastAuthor(author);
             
             editingEntryId = null;
@@ -5017,6 +5021,7 @@
                         saveLastAuthor(author);
                         modelInfo.entries.push({
                             id: Date.now(),
+                            uuid: generateUUID(),
                             description,
                             author,
                             timestamp: new Date().toISOString(),
@@ -5052,6 +5057,7 @@
                     if (!editingAnnotation.entries) editingAnnotation.entries = [];
                     editingAnnotation.entries.push({
                         id: Date.now(),
+                        uuid: generateUUID(),
                         description,
                         author,
                         timestamp: new Date().toISOString(),
@@ -5073,6 +5079,7 @@
                     points,
                     entries: [{
                         id: Date.now() + 1,
+                        uuid: generateUUID(),
                         description,
                         author,
                         timestamp: new Date().toISOString(),
@@ -5570,7 +5577,8 @@
                         type: 'TextualBody',
                         value: entry.description || '',
                         format: 'text/plain',
-                        language: 'en'
+                        language: 'en',
+                        'meshnotes:entryUuid': entry.uuid
                     };
                     
                     if (entry.author) {
@@ -5582,6 +5590,10 @@
                     
                     if (entry.timestamp) {
                         body.created = entry.timestamp;
+                    }
+                    
+                    if (entry.modified) {
+                        body.modified = entry.modified;
                     }
                     
                     // Store links as custom property
@@ -5596,6 +5608,7 @@
             // Store internal ID mapping for round-trip
             w3cAnn['meshnotes:internalId'] = ann.id;
             w3cAnn['meshnotes:groupId'] = ann.groupId;
+            w3cAnn['meshnotes:groupUuid'] = group ? group.uuid : undefined;
             w3cAnn['meshnotes:annotationType'] = ann.type;
             
             return w3cAnn;
@@ -5618,9 +5631,12 @@
                 entries: []
             };
             
-            // Map group ID
+            // Map group - try UUID first, then internal ID
+            const origGroupUuid = w3cAnn['meshnotes:groupUuid'];
             const origGroupId = w3cAnn['meshnotes:groupId'];
-            if (origGroupId && groupIdMap[origGroupId]) {
+            if (origGroupUuid && groupIdMap['uuid:' + origGroupUuid]) {
+                ann.groupId = groupIdMap['uuid:' + origGroupUuid];
+            } else if (origGroupId && groupIdMap[origGroupId]) {
                 ann.groupId = groupIdMap[origGroupId];
             }
             
@@ -5635,9 +5651,11 @@
                 ann.entries = bodies.map((body, idx) => {
                     const entry = {
                         id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                        uuid: body['meshnotes:entryUuid'] || generateUUID(),
                         description: body.value || '',
                         author: body.creator ? body.creator.name : '',
                         timestamp: body.created || w3cAnn.created || new Date().toISOString(),
+                        modified: body.modified || undefined,
                         links: body['schema:url'] || []
                     };
                     return entry;
@@ -5697,6 +5715,7 @@
                 // Groups metadata (custom extension)
                 'meshnotes:groups': groups.map(g => ({
                     id: g.id,
+                    'meshnotes:uuid': g.uuid,
                     'schema:name': g.name,
                     'schema:color': g.color,
                     'meshnotes:visible': g.visible
@@ -5711,8 +5730,10 @@
                         type: 'TextualBody',
                         value: entry.description || '',
                         format: 'text/plain',
+                        'meshnotes:entryUuid': entry.uuid,
                         creator: entry.author ? { type: 'Person', name: entry.author } : undefined,
                         created: entry.timestamp,
+                        modified: entry.modified || undefined,
                         'schema:url': entry.links && entry.links.length > 0 ? entry.links : undefined
                     }))
                 } : undefined,
@@ -6566,65 +6587,161 @@
         }
         
         function importW3CAnnotations(data) {
-            // Import W3C Web Annotation Collection format
+            // Import W3C Web Annotation Collection format with merge support
             const groupIdMap = {};
+            let addedCount = 0;
+            let mergedCount = 0;
+            let skippedCount = 0;
             
-            // Import model info if present
+            // Helper: get effective timestamp for an entry (modified or created)
+            function entryTimestamp(entry) {
+                return entry.modified || entry.timestamp || entry.created || '';
+            }
+            
+            // Helper: merge entries from imported annotation into existing annotation
+            function mergeEntries(existingEntries, importedEntries) {
+                let entriesAdded = 0;
+                let entriesUpdated = 0;
+                
+                importedEntries.forEach(importedEntry => {
+                    const existingEntry = existingEntries.find(e => e.uuid === importedEntry.uuid);
+                    
+                    if (!existingEntry) {
+                        // New entry - add it
+                        existingEntries.push(importedEntry);
+                        entriesAdded++;
+                    } else {
+                        // Existing entry - check if imported version is newer
+                        const existingTime = entryTimestamp(existingEntry);
+                        const importedTime = entryTimestamp(importedEntry);
+                        
+                        if (importedTime > existingTime) {
+                            // Imported version is newer - update
+                            existingEntry.description = importedEntry.description;
+                            existingEntry.author = importedEntry.author;
+                            existingEntry.modified = importedEntry.modified;
+                            existingEntry.links = importedEntry.links || [];
+                            entriesUpdated++;
+                        }
+                        // else: local version is same or newer, skip
+                    }
+                });
+                
+                // Sort entries chronologically
+                existingEntries.sort((a, b) => {
+                    const timeA = a.timestamp || '';
+                    const timeB = b.timestamp || '';
+                    return timeA.localeCompare(timeB);
+                });
+                
+                return { entriesAdded, entriesUpdated };
+            }
+            
+            // Merge model info entries
             if (data['meshnotes:modelInfo'] && data['meshnotes:modelInfo'].body) {
                 const bodies = Array.isArray(data['meshnotes:modelInfo'].body) 
                     ? data['meshnotes:modelInfo'].body 
                     : [data['meshnotes:modelInfo'].body];
-                    
-                bodies.forEach((body, idx) => {
-                    modelInfo.entries.push({
-                        id: Date.now() + idx + Math.floor(Math.random() * 1000),
-                        description: body.value || '',
-                        author: body.creator ? body.creator.name : '',
-                        timestamp: body.created || new Date().toISOString(),
-                        links: body['schema:url'] || []
-                    });
-                });
+                
+                const importedEntries = bodies.map((body, idx) => ({
+                    id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                    uuid: body['meshnotes:entryUuid'] || generateUUID(),
+                    description: body.value || '',
+                    author: body.creator ? body.creator.name : '',
+                    timestamp: body.created || new Date().toISOString(),
+                    modified: body.modified || undefined,
+                    links: body['schema:url'] || []
+                }));
+                
+                mergeEntries(modelInfo.entries, importedEntries);
                 updateModelInfoDisplay();
             }
             
-            // Import groups
+            // Import groups - match by UUID first, then by name
             if (data['meshnotes:groups']) {
                 data['meshnotes:groups'].forEach(importedGroup => {
+                    const groupUuid = importedGroup['meshnotes:uuid'];
                     const groupName = importedGroup['schema:name'] || importedGroup.name || 'Imported Group';
-                    const existing = groups.find(g => g.name === groupName);
+                    
+                    // Try to find existing group by UUID first, then by name
+                    let existing = null;
+                    if (groupUuid) {
+                        existing = groups.find(g => g.uuid === groupUuid);
+                    }
+                    if (!existing) {
+                        existing = groups.find(g => g.name === groupName);
+                    }
                     
                     if (!existing) {
+                        // New group - create it
                         const newGroupId = Date.now() + Math.floor(Math.random() * 10000);
                         const newGroup = {
                             id: newGroupId,
+                            uuid: groupUuid || generateUUID(),
                             name: groupName,
                             color: importedGroup['schema:color'] || importedGroup.color || '#4CAF50',
                             visible: importedGroup['meshnotes:visible'] !== false
                         };
+                        // Map both internal ID and UUID for annotation lookup
                         groupIdMap[importedGroup.id] = newGroupId;
+                        if (groupUuid) groupIdMap['uuid:' + groupUuid] = newGroupId;
                         groups.push(newGroup);
                     } else {
+                        // Existing group - map IDs
                         groupIdMap[importedGroup.id] = existing.id;
+                        if (groupUuid) groupIdMap['uuid:' + groupUuid] = existing.id;
                     }
                 });
             }
             
-            // Import annotations from first page
-            let importedCount = 0;
+            // Import annotations from first page with merge
             if (data.first && data.first.items) {
                 data.first.items.forEach(w3cAnn => {
-                    const ann = convertFromW3CAnnotation(w3cAnn, groupIdMap);
+                    const importedAnn = convertFromW3CAnnotation(w3cAnn, groupIdMap);
                     
                     // If no group assigned, use default
-                    if (!ann.groupId) {
+                    if (!importedAnn.groupId) {
                         if (groups.length === 0) {
-                            groups.push({ id: Date.now(), name: 'Default', color: '#4CAF50', visible: true });
+                            groups.push({ id: Date.now(), uuid: generateUUID(), name: 'Default', color: '#4CAF50', visible: true });
                         }
-                        ann.groupId = groups[0].id;
+                        importedAnn.groupId = groups[0].id;
                     }
                     
-                    annotations.push(ann);
-                    importedCount++;
+                    // Check if annotation with same UUID already exists
+                    const existingAnn = annotations.find(a => a.uuid === importedAnn.uuid);
+                    
+                    if (!existingAnn) {
+                        // New annotation - add it
+                        annotations.push(importedAnn);
+                        addedCount++;
+                    } else {
+                        // Existing annotation - merge
+                        // Determine which version is newer by latest entry timestamp
+                        const existingLatest = existingAnn.entries.length > 0 
+                            ? Math.max(...existingAnn.entries.map(e => new Date(entryTimestamp(e)).getTime() || 0)) 
+                            : 0;
+                        const importedLatest = importedAnn.entries.length > 0 
+                            ? Math.max(...importedAnn.entries.map(e => new Date(entryTimestamp(e)).getTime() || 0)) 
+                            : 0;
+                        
+                        // Update metadata (name, group, geometry) if imported version is newer
+                        if (importedLatest > existingLatest) {
+                            existingAnn.name = importedAnn.name;
+                            existingAnn.groupId = importedAnn.groupId;
+                            existingAnn.points = importedAnn.points;
+                            if (importedAnn.faceData) existingAnn.faceData = importedAnn.faceData;
+                            if (importedAnn.projectedEdges) existingAnn.projectedEdges = importedAnn.projectedEdges;
+                        }
+                        
+                        // Merge body entries
+                        const result = mergeEntries(existingAnn.entries, importedAnn.entries);
+                        
+                        if (result.entriesAdded > 0 || result.entriesUpdated > 0) {
+                            mergedCount++;
+                        } else {
+                            skippedCount++;
+                        }
+                    }
                 });
             }
             
@@ -6633,7 +6750,13 @@
             
             updateGroupsList();
             renderAnnotations();
-            showStatus(`Imported ${importedCount} W3C annotations`);
+            
+            // Build status message
+            const parts = [];
+            if (addedCount > 0) parts.push(`${addedCount} added`);
+            if (mergedCount > 0) parts.push(`${mergedCount} merged`);
+            if (skippedCount > 0) parts.push(`${skippedCount} unchanged`);
+            showStatus(`Import: ${parts.join(', ') || 'nothing to import'}`);
         }
         
         function importLegacyAnnotations(data) {
@@ -6645,7 +6768,8 @@
                 data.modelInfo.entries.forEach(entry => {
                     modelInfo.entries.push({
                         ...entry,
-                        id: Date.now() + Math.floor(Math.random() * 10000)
+                        id: Date.now() + Math.floor(Math.random() * 10000),
+                        uuid: entry.uuid || generateUUID()
                     });
                 });
                 updateModelInfoDisplay();
@@ -6658,7 +6782,8 @@
                     const newGroupId = Date.now() + Math.floor(Math.random() * 10000);
                     const newGroup = {
                         ...importedGroup,
-                        id: newGroupId
+                        id: newGroupId,
+                        uuid: importedGroup.uuid || generateUUID()
                     };
                     
                     data.annotations.forEach(ann => {
@@ -6681,11 +6806,19 @@
             let idOffset = 0;
             data.annotations.forEach(ann => {
                 idOffset++;
-                annotations.push({
+                const newAnn = {
                     ...ann,
                     id: Date.now() + idOffset,
                     uuid: ann.uuid || generateUUID()
-                });
+                };
+                // Ensure entries have UUIDs
+                if (newAnn.entries) {
+                    newAnn.entries = newAnn.entries.map(entry => ({
+                        ...entry,
+                        uuid: entry.uuid || generateUUID()
+                    }));
+                }
+                annotations.push(newAnn);
             });
 
             // Re-project imported annotations onto current model surface
