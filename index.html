@@ -2324,6 +2324,8 @@
         let surfaceBrushSize = 5; // Percentage of model size
         let paintedFaces = new Set(); // Set of face indices
         let surfaceHighlightMesh = null; // Mesh showing painted areas
+        let surfaceHighlightDirty = false; // Flag for throttled highlight updates
+        let surfaceHighlightRAF = null; // requestAnimationFrame ID for throttle
         let isErasingMode = false;
         let modelMeshes = []; // Cache of meshes in the model
         let modelBoundingSize = 1; // For brush size calculation
@@ -3337,6 +3339,11 @@
         function clearTempSurface() {
             paintedFaces.clear();
             isPaintingSurface = false;
+            surfaceHighlightDirty = false;
+            if (surfaceHighlightRAF) {
+                cancelAnimationFrame(surfaceHighlightRAF);
+                surfaceHighlightRAF = null;
+            }
             if (surfaceHighlightMesh) {
                 annotationObjects.remove(surfaceHighlightMesh);
                 surfaceHighlightMesh.geometry.dispose();
@@ -3374,55 +3381,103 @@
             const brushRadius = (surfaceBrushSize / 100) * modelBoundingSize;
             const geometry = mesh.geometry;
             const position = geometry.attributes.position;
+            const meshIndex = modelMeshes.indexOf(mesh);
             
-            // Get faces within brush radius
-            const faceCount = geometry.index 
-                ? geometry.index.count / 3 
-                : position.count / 3;
-
-            for (let i = 0; i < faceCount; i++) {
-                // Get face center
-                let a, b, c;
-                if (geometry.index) {
-                    a = geometry.index.getX(i * 3);
-                    b = geometry.index.getX(i * 3 + 1);
-                    c = geometry.index.getX(i * 3 + 2);
-                } else {
-                    a = i * 3;
-                    b = i * 3 + 1;
-                    c = i * 3 + 2;
-                }
-
-                const vA = new THREE.Vector3().fromBufferAttribute(position, a);
-                const vB = new THREE.Vector3().fromBufferAttribute(position, b);
-                const vC = new THREE.Vector3().fromBufferAttribute(position, c);
-
-                // Apply mesh world transform
-                vA.applyMatrix4(mesh.matrixWorld);
-                vB.applyMatrix4(mesh.matrixWorld);
-                vC.applyMatrix4(mesh.matrixWorld);
-
-                const faceCenter = new THREE.Vector3()
-                    .addVectors(vA, vB)
-                    .add(vC)
-                    .divideScalar(3);
-
-                const distance = faceCenter.distanceTo(point);
+            // Use BVH shapecast for fast spatial query if available
+            if (geometry.boundsTree) {
+                // Transform brush center to local space
+                const invMatrix = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
+                const localCenter = point.clone().applyMatrix4(invMatrix);
                 
-                if (distance <= brushRadius) {
-                    // Create unique face ID combining mesh index and face index
-                    // Use mesh index (not UUID) so it persists across model reloads
-                    const meshIndex = modelMeshes.indexOf(mesh);
-                    const faceId = `${meshIndex}_${i}`;
-                    if (isErasingMode) {
-                        paintedFaces.delete(faceId);
+                // Compute local-space brush radius (account for non-uniform scale)
+                const scale = new THREE.Vector3();
+                mesh.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), scale);
+                const avgScale = (scale.x + scale.y + scale.z) / 3;
+                const localRadius = brushRadius / avgScale;
+                
+                const localRadiusSq = localRadius * localRadius;
+                
+                geometry.boundsTree.shapecast({
+                    intersectsBounds: (box) => {
+                        // Quick AABB vs sphere test
+                        const closestPoint = new THREE.Vector3();
+                        box.clampPoint(localCenter, closestPoint);
+                        return closestPoint.distanceToSquared(localCenter) <= localRadiusSq;
+                    },
+                    intersectsTriangle: (triangle, triIndex) => {
+                        // Check face center distance
+                        const faceCenter = new THREE.Vector3()
+                            .addVectors(triangle.a, triangle.b)
+                            .add(triangle.c)
+                            .divideScalar(3);
+                        
+                        if (faceCenter.distanceToSquared(localCenter) <= localRadiusSq) {
+                            const faceId = `${meshIndex}_${triIndex}`;
+                            if (isErasingMode) {
+                                paintedFaces.delete(faceId);
+                            } else {
+                                paintedFaces.add(faceId);
+                            }
+                        }
+                        return false; // Continue traversal
+                    }
+                });
+            } else {
+                // Fallback: brute-force for geometries without BVH
+                const faceCount = geometry.index 
+                    ? geometry.index.count / 3 
+                    : position.count / 3;
+
+                for (let i = 0; i < faceCount; i++) {
+                    let a, b, c;
+                    if (geometry.index) {
+                        a = geometry.index.getX(i * 3);
+                        b = geometry.index.getX(i * 3 + 1);
+                        c = geometry.index.getX(i * 3 + 2);
                     } else {
-                        paintedFaces.add(faceId);
+                        a = i * 3;
+                        b = i * 3 + 1;
+                        c = i * 3 + 2;
+                    }
+
+                    const vA = new THREE.Vector3().fromBufferAttribute(position, a);
+                    const vB = new THREE.Vector3().fromBufferAttribute(position, b);
+                    const vC = new THREE.Vector3().fromBufferAttribute(position, c);
+                    vA.applyMatrix4(mesh.matrixWorld);
+                    vB.applyMatrix4(mesh.matrixWorld);
+                    vC.applyMatrix4(mesh.matrixWorld);
+
+                    const faceCenter = new THREE.Vector3()
+                        .addVectors(vA, vB)
+                        .add(vC)
+                        .divideScalar(3);
+
+                    if (faceCenter.distanceTo(point) <= brushRadius) {
+                        const faceId = `${meshIndex}_${i}`;
+                        if (isErasingMode) {
+                            paintedFaces.delete(faceId);
+                        } else {
+                            paintedFaces.add(faceId);
+                        }
                     }
                 }
             }
 
-            updateSurfaceHighlight();
+            // Schedule throttled highlight update (batches rapid paint strokes)
+            scheduleSurfaceHighlight();
+        }
+
+        function scheduleSurfaceHighlight() {
+            surfaceHighlightDirty = true;
+            if (!surfaceHighlightRAF) {
+                surfaceHighlightRAF = requestAnimationFrame(() => {
+                    surfaceHighlightRAF = null;
+                    if (surfaceHighlightDirty) {
+                        surfaceHighlightDirty = false;
+                        updateSurfaceHighlight();
+                    }
+                });
+            }
         }
 
         function updateSurfaceHighlight() {
