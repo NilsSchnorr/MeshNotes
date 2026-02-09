@@ -75,6 +75,7 @@ The export includes custom selectors for 3D geometry (points, polylines, polygon
 MeshNotes uses the following open-source libraries (loaded via CDN):
 
 - [Three.js](https://threejs.org/) (MIT License) — 3D rendering
+- [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) (MIT License) — Accelerated raycasting & surface projection
 - [jsPDF](https://github.com/parallax/jsPDF) (MIT License) — PDF generation
 
 ## Author
