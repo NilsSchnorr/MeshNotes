@@ -4633,6 +4633,7 @@
                 
                 const newAnnotation = {
                     id: Date.now(),
+                    uuid: generateUUID(),
                     type,
                     name,
                     groupId,
@@ -5092,7 +5093,7 @@
             const w3cAnn = {
                 '@context': 'http://www.w3.org/ns/anno.jsonld',
                 type: 'Annotation',
-                id: `urn:meshnotes:annotation:${generateUUID()}`,
+                id: `urn:meshnotes:annotation:${ann.uuid || generateUUID()}`,
                 motivation: ann.type === 'surface' ? 'tagging' : 'describing',
                 created: ann.entries && ann.entries.length > 0 ? ann.entries[0].timestamp : new Date().toISOString(),
                 modified: ann.entries && ann.entries.length > 1 ? ann.entries[ann.entries.length - 1].timestamp : undefined,
@@ -5153,8 +5154,14 @@
         
         function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
             // Convert W3C Web Annotation back to internal format
+            // Extract persistent UUID from W3C id (urn:meshnotes:annotation:{uuid})
+            let importedUuid = null;
+            if (w3cAnn.id && w3cAnn.id.startsWith('urn:meshnotes:annotation:')) {
+                importedUuid = w3cAnn.id.replace('urn:meshnotes:annotation:', '');
+            }
             const ann = {
                 id: Date.now() + Math.floor(Math.random() * 10000),
+                uuid: importedUuid || generateUUID(),
                 type: w3cAnn['meshnotes:annotationType'] || 'point',
                 name: w3cAnn['schema:name'] || 'Unnamed',
                 groupId: null,
@@ -6216,7 +6223,8 @@
                 idOffset++;
                 annotations.push({
                     ...ann,
-                    id: Date.now() + idOffset
+                    id: Date.now() + idOffset,
+                    uuid: ann.uuid || generateUUID()
                 });
             });
 
