@@ -5327,9 +5327,15 @@
             const margin = 15;
             const contentWidth = pageWidth - (margin * 2);
 
-            // Store original camera position
+            // Store original camera state
             const originalCamPos = camera.position.clone();
             const originalTarget = controls.target.clone();
+            const originalUp = camera.up.clone();
+            const originalZoom = camera.zoom;
+            const originalFrustum = isOrthographic ? {
+                left: camera.left, right: camera.right,
+                top: camera.top, bottom: camera.bottom
+            } : null;
 
             showStatus('Generating PDF report...');
             
@@ -5346,7 +5352,7 @@
 
             // Build table of contents data
             const tocData = [];
-            let pageNum = 3; // Start after title page and TOC
+            let pageNum = 4; // Start after title page, axis views, and TOC
 
             visibleGroups.forEach(group => {
                 const groupAnns = visibleAnnotations.filter(a => a.groupId === group.id);
@@ -5458,6 +5464,108 @@
             pdf.setFontSize(10);
             pdf.setTextColor(100, 100, 100);
             pdf.text(`Total: ${visibleGroups.length} groups, ${visibleAnnotations.length} annotations`, margin, yPos);
+
+            // ===== AXIS VIEWS PAGE (unfolded cube) =====
+            pdf.addPage();
+            pdf.setFontSize(18);
+            pdf.setTextColor(170, 129, 1);
+            pdf.text('Axis Views', margin, 20);
+            pdf.setFontSize(10);
+            pdf.setTextColor(120, 120, 120);
+            pdf.text('Unfolded cube \u2014 six orthogonal views of the model', margin, 28);
+
+            // Calculate model bounds for axis views
+            const axisBox = new THREE.Box3().setFromObject(currentModel);
+            const axisSize = axisBox.getSize(new THREE.Vector3());
+            const axisMaxDim = Math.max(axisSize.x, axisSize.y, axisSize.z);
+            const axisDist = axisMaxDim * 1.8;
+            const axisTarget = new THREE.Vector3(0, 0, 0);
+
+            // 6 views in unfolded cube cross layout:
+            //            [Top]
+            // [Left] [Front] [Right] [Back]
+            //           [Bottom]
+            const cellSize = 42;
+            const cellGap = 3;
+            const gridStartY = 35;
+
+            const axisViews = [
+                { name: 'Top',    col: 1, row: 0, dir: new THREE.Vector3(0, 1, 0),  up: new THREE.Vector3(0, 0, -1) },
+                { name: 'Left',   col: 0, row: 1, dir: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0) },
+                { name: 'Front',  col: 1, row: 1, dir: new THREE.Vector3(0, 0, 1),  up: new THREE.Vector3(0, 1, 0) },
+                { name: 'Right',  col: 2, row: 1, dir: new THREE.Vector3(1, 0, 0),  up: new THREE.Vector3(0, 1, 0) },
+                { name: 'Back',   col: 3, row: 1, dir: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) },
+                { name: 'Bottom', col: 1, row: 2, dir: new THREE.Vector3(0, -1, 0), up: new THREE.Vector3(0, 0, 1) },
+            ];
+
+            for (const axView of axisViews) {
+                // Position camera along axis (manual setup, bypass OrbitControls)
+                camera.position.copy(axisTarget).addScaledVector(axView.dir, axisDist);
+                camera.up.copy(axView.up);
+                camera.lookAt(axisTarget);
+
+                // For orthographic camera, adjust frustum to fit model
+                if (isOrthographic) {
+                    const aspect = canvas.width / canvas.height;
+                    const frustumHalf = axisMaxDim * 0.75;
+                    camera.left = -frustumHalf * aspect;
+                    camera.right = frustumHalf * aspect;
+                    camera.top = frustumHalf;
+                    camera.bottom = -frustumHalf;
+                    camera.updateProjectionMatrix();
+                }
+
+                renderer.clear();
+                renderer.render(scene, camera);
+                await delay(50);
+                renderer.render(scene, camera);
+
+                // Crop center square from canvas for cube face
+                const cropCanvas = document.createElement('canvas');
+                const cropSize = Math.min(canvas.width, canvas.height);
+                cropCanvas.width = cropSize;
+                cropCanvas.height = cropSize;
+                const cropCtx = cropCanvas.getContext('2d');
+                const offsetX = (canvas.width - cropSize) / 2;
+                const offsetY = (canvas.height - cropSize) / 2;
+                cropCtx.drawImage(canvas, offsetX, offsetY, cropSize, cropSize, 0, 0, cropSize, cropSize);
+
+                // Add scalebar if applicable
+                if (includeScalebar && isOrthographic) {
+                    drawScalebarOnCanvas(cropCanvas);
+                }
+
+                const axImg = cropCanvas.toDataURL('image/jpeg', 0.9);
+
+                const cellX = margin + axView.col * (cellSize + cellGap);
+                const cellY = gridStartY + axView.row * (cellSize + cellGap);
+
+                // Light border around each view
+                pdf.setDrawColor(180, 180, 180);
+                pdf.setLineWidth(0.3);
+                pdf.rect(cellX, cellY, cellSize, cellSize);
+
+                pdf.addImage(axImg, 'JPEG', cellX, cellY, cellSize, cellSize);
+
+                // Label below image
+                pdf.setFontSize(8);
+                pdf.setTextColor(120, 120, 120);
+                pdf.text(axView.name, cellX + cellSize / 2, cellY + cellSize + 4, { align: 'center' });
+            }
+
+            // Restore camera fully
+            camera.up.copy(originalUp);
+            camera.position.copy(originalCamPos);
+            controls.target.copy(originalTarget);
+            if (isOrthographic && originalFrustum) {
+                camera.left = originalFrustum.left;
+                camera.right = originalFrustum.right;
+                camera.top = originalFrustum.top;
+                camera.bottom = originalFrustum.bottom;
+                camera.zoom = originalZoom;
+                camera.updateProjectionMatrix();
+            }
+            controls.update();
 
             // ===== TABLE OF CONTENTS =====
             pdf.addPage();
@@ -5574,6 +5682,20 @@
                         center.z + horizontalDir.z * horizontalOffset
                     );
                     controls.target.copy(center);
+                    camera.lookAt(center);
+
+                    // For orthographic camera, adjust frustum to fit annotation view
+                    if (isOrthographic) {
+                        const aspect = canvas.width / canvas.height;
+                        const frustumHalf = distance * 0.8;
+                        camera.left = -frustumHalf * aspect;
+                        camera.right = frustumHalf * aspect;
+                        camera.top = frustumHalf;
+                        camera.bottom = -frustumHalf;
+                        camera.zoom = 1;
+                        camera.updateProjectionMatrix();
+                    }
+
                     controls.update();
 
                     // Temporarily enlarge markers for this annotation
@@ -5718,9 +5840,18 @@
                 }
             }
 
-            // Restore camera position
+            // Restore camera position and projection
+            camera.up.set(0, 1, 0);
             camera.position.copy(originalCamPos);
             controls.target.copy(originalTarget);
+            if (isOrthographic && originalFrustum) {
+                camera.left = originalFrustum.left;
+                camera.right = originalFrustum.right;
+                camera.top = originalFrustum.top;
+                camera.bottom = originalFrustum.bottom;
+                camera.zoom = originalZoom;
+                camera.updateProjectionMatrix();
+            }
             controls.update();
             
             // Restore original light mode
