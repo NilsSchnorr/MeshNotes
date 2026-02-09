@@ -940,7 +940,7 @@
         #model-stats {
             display: none;
             position: absolute;
-            bottom: 10px;
+            bottom: 145px;
             right: 230px;
             background: rgba(10, 53, 89, 0.8);
             color: #888;
@@ -956,6 +956,23 @@
 
         #model-stats .warning {
             color: #e8a33c;
+        }
+
+        /* ViewHelper (orientation gizmo) */
+        #viewhelper-container {
+            position: absolute;
+            bottom: 10px;
+            right: 230px;
+            width: 128px;
+            height: 128px;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        #viewhelper-canvas {
+            display: block;
+            width: 128px;
+            height: 128px;
         }
 
         /* Status message */
@@ -1993,6 +2010,10 @@
                 <span id="face-count"></span>
             </div>
 
+            <div id="viewhelper-container">
+                <canvas id="viewhelper-canvas" width="128" height="128"></canvas>
+            </div>
+
             <div id="sliders-panel">
                 <div id="sliders-panel-toggle">▼</div>
                 <div id="sliders-panel-content">
@@ -2198,10 +2219,13 @@
         import { Line2 } from 'three/addons/lines/Line2.js';
         import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
         import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+        import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
 
         // ============ State ============
         let scene, camera, renderer, controls;
         let perspectiveCamera, orthographicCamera;
+        let viewHelper, viewHelperRenderer;
+        const clock = new THREE.Clock();
         let isOrthographic = false;
         let ambientLight, dirLight1, dirLight2;
         let currentModel = null;
@@ -2429,6 +2453,27 @@
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
+            // ViewHelper (orientation gizmo)
+            const vhCanvas = document.getElementById('viewhelper-canvas');
+            viewHelperRenderer = new THREE.WebGLRenderer({ canvas: vhCanvas, alpha: true, antialias: true });
+            viewHelperRenderer.setPixelRatio(window.devicePixelRatio);
+            viewHelperRenderer.setSize(128, 128);
+
+            viewHelper = new ViewHelper(camera, viewHelperRenderer.domElement);
+            viewHelper.center = controls.target;
+
+            // Click on ViewHelper axes to animate camera
+            vhCanvas.addEventListener('pointerup', (event) => {
+                if (viewHelper.handleClick(event)) {
+                    // ViewHelper handles the camera animation
+                }
+            });
+
+            // When ViewHelper animation changes camera, update controls
+            viewHelper.addEventListener('change', () => {
+                controls.update();
+            });
+
             // Lights
             ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
             scene.add(ambientLight);
@@ -2485,6 +2530,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta();
             controls.update();
             
             // Update light position if following camera
@@ -2493,6 +2539,13 @@
             }
             
             renderer.render(scene, camera);
+
+            // Update and render ViewHelper
+            if (viewHelper.animating) {
+                viewHelper.update(delta);
+            }
+            viewHelperRenderer.clear();
+            viewHelper.render(viewHelperRenderer);
         }
 
         // ============ Camera Toggle ============
@@ -2534,6 +2587,14 @@
             // Update controls to use new camera
             controls.object = camera;
             controls.update();
+
+            // Recreate ViewHelper with new camera
+            viewHelper.dispose();
+            viewHelper = new ViewHelper(camera, viewHelperRenderer.domElement);
+            viewHelper.center = controls.target;
+            viewHelper.addEventListener('change', () => {
+                controls.update();
+            });
         }
 
         // ============ Model Loading ============
