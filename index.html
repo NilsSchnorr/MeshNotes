@@ -130,7 +130,7 @@
             margin: 0 4px;
         }
 
-        #file-input, #import-input, #obj-material-input {
+        #file-input, #import-input, #obj-material-input, #ply-texture-input {
             display: none;
         }
 
@@ -149,6 +149,23 @@
         }
 
         #obj-dialog-overlay.visible {
+            display: flex;
+        }
+
+        #ply-dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #ply-dialog-overlay.visible {
             display: flex;
         }
 
@@ -1597,7 +1614,7 @@
                 <section>
                     <h3>Quick Start</h3>
                     <div style="background: #041D31; padding: 16px; border-radius: 6px;">
-                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Load Model</strong> and select a 3D model file (.glb, .gltf, or .obj format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files. If your model is in PLY format, convert it first using Blender.</p>
+                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Load Model</strong> and select a 3D model file (.glb, .gltf, .obj, or .ply format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files.</p>
                         <p style="margin-bottom: 12px;"><strong>2. Add annotations</strong> — Select a tool (Point, Line, Polygon, or Surface) and click on the model. Double-click to finish lines/polygons/surfaces.</p>
                         <p style="margin-bottom: 12px;"><strong>3. Navigate annotations</strong> — Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing.</p>
                         <p style="margin-bottom: 12px;"><strong>4. Adjust annotations</strong> — When no tool is active, drag any annotation point to reposition it. Use groups to organize and color-code your work.</p>
@@ -1615,12 +1632,14 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Load Model</strong> to open a 3D model file. The tool supports <code>.glb</code>, <code>.gltf</code>, and <code>.obj</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
+                            <p>Click <strong>Load Model</strong> to open a 3D model file. The tool supports <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, and <code>.ply</code> formats. PLY files with vertex colors and textures are fully supported. After loading, the face count is displayed in the bottom-right corner.</p>
+                            
+                            <p style="margin-top: 10px;"><strong>PLY Files:</strong> When loading a PLY file, you will be asked whether to add a texture image. If your PLY contains UV coordinates, the texture will be mapped onto the model. PLY files with vertex colors are loaded automatically without requiring a separate texture.</p>
                             
                             <p style="margin-top: 10px;"><strong>OBJ Files:</strong> When loading an OBJ file, you will be asked whether to add material and texture files. You can select a <code>.mtl</code> file together with texture images (<code>.jpg</code>, <code>.png</code>), or only texture images, or load the geometry without any materials. If only a texture is provided without an MTL file, it will be applied as a diffuse map (works best for single-texture models).</p>
                             
                             <p style="margin-top: 10px;"><strong>Model Orientation:</strong> Ensure your model is oriented correctly (typically Y-up or Z-up) before exporting. The viewer's navigation is based on the model's original orientation and cannot be changed after loading. If your model appears upside down or sideways, re-export it with the correct orientation in your 3D software.</p>
-                            <p style="margin-top: 10px;"><strong>Converting Models:</strong> If your model is in PLY format, convert it to GLB using <a href="https://www.blender.org/" target="_blank">Blender</a>. GLB is recommended for best compatibility as it embeds textures in a single file.</p>
+                            <p style="margin-top: 10px;"><strong>Tip:</strong> GLB is recommended for best compatibility as it embeds textures in a single file. If your model is in another format, you can convert it using <a href="https://www.blender.org/" target="_blank">Blender</a>.</p>
                             <div class="limitation-note" style="margin-top: 12px;">
                                 <strong>Exporting Vertex Colors from Blender:</strong> To include vertex colors in your GLB export, go to <code>File → Export → glTF 2.0</code>. In the export panel, expand <strong>Mesh</strong>, then <strong>Vertex Colors</strong>, and set <strong>Use Vertex Color</strong> to <strong>Active</strong>. This ensures that vertex color data is included in the GLB file and will be available in the Colors display mode.
                             </div>
@@ -1965,11 +1984,12 @@
             <button id="camera-toggle" title="Toggle Orthographic/Perspective View">Perspective</button>
             
             <div id="toolbar">
-                <input type="file" id="file-input" accept=".glb,.gltf,.obj">
+                <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply">
                 <input type="file" id="import-input" accept=".json,.jsonld">
                 <input type="file" id="obj-material-input" accept=".mtl,.jpg,.jpeg,.png,.tif,.tiff" multiple>
+                <input type="file" id="ply-texture-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
                 
-                <button class="tool-btn" id="btn-load" title="Load 3D Model (GLB, GLTF, OBJ)">📂 Load Model</button>
+                <button class="tool-btn" id="btn-load" title="Load 3D Model (GLB, GLTF, OBJ, PLY)">📂 Load Model</button>
                 <button class="tool-btn" id="btn-texture" disabled title="Toggle Texture">🖼️ Texture</button>
                 
                 <div class="tool-separator"></div>
@@ -2153,6 +2173,17 @@
                 </div>
             </div>
 
+            <div id="ply-dialog-overlay">
+                <div class="obj-dialog">
+                    <h3>PLY File Detected</h3>
+                    <p>Would you like to add a texture image (.jpg, .png)?<br>This requires your PLY to contain UV coordinates.</p>
+                    <div class="btn-row">
+                        <button class="btn-secondary" id="ply-load-plain">Load without texture</button>
+                        <button class="btn-primary" id="ply-add-texture">Add Texture</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Group Popup -->
             <div class="popup" id="group-popup">
                 <h3 id="group-popup-title">New Group</h3>
@@ -2217,6 +2248,7 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
         import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
         import { Line2 } from 'three/addons/lines/Line2.js';
         import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -2296,6 +2328,11 @@
         const objLoadPlain = document.getElementById('obj-load-plain');
         const objAddMaterials = document.getElementById('obj-add-materials');
         let pendingObjFile = null; // Holds OBJ file while dialog is open
+        const plyTextureInput = document.getElementById('ply-texture-input');
+        const plyDialogOverlay = document.getElementById('ply-dialog-overlay');
+        const plyLoadPlain = document.getElementById('ply-load-plain');
+        const plyAddTexture = document.getElementById('ply-add-texture');
+        let pendingPlyFile = null; // Holds PLY file while dialog is open
         
         const btnLoad = document.getElementById('btn-load');
         const btnTexture = document.getElementById('btn-texture');
@@ -2610,6 +2647,13 @@
                 return;
             }
             
+            if (ext === 'ply') {
+                // Store PLY file and show texture dialog
+                pendingPlyFile = file;
+                plyDialogOverlay.classList.add('visible');
+                return;
+            }
+            
             // GLB/GLTF path
             loading.classList.add('visible');
             modelFileName = file.name;
@@ -2846,6 +2890,79 @@
                     console.error('Error loading OBJ:', error);
                     loading.classList.remove('visible');
                     showStatus('Error loading OBJ model!');
+                }
+            );
+        }
+
+        // Load PLY with optional texture
+        function loadPLYModel(plyFile, textureFile) {
+            loading.classList.add('visible');
+            modelFileName = plyFile.name;
+            modelInfo = { entries: [] };
+            updateModelInfoDisplay();
+            
+            const loader = new PLYLoader();
+            const url = URL.createObjectURL(plyFile);
+            
+            loader.load(
+                url,
+                (geometry) => {
+                    geometry.computeVertexNormals();
+                    
+                    const hasColors = !!geometry.attributes.color;
+                    const hasUVs = !!geometry.attributes.uv;
+                    
+                    let material;
+                    
+                    if (textureFile && hasUVs) {
+                        // Apply texture using UV coordinates
+                        const texUrl = URL.createObjectURL(textureFile);
+                        const textureLoader = new THREE.TextureLoader();
+                        const texture = textureLoader.load(texUrl, () => {
+                            URL.revokeObjectURL(texUrl);
+                        });
+                        texture.colorSpace = THREE.SRGBColorSpace;
+                        texture.flipY = true;
+                        
+                        material = new THREE.MeshStandardMaterial({
+                            map: texture,
+                            roughness: 0.7,
+                            metalness: 0.0,
+                            side: THREE.DoubleSide
+                        });
+                    } else if (textureFile && !hasUVs) {
+                        // User provided texture but PLY has no UVs
+                        showStatus('Warning: PLY has no UV coordinates — texture ignored');
+                        material = new THREE.MeshStandardMaterial({
+                            roughness: 0.7,
+                            metalness: 0.0,
+                            vertexColors: hasColors,
+                            color: hasColors ? 0xffffff : 0xcccccc,
+                            side: THREE.DoubleSide
+                        });
+                    } else {
+                        // No texture — use vertex colors or plain gray
+                        material = new THREE.MeshStandardMaterial({
+                            roughness: 0.7,
+                            metalness: 0.0,
+                            vertexColors: hasColors,
+                            color: hasColors ? 0xffffff : 0xcccccc,
+                            side: THREE.DoubleSide
+                        });
+                    }
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    const group = new THREE.Group();
+                    group.add(mesh);
+                    
+                    setupLoadedModel(group, plyFile.name);
+                    URL.revokeObjectURL(url);
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading PLY:', error);
+                    loading.classList.remove('visible');
+                    showStatus('Error loading PLY model!');
                 }
             );
         }
@@ -5103,7 +5220,7 @@
                     source: {
                         id: `urn:meshnotes:model:${modelFileName || 'unknown'}`,
                         type: 'Dataset',
-                        format: modelFileName && modelFileName.toLowerCase().endsWith('.obj') ? 'model/obj' : 'model/gltf-binary'
+                        format: getModelMimeType()
                     },
                     selector: formatPointsAsSelector(ann)
                 }
@@ -5239,7 +5356,7 @@
                     id: `urn:meshnotes:model:${modelFileName || 'unknown'}`,
                     type: 'Dataset',
                     'schema:name': modelFileName,
-                    format: modelFileName && modelFileName.toLowerCase().endsWith('.obj') ? 'model/obj' : 'model/gltf-binary'
+                    format: getModelMimeType()
                 },
                 
                 // Stylesheet for group colors
@@ -5876,6 +5993,14 @@
             showStatus('PDF report exported');
         }
 
+        function getModelMimeType() {
+            if (!modelFileName) return 'model/gltf-binary';
+            const ext = modelFileName.toLowerCase().split('.').pop();
+            if (ext === 'obj') return 'model/obj';
+            if (ext === 'ply') return 'model/ply';
+            return 'model/gltf-binary';
+        }
+
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? {
@@ -6343,6 +6468,41 @@
                 pendingObjFile = null;
             }
             objMaterialInput.value = ''; // Reset
+        });
+
+        // PLY dialog event listeners
+        plyLoadPlain.addEventListener('click', () => {
+            plyDialogOverlay.classList.remove('visible');
+            if (pendingPlyFile) {
+                loadPLYModel(pendingPlyFile, null);
+                pendingPlyFile = null;
+            }
+        });
+
+        plyAddTexture.addEventListener('click', () => {
+            plyDialogOverlay.classList.remove('visible');
+            plyTextureInput.click();
+
+            // Handle case where user cancels the file picker
+            const handleCancel = () => {
+                window.removeEventListener('focus', handleCancel);
+                setTimeout(() => {
+                    if (pendingPlyFile && plyTextureInput.files.length === 0) {
+                        loadPLYModel(pendingPlyFile, null);
+                        pendingPlyFile = null;
+                    }
+                }, 300);
+            };
+            window.addEventListener('focus', handleCancel);
+        });
+
+        plyTextureInput.addEventListener('change', (e) => {
+            if (pendingPlyFile) {
+                const textureFile = e.target.files[0] || null;
+                loadPLYModel(pendingPlyFile, textureFile);
+                pendingPlyFile = null;
+            }
+            plyTextureInput.value = ''; // Reset
         });
 
         btnTexture.addEventListener('click', toggleTexture);
