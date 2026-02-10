@@ -6799,7 +6799,16 @@
                 let entriesUpdated = 0;
                 
                 importedEntries.forEach(importedEntry => {
-                    const existingEntry = existingEntries.find(e => e.uuid === importedEntry.uuid);
+                    // Match by UUID first, then fall back to content match
+                    // (content match handles old exports without entry UUIDs)
+                    let existingEntry = existingEntries.find(e => e.uuid === importedEntry.uuid);
+                    if (!existingEntry) {
+                        existingEntry = existingEntries.find(e => 
+                            e.description === importedEntry.description && 
+                            e.author === importedEntry.author && 
+                            e.timestamp === importedEntry.timestamp
+                        );
+                    }
                     
                     if (!existingEntry) {
                         // New entry - add it
