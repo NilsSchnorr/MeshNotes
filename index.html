@@ -2507,6 +2507,11 @@
         }
 
         // ============ Initialize Three.js ============
+        /**
+         * Initializes the Three.js scene, cameras (perspective + orthographic),
+         * renderer, orbit controls, lighting, grid helper, and the ViewHelper gizmo.
+         * Called once on page load.
+         */
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x041D31);
@@ -2684,6 +2689,11 @@
         }
 
         // ============ Model Loading ============
+        /**
+         * Entry point for loading a 3D model file. Detects the format (GLB/GLTF/OBJ/PLY)
+         * and either loads directly or shows a dialog for additional files (materials/textures).
+         * @param {File} file - The model file selected by the user
+         */
         function loadModel(file) {
             const ext = file.name.split('.').pop().toLowerCase();
             
@@ -2728,9 +2738,50 @@
         }
         
         // Shared setup after any model (GLB/GLTF/OBJ) is loaded
+        /**
+         * Recursively disposes all geometries, materials, and textures of a Three.js object.
+         * Call this before removing objects to prevent GPU memory leaks.
+         * @param {THREE.Object3D} obj - The object to dispose
+         */
+        function disposeObject3D(obj) {
+            if (!obj) return;
+            obj.traverse((child) => {
+                if (child.geometry) {
+                    if (child.geometry.boundsTree) {
+                        child.geometry.disposeBoundsTree();
+                    }
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach(mat => {
+                        if (mat.map) mat.map.dispose();
+                        if (mat.normalMap) mat.normalMap.dispose();
+                        if (mat.roughnessMap) mat.roughnessMap.dispose();
+                        if (mat.metalnessMap) mat.metalnessMap.dispose();
+                        if (mat.aoMap) mat.aoMap.dispose();
+                        if (mat.emissiveMap) mat.emissiveMap.dispose();
+                        mat.dispose();
+                    });
+                }
+            });
+        }
+
+        /**
+         * Shared setup after any model format is loaded. Disposes the previous model,
+         * centers the new one, builds BVH acceleration structures for raycasting,
+         * detects vertex colors (sampling 50 vertices to ignore all-white defaults),
+         * counts faces, and configures the camera to frame the model.
+         * @param {THREE.Object3D} model - The loaded Three.js model/scene
+         * @param {string} fileName - Original filename for display and export metadata
+         */
         function setupLoadedModel(model, fileName) {
             if (currentModel) {
+                // Dispose old model's GPU resources (geometries, materials, textures, BVH trees)
+                disposeObject3D(currentModel);
                 scene.remove(currentModel);
+                // Dispose cloned materials stored for display mode switching
+                originalMaterials.forEach(mat => mat.dispose());
             }
 
             const grid = scene.getObjectByName('gridHelper');
@@ -3353,14 +3404,22 @@
             tempPoints = [];
             tempProjectedEdges = [];
             if (tempLine) {
+                if (tempLine.geometry) tempLine.geometry.dispose();
+                if (tempLine.material) tempLine.material.dispose();
                 annotationObjects.remove(tempLine);
                 tempLine = null;
             }
             // Only clear in-progress measurement points, not saved measurements
             measurePoints = [];
-            measureMarkers.forEach(m => annotationObjects.remove(m));
+            measureMarkers.forEach(m => {
+                if (m.geometry) m.geometry.dispose();
+                if (m.material) m.material.dispose();
+                annotationObjects.remove(m);
+            });
             measureMarkers = [];
             if (measureLine) {
+                if (measureLine.geometry) measureLine.geometry.dispose();
+                if (measureLine.material) measureLine.material.dispose();
                 annotationObjects.remove(measureLine);
                 measureLine = null;
             }
@@ -3385,6 +3444,12 @@
             }
         }
 
+        /**
+         * Raycasts from a mouse event to the model surface, returning the hit point,
+         * face index, and mesh reference. Used by the surface painting tool.
+         * @param {MouseEvent} event - The mouse event with clientX/clientY
+         * @returns {{point: THREE.Vector3, faceIndex: number, mesh: THREE.Mesh}|null}
+         */
         function getIntersectionWithFace(event) {
             if (!currentModel) return null;
 
@@ -3408,6 +3473,16 @@
             return null;
         }
 
+        /**
+         * Paints or erases faces within the brush radius around a point on the mesh surface.
+         * Uses BVH shapecast for fast spatial queries — a bounding sphere in local mesh space
+         * is tested against the BVH tree to find all triangles within the brush radius,
+         * avoiding expensive per-face distance checks.
+         * Hold Shift to erase (remove faces from paintedFaces set).
+         * @param {THREE.Vector3} point - World-space point where the brush is centered
+         * @param {THREE.Mesh} mesh - The mesh being painted on
+         * @param {number} faceIndex - Index of the face directly under the cursor
+         */
         function paintAtPoint(point, mesh, faceIndex) {
             if (!mesh || !mesh.geometry) return;
 
@@ -3513,6 +3588,12 @@
             }
         }
 
+        /**
+         * Rebuilds the visual highlight mesh for all currently painted faces.
+         * Groups faces by source mesh, extracts triangle vertices in world space,
+         * and creates a single semi-transparent BufferGeometry overlay.
+         * Throttled via requestAnimationFrame to run at most once per frame.
+         */
         function updateSurfaceHighlight() {
             // Remove old highlight mesh
             if (surfaceHighlightMesh) {
@@ -3598,6 +3679,12 @@
             annotationObjects.add(surfaceHighlightMesh);
         }
 
+        /**
+         * Completes a surface painting session: calculates the centroid of all painted faces,
+         * stores the face data (mesh index + face index pairs), and opens the annotation popup.
+         * The painted faces are stored as a serializable format for export/import.
+         * @param {MouseEvent} event - The double-click event that triggered completion
+         */
         function finishSurfacePainting(event) {
             if (paintedFaces.size === 0) {
                 showStatus('No surface painted');
@@ -3666,6 +3753,12 @@
         }
 
         // ============ Raycasting ============
+        /**
+         * Raycasts from a mouse event to the model surface, returning the world-space hit point.
+         * Used by point, line, polygon, and measurement tools.
+         * @param {MouseEvent} event - The mouse event with clientX/clientY
+         * @returns {THREE.Vector3|null} World-space intersection point, or null if no hit
+         */
         function getIntersection(event) {
             if (!currentModel) return null;
 
@@ -4257,18 +4350,36 @@
         function clearAllMeasurements() {
             // Clear current in-progress measurement
             measurePoints = [];
-            measureMarkers.forEach(m => annotationObjects.remove(m));
+            measureMarkers.forEach(m => {
+                if (m.geometry) m.geometry.dispose();
+                if (m.material) m.material.dispose();
+                annotationObjects.remove(m);
+            });
             measureMarkers = [];
             if (measureLine) {
+                if (measureLine.geometry) measureLine.geometry.dispose();
+                if (measureLine.material) measureLine.material.dispose();
                 annotationObjects.remove(measureLine);
                 measureLine = null;
             }
             
             // Clear all saved measurements
             measurements.forEach(m => {
-                m.markers.forEach(marker => annotationObjects.remove(marker));
-                if (m.line) annotationObjects.remove(m.line);
-                if (m.label) annotationObjects.remove(m.label);
+                m.markers.forEach(marker => {
+                    if (marker.geometry) marker.geometry.dispose();
+                    if (marker.material) marker.material.dispose();
+                    annotationObjects.remove(marker);
+                });
+                if (m.line) {
+                    if (m.line.geometry) m.line.geometry.dispose();
+                    if (m.line.material) m.line.material.dispose();
+                    annotationObjects.remove(m.line);
+                }
+                if (m.label) {
+                    if (m.label.material && m.label.material.map) m.label.material.map.dispose();
+                    if (m.label.material) m.label.material.dispose();
+                    annotationObjects.remove(m.label);
+                }
             });
             measurements = [];
             
@@ -5197,10 +5308,23 @@
         }
 
         // ============ Render Annotations ============
+        /**
+         * Clears and rebuilds all 3D annotation objects (markers, lines, polygons,
+         * surface meshes, and text labels). Disposes old GPU resources before recreating.
+         * Respects group visibility and applies group colors. Scales markers and labels
+         * based on model bounding size with non-linear scaling (exponent 0.8/0.7)
+         * so they remain visible across different model scales.
+         */
         function renderAnnotations() {
-            // Clear existing
+            // Clear existing and dispose GPU resources
             while (annotationObjects.children.length > 0) {
-                annotationObjects.remove(annotationObjects.children[0]);
+                const child = annotationObjects.children[0];
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    mats.forEach(m => m.dispose());
+                }
+                annotationObjects.remove(child);
             }
 
             const modelSize = currentModel ? 
@@ -5469,6 +5593,14 @@
             });
         }
         
+        /**
+         * Converts an annotation's geometry into a W3C Web Annotation selector.
+         * Uses FragmentSelector with IIIF 3D conformance for point/line/polygon types,
+         * and a custom MeshNotes surface selector for painted face annotations.
+         * @see https://www.w3.org/TR/annotation-model/#fragment-selector
+         * @param {Object} ann - Internal annotation object with type and points/faceData
+         * @returns {Object} W3C-compliant selector object
+         */
         function formatPointsAsSelector(ann) {
             // Create W3C-compliant selector for 3D geometry
             if (ann.type === 'point') {
@@ -5577,6 +5709,15 @@
             }
         }
         
+        /**
+         * Converts an internal annotation to the W3C Web Annotation JSON-LD format.
+         * Includes annotation metadata, group info, geometry selector, and all entries
+         * (mapped to oa:TextualBody with author/timestamp/links).
+         * @see https://www.w3.org/TR/annotation-model/
+         * @param {Object} ann - Internal annotation object
+         * @param {Object} group - The group this annotation belongs to (for color/name)
+         * @returns {Object} W3C Web Annotation JSON-LD object
+         */
         function convertToW3CAnnotation(ann, group) {
             // Convert internal annotation to W3C Web Annotation format
             const w3cAnn = {
@@ -5698,6 +5839,12 @@
             return ann;
         }
         
+        /**
+         * Exports all annotations as a W3C Web Annotation Collection (JSON-LD).
+         * Includes group definitions (as CssStylesheet), model info, and all annotations
+         * converted to W3C format. Downloads as a .json file.
+         * @see https://www.w3.org/TR/annotation-model/#collections
+         */
         function exportAnnotations() {
             // Create W3C Web Annotation Collection
             const collectionId = `urn:meshnotes:collection:${generateUUID()}`;
@@ -6627,6 +6774,13 @@
             reader.readAsText(file);
         }
         
+        /**
+         * Imports a W3C Web Annotation Collection with intelligent merge support.
+         * Uses UUID-based duplicate detection: existing annotations are updated
+         * (entries merged by UUID, newer timestamps win), new annotations are added.
+         * Also imports groups and model info with the same merge strategy.
+         * @param {Object} data - Parsed W3C AnnotationCollection JSON-LD
+         */
         function importW3CAnnotations(data) {
             // Import W3C Web Annotation Collection format with merge support
             const groupIdMap = {};
