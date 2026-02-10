@@ -532,6 +532,22 @@
             margin-bottom: 4px;
         }
 
+        .projection-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            margin: 4px 0 8px 0;
+            font-size: 12px;
+            color: var(--color-text-medium);
+        }
+        .projection-checkbox-label input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+            accent-color: var(--color-gold);
+        }
+
         .popup input,
         .popup textarea,
         .popup select {
@@ -2128,6 +2144,13 @@
                     
                     <label for="ann-group">Group</label>
                     <select id="ann-group"></select>
+                    
+                    <div id="surface-projection-toggle" style="display: none;">
+                        <label class="projection-checkbox-label">
+                            <input type="checkbox" id="ann-surface-projection" checked>
+                            Project line(s) to surface
+                        </label>
+                    </div>
                 </div>
                 
                 <!-- Entries container (shown when editing) -->
@@ -2391,6 +2414,8 @@
         const popupTitle = document.getElementById('popup-title');
         const annName = document.getElementById('ann-name');
         const annGroup = document.getElementById('ann-group');
+        const surfaceProjectionToggle = document.getElementById('surface-projection-toggle');
+        const annSurfaceProjection = document.getElementById('ann-surface-projection');
         const annDescription = document.getElementById('ann-description');
         const annAuthor = document.getElementById('ann-author');
         const annLinks = document.getElementById('ann-links');
@@ -3944,7 +3969,7 @@
             
             let count = 0;
             annotations.forEach(ann => {
-                if ((ann.type === 'line' || ann.type === 'polygon') && ann.points.length >= 2) {
+                if ((ann.type === 'line' || ann.type === 'polygon') && ann.points.length >= 2 && ann.surfaceProjection !== false) {
                     ann.projectedEdges = computeProjectedEdges(ann.points, ann.type === 'polygon');
                     ann.surfaceProjection = true;
                     count++;
@@ -4567,6 +4592,14 @@
             annotationPopup.dataset.type = type;
             annotationPopup.dataset.points = JSON.stringify(points.map(p => ({ x: p.x, y: p.y, z: p.z })));
             
+            // Show surface projection toggle for line/polygon
+            if ((type === 'line' || type === 'polygon') && surfaceProjectionEnabled) {
+                surfaceProjectionToggle.style.display = 'block';
+                annSurfaceProjection.checked = true;
+            } else {
+                surfaceProjectionToggle.style.display = 'none';
+            }
+
             // Store face data for surface annotations
             if (faceData) {
                 annotationPopup.dataset.faceData = JSON.stringify(faceData);
@@ -4599,6 +4632,14 @@
 
             annotationPopup.dataset.type = ann.type;
             annotationPopup.dataset.points = JSON.stringify(ann.points);
+
+            // Show surface projection toggle for line/polygon
+            if ((ann.type === 'line' || ann.type === 'polygon') && surfaceProjectionEnabled) {
+                surfaceProjectionToggle.style.display = 'block';
+                annSurfaceProjection.checked = ann.surfaceProjection !== false;
+            } else {
+                surfaceProjectionToggle.style.display = 'none';
+            }
 
             // Show name/group fields, entries container, hide new entry form initially
             document.getElementById('popup-main-fields').style.display = 'block';
@@ -5181,6 +5222,24 @@
                 editingAnnotation.name = name;
                 editingAnnotation.groupId = groupId;
                 
+                // Handle surface projection toggle for line/polygon
+                if ((editingAnnotation.type === 'line' || editingAnnotation.type === 'polygon') && surfaceProjectionEnabled) {
+                    const wantsProjection = annSurfaceProjection.checked;
+                    const hadProjection = editingAnnotation.surfaceProjection !== false;
+                    
+                    if (wantsProjection && !hadProjection) {
+                        // Turned ON: compute projected edges
+                        editingAnnotation.projectedEdges = computeProjectedEdges(
+                            editingAnnotation.points, editingAnnotation.type === 'polygon'
+                        );
+                        editingAnnotation.surfaceProjection = true;
+                    } else if (!wantsProjection && hadProjection) {
+                        // Turned OFF: remove projected edges
+                        delete editingAnnotation.projectedEdges;
+                        editingAnnotation.surfaceProjection = false;
+                    }
+                }
+
                 // If adding a new entry
                 if (isAddingEntry) {
                     const description = annDescription.value.trim();
@@ -5226,9 +5285,12 @@
                 }
                 
                 // Compute surface-projected edges for lines and polygons
-                if (surfaceProjectionEnabled && (type === 'line' || type === 'polygon') && points.length >= 2) {
-                    newAnnotation.projectedEdges = computeProjectedEdges(points, type === 'polygon');
-                    newAnnotation.surfaceProjection = true;
+                if ((type === 'line' || type === 'polygon') && points.length >= 2) {
+                    const wantsProjection = surfaceProjectionEnabled && annSurfaceProjection.checked;
+                    newAnnotation.surfaceProjection = wantsProjection;
+                    if (wantsProjection) {
+                        newAnnotation.projectedEdges = computeProjectedEdges(points, type === 'polygon');
+                    }
                 }
                 
                 annotations.push(newAnnotation);
@@ -5773,6 +5835,9 @@
             w3cAnn['meshnotes:groupId'] = ann.groupId;
             w3cAnn['meshnotes:groupUuid'] = group ? group.uuid : undefined;
             w3cAnn['meshnotes:annotationType'] = ann.type;
+            if (ann.surfaceProjection === false) {
+                w3cAnn['meshnotes:surfaceProjection'] = false;
+            }
             
             return w3cAnn;
         }
@@ -5803,6 +5868,11 @@
                 ann.groupId = groupIdMap[origGroupId];
             }
             
+            // Restore surface projection setting (default true for line/polygon)
+            if (w3cAnn['meshnotes:surfaceProjection'] === false) {
+                ann.surfaceProjection = false;
+            }
+
             // Parse selector to get points/faceData
             if (w3cAnn.target && w3cAnn.target.selector) {
                 parseSelector(w3cAnn.target.selector, ann);
