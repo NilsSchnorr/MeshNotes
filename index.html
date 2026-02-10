@@ -1686,6 +1686,36 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>Model Preparation &amp; Format Guide</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>MeshNotes works with 3D models in <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, and <code>.ply</code> formats. Choosing the right format and preparing your model well will give you the best experience.</p>
+
+                            <p style="margin-top: 10px;"><strong>Recommended format:</strong> <code>GLB</code> (Binary glTF) is the best all-around choice. It packages geometry, textures, and materials into a single file, loads quickly, and has the broadest compatibility. Most 3D software (Blender, Agisoft Metashape, RealityCapture, Meshlab, etc.) can export to GLB.</p>
+
+                            <p style="margin-top: 10px;"><strong>Format comparison:</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>GLB/GLTF</strong> — Best overall. Single file (GLB) or folder with linked textures (GLTF). Supports textures, materials, and vertex colors.</li>
+                                <li><strong>OBJ</strong> — Widely supported legacy format. Requires separate <code>.mtl</code> and texture files. Good for models from older photogrammetry software.</li>
+                                <li><strong>PLY</strong> — Common for point clouds and laser scans. Supports vertex colors natively. Texture mapping requires UV coordinates in the file.</li>
+                            </ul>
+
+                            <p style="margin-top: 10px;"><strong>Face count &amp; performance:</strong> The number of faces (triangles) in your model directly affects performance. After loading, the face count is displayed in the bottom-right corner with a color indicator:</p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Under 500k faces</strong> — All features work smoothly.</li>
+                                <li><strong>500k – 1M faces</strong> — General annotation and navigation work well. Surface painting may show slight lag with large brush sizes.</li>
+                                <li><strong>Over 1M faces</strong> — Consider decimating your model for annotation work. You can use <a href="https://www.blender.org/" target="_blank">Blender</a> (Decimate modifier) or <a href="https://www.meshlab.net/" target="_blank">MeshLab</a> (Simplification filters) to reduce the face count while preserving visual quality. A decimated copy for annotation and the full-resolution original for final presentation is a common workflow.</li>
+                            </ul>
+
+                            <p style="margin-top: 10px;"><strong>Orientation:</strong> Make sure your model uses the correct up-axis before exporting. MeshNotes cannot change the orientation after loading. If your model appears sideways or upside down, re-export it with Y-up orientation (the most common convention for web-based 3D viewers) in your 3D software.</p>
+
+                            <p style="margin-top: 10px;"><strong>Units:</strong> MeshNotes displays distances and scalebar values in whatever unit your model was created with. If your photogrammetry software exports in meters, distances will be in meters. If it exports in millimeters, they will be in millimeters. There is no unit conversion — consistency depends on your source data. Check your 3D software's export settings if distances seem off by a factor of 1000.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
                             <span>Texture &amp; Display Controls</span>
                             <span class="toggle-icon">▶</span>
                         </div>
@@ -1714,6 +1744,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Line</strong> to start drawing a polyline. Single-click to add points along the line, double-click to finish and open the annotation popup. Lines are useful for marking edges, boundaries, cracks, or linear features.</p>
+                            <p style="margin-top: 10px;"><strong>Surface projection:</strong> By default, line edges are automatically projected onto the model surface — they follow the geometry's contour rather than cutting through it as straight lines. This works best on smaller objects with gently curved surfaces. If the projection deviates too far from the intended path (e.g., on complex geometry with deep recesses), MeshNotes falls back to a straight connection for that segment automatically. You can toggle surface projection on or off per annotation using the <strong>"Project line(s) to surface"</strong> checkbox in the annotation popup.</p>
                         </div>
                     </div>
 
@@ -1724,6 +1755,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Polygon</strong> to start drawing a closed shape. Single-click to add vertices, double-click to close the polygon and open the annotation popup. Polygons are useful for marking areas, surfaces, or regions of interest.</p>
+                            <p style="margin-top: 10px;">Like line annotations, polygon edges are projected onto the model surface by default, following the geometry's contour. This can be toggled per annotation in the popup.</p>
                         </div>
                     </div>
 
@@ -1769,6 +1801,16 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>Searching Annotations</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Use the <strong>search box</strong> at the top of the sidebar to filter annotations by name. As you type, annotations and groups that don't match your search term are hidden from the list. Clear the search field to show all annotations again. This is helpful when working with many annotations and you need to quickly find a specific feature.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
                             <span>Model Information</span>
                             <span class="toggle-icon">▶</span>
                         </div>
@@ -1803,7 +1845,9 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>When no tool is active, you can click and drag any annotation point to reposition it. The cursor changes to a hand when hovering over draggable points. While dragging, the point follows the model surface and lines/polygons update in real-time. This allows you to adjust annotations without recreating them. Note: Surface annotations cannot be edited after creation.</p>
+                            <p>When no tool is active, you can click and drag any annotation point to reposition it. The cursor changes to a hand when hovering over draggable points. While dragging, the point snaps to the model surface so your annotations stay attached to the geometry.</p>
+                            <p style="margin-top: 10px;"><strong>Lines and polygons:</strong> When you drag a point that belongs to a line or polygon, the connected edges update in real-time. If surface projection is enabled for that annotation, the adjacent edges are re-projected onto the model surface as you move the point — so the lines continue to follow the surface contour at the new position. This allows you to refine annotation boundaries precisely without recreating them.</p>
+                            <p style="margin-top: 10px;"><strong>Note:</strong> Surface annotations (painted faces) cannot be repositioned after creation. To adjust a surface annotation, delete it and paint a new one.</p>
                         </div>
                     </div>
 
@@ -1821,22 +1865,81 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header" onclick="toggleManualItem(this)">
-                            <span>PDF Report</span>
+                            <span>Collaborative Workflow &amp; Merging</span>
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>PDF</strong> to generate a professional PDF report of your annotations. The report includes: a title page with model overview and model information, a table of contents, and one page per annotation with an auto-captured screenshot and all entry details. Only visible annotations are included — hide groups you don't want in the report. The PDF is formatted for A4 paper and suitable for academic documentation and publication.</p>
-                            <p style="margin-top: 10px;"><strong>Note:</strong> PDF screenshots always use camera-linked lighting for consistent illumination across all views, regardless of your current light source setting.</p>
+                            <p>MeshNotes is designed for teams working on the same 3D model. Multiple people can annotate independently and then merge their work through JSON import/export — no server or shared account required.</p>
+
+                            <p style="margin-top: 10px;"><strong>How it works:</strong> Every annotation and every entry within an annotation is assigned a unique ID (UUID) when created. When you import a JSON file, MeshNotes compares these IDs to determine what is new and what already exists:</p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>New annotations</strong> (unknown UUID) are added alongside your existing ones.</li>
+                                <li><strong>Existing annotations</strong> (matching UUID) are updated — any new entries from collaborators are merged in, and entries that were edited are updated if the imported version has a newer timestamp.</li>
+                                <li><strong>Groups</strong> with the same name are combined. New groups from the imported file are created automatically.</li>
+                                <li><strong>Model Information</strong> entries are merged in the same way as annotation entries.</li>
+                            </ul>
+
+                            <p style="margin-top: 12px;"><strong>Example team workflow:</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>1.</strong> Alice loads the model, creates annotations, and exports a JSON file.</li>
+                                <li><strong>2.</strong> Bob loads the same model, imports Alice's JSON, and adds his own annotations and entries.</li>
+                                <li><strong>3.</strong> Bob exports his JSON and sends it back to Alice.</li>
+                                <li><strong>4.</strong> Alice imports Bob's file — she gets Bob's new annotations and entries merged into her existing work. Her own annotations remain untouched, and Bob's additions appear alongside them.</li>
+                            </ul>
+                            <p style="margin-top: 8px;">This process can be repeated as many times as needed. Each round of import merges only what is new or updated, so you never lose work and annotations are never duplicated.</p>
+
+                            <div class="limitation-note" style="margin-top: 12px;">
+                                <strong>Good to know:</strong> The merge uses timestamps to resolve conflicts — if two people edit the same entry, the most recent edit wins. To avoid overwriting each other's observations, it's best practice to <strong>add new entries</strong> rather than editing existing ones from other team members.
+                            </div>
                         </div>
                     </div>
 
                     <div class="manual-item">
                         <div class="manual-item-header" onclick="toggleManualItem(this)">
-                            <span>Screenshots</span>
+                            <span>About the W3C Web Annotation Format</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>MeshNotes exports annotations following the <a href="https://www.w3.org/TR/annotation-model/" target="_blank">W3C Web Annotation Data Model</a>, an internationally recognized standard for representing annotations on digital resources. This was a deliberate choice to ensure long-term interoperability and academic credibility.</p>
+                            <p style="margin-top: 10px;"><strong>What gets stored:</strong> Each annotation is a self-contained JSON-LD object containing its geometry (as a Fragment Selector with 3D coordinates), all entries with author, description, links, and timestamps, as well as the group assignment and annotation type. The exported file is a standard <code>AnnotationCollection</code> that also includes group definitions and model information.</p>
+                            <p style="margin-top: 10px;"><strong>Why it matters:</strong> Using a W3C standard means your annotation data is not locked into MeshNotes. The JSON-LD files are human-readable, can be parsed by any programming language, and are compatible with the broader ecosystem of IIIF-based annotation tools and digital humanities infrastructure. This makes MeshNotes annotations suitable for academic publication, archival, and integration into larger research data management workflows.</p>
+                            <p style="margin-top: 10px; font-size: 12px; color: #888;">The exported <code>.jsonld</code> files can be opened in any text editor to inspect their contents. Each annotation's geometry is stored as coordinate strings in the <code>FragmentSelector</code> value field.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>PDF Report</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Click <strong>PDF</strong> to generate a comprehensive documentation report of your annotated model. The report is formatted for A4 paper and designed for academic documentation, publication appendices, and archival.</p>
+
+                            <p style="margin-top: 10px;"><strong>Report structure:</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Title page</strong> — An overview screenshot of the model with all visible annotations, the model filename, a summary of annotation and group counts, and all Model Information entries.</li>
+                                <li><strong>Axis views</strong> — Six orthogonal views (Top, Bottom, Front, Back, Left, Right) arranged in an unfolded cube layout, giving a complete overview of the model from all standard directions. If you are in orthographic mode, each view includes a scalebar.</li>
+                                <li><strong>Table of contents</strong> — A numbered list of all included annotations for quick reference.</li>
+                                <li><strong>Annotation pages</strong> — One page per annotation with an auto-captured screenshot (the camera automatically focuses on each annotation), the annotation name, type, and group, plus all entry details including author, date, description, and links.</li>
+                            </ul>
+
+                            <p style="margin-top: 10px;"><strong>Controlling report content:</strong> Only <strong>visible</strong> annotations are included in the PDF. Use group visibility (the eye icon) to hide annotations you don't want in the report. For example, you could hide preliminary annotations and only include finalized ones, or generate separate reports per group by toggling visibility before each export.</p>
+
+                            <div class="limitation-note" style="margin-top: 12px;">
+                                <strong>Note:</strong> During PDF generation, the camera and lighting are temporarily adjusted for consistent results. All screenshots in the report use camera-linked lighting regardless of your current light source setting, ensuring uniform illumination across all views. Your original camera position and lighting settings are restored after the report is generated.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>Screenshots &amp; Scalebar</span>
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Screenshot</strong> to save the current view as a PNG image. The screenshot includes all visible annotations, name labels, and measurement lines exactly as shown on screen — useful for documentation, reports, and publications.</p>
+                            <p style="margin-top: 10px;"><strong>Scalebar:</strong> In <strong>Orthographic</strong> camera mode, screenshots automatically include a scalebar in the bottom-right corner. The scalebar shows the real-world distance based on the model's coordinate system, with values rounded to clean numbers (e.g., 1, 2, 5, 10, 20, 50...) for readability. The unit depends on how your 3D model was originally created or exported (e.g., millimeters, centimeters, or meters).</p>
+                            <p style="margin-top: 10px;">If you take a screenshot while in <strong>Perspective</strong> mode, MeshNotes will ask whether you want to switch to Orthographic view first. A scalebar can only be accurate in orthographic mode, where scale is uniform across the entire image — in perspective view, objects further from the camera appear smaller, making a single scalebar misleading.</p>
                         </div>
                     </div>
 
@@ -1862,11 +1965,34 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>View Helper</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>In the top-right corner of the viewport you'll find the <strong>View Helper</strong>, an interactive widget provided by the <a href="https://threejs.org/docs/#examples/en/helpers/ViewHelper" target="_blank">Three.js library</a>. It displays three colored axis lines — <strong style="color: #ff4444;">X (red)</strong>, <strong style="color: #44bb44;">Y (green)</strong>, and <strong style="color: #4488ff;">Z (blue)</strong> — radiating from a central point, with labeled circles at each positive axis end and smaller circles at each negative end. As you rotate the model, the View Helper rotates along with it, always showing your current camera orientation at a glance.</p>
+                            <p style="margin-top: 10px;"><strong>Click any axis circle</strong> to smoothly animate the camera to that standard view direction (e.g., click the Y circle for a top-down view, click the Z circle for a front view). This is particularly useful for consistent documentation — for example, always capturing the same angle of an artifact for comparison, or quickly switching between front and side views while annotating.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
                             <span>Tips</span>
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
                             <p>Use the opacity slider to see annotations on the back side of the model. Group annotations by excavation phase, feature type, or team member for better organization. Export frequently to back up your work. The tool runs entirely in your browser — your data stays on your computer unless you share the exported JSON file.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>Data Privacy &amp; Offline Use</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>MeshNotes runs entirely in your web browser. No data is uploaded to any server — your 3D models, annotations, and all other data remain on your computer at all times. The tool does not use cookies, analytics, tracking, or any external services.</p>
+                            <p style="margin-top: 10px;">When hosted on GitHub Pages, the HTML file itself is downloaded once, after which all processing happens locally. You can also save the HTML file to your computer and open it directly in a browser for fully offline use — no internet connection required.</p>
+                            <p style="margin-top: 10px;">Exported JSON and PDF files are generated locally in your browser and saved directly to your downloads folder. Sharing annotation data with collaborators is always an explicit action on your part — you decide when and with whom to share your exported files. This makes MeshNotes suitable for documenting sensitive or unpublished archaeological sites where data confidentiality is important.</p>
                         </div>
                     </div>
 
