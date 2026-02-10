@@ -5824,66 +5824,135 @@
             }
         }
         
-        async function doExportPdfReport(includeScalebar) {
-            // Store original light settings and temporarily enable camera-linked lighting
-            // This ensures consistent lighting across all annotation screenshots
-            const originalLightMode = lightFollowsCamera;
-            lightFollowsCamera = true;
+        // ============ PDF Helper Functions ============
 
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pageWidth = 210;
-            const pageHeight = 297;
-            const margin = 15;
-            const contentWidth = pageWidth - (margin * 2);
+        /**
+         * Captures a screenshot from the renderer, optionally with a scalebar overlay.
+         * @param {boolean} includeScalebar - Whether to draw scalebar on screenshot
+         * @param {HTMLCanvasElement} [sourceCanvas=canvas] - Source canvas to capture from
+         * @returns {string} Data URL of the captured image (JPEG)
+         */
+        function pdfCaptureScreenshot(includeScalebar, sourceCanvas) {
+            const src = sourceCanvas || canvas;
+            if (includeScalebar && isOrthographic) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = src.width;
+                tempCanvas.height = src.height;
+                const ctx = tempCanvas.getContext('2d');
+                ctx.drawImage(src, 0, 0);
+                drawScalebarOnCanvas(tempCanvas);
+                return tempCanvas.toDataURL('image/jpeg', 0.9);
+            }
+            return src.toDataURL('image/jpeg', 0.9);
+        }
 
-            // Store original camera state
-            const originalCamPos = camera.position.clone();
-            const originalTarget = controls.target.clone();
-            const originalUp = camera.up.clone();
-            const originalZoom = camera.zoom;
-            const originalFrustum = isOrthographic ? {
-                left: camera.left, right: camera.right,
-                top: camera.top, bottom: camera.bottom
-            } : null;
+        /**
+         * Saves the current camera state for later restoration.
+         * @returns {Object} Camera state snapshot
+         */
+        function pdfSaveCameraState() {
+            return {
+                position: camera.position.clone(),
+                target: controls.target.clone(),
+                up: camera.up.clone(),
+                zoom: camera.zoom,
+                frustum: isOrthographic ? {
+                    left: camera.left, right: camera.right,
+                    top: camera.top, bottom: camera.bottom
+                } : null
+            };
+        }
 
-            showStatus('Generating PDF report...');
-            
-            // Ensure all annotations (including surfaces) are rendered
-            renderAnnotations();
-            await delay(100);
+        /**
+         * Restores camera to a previously saved state.
+         * @param {Object} saved - State from pdfSaveCameraState()
+         */
+        function pdfRestoreCamera(saved) {
+            camera.up.copy(saved.up);
+            camera.position.copy(saved.position);
+            controls.target.copy(saved.target);
+            if (isOrthographic && saved.frustum) {
+                camera.left = saved.frustum.left;
+                camera.right = saved.frustum.right;
+                camera.top = saved.frustum.top;
+                camera.bottom = saved.frustum.bottom;
+                camera.zoom = saved.zoom;
+                camera.updateProjectionMatrix();
+            }
+            controls.update();
+        }
 
-            // Get visible groups and their annotations
-            const visibleGroups = groups.filter(g => g.visible);
-            const visibleAnnotations = annotations.filter(ann => {
-                const group = groups.find(g => g.id === ann.groupId);
-                return group && group.visible;
-            });
+        /**
+         * Renders a list of entries (author, date, description, links) into the PDF.
+         * Used for both model info entries on the title page and annotation entries.
+         * @param {jsPDF} pdf - The jsPDF instance
+         * @param {Array} entries - Array of entry objects with author, timestamp, description, links
+         * @param {number} yPos - Starting Y position on the page
+         * @param {Object} layout - Page layout constants {margin, contentWidth, pageHeight}
+         * @returns {number} Updated Y position after rendering
+         */
+        function pdfRenderEntries(pdf, entries, yPos, layout) {
+            const { margin, contentWidth, pageHeight } = layout;
 
-            // Build table of contents data
-            const tocData = [];
-            let pageNum = 4; // Start after title page, axis views, and TOC
+            entries.forEach(entry => {
+                if (yPos > pageHeight - 35) {
+                    pdf.addPage();
+                    yPos = margin;
+                }
 
-            visibleGroups.forEach(group => {
-                const groupAnns = visibleAnnotations.filter(a => a.groupId === group.id);
-                if (groupAnns.length > 0) {
-                    tocData.push({ type: 'group', name: group.name, page: pageNum });
-                    // First annotation shares page with group header
-                    groupAnns.forEach((ann, idx) => {
-                        if (idx === 0) {
-                            tocData.push({ type: 'annotation', name: ann.name, page: pageNum });
-                        } else {
-                            tocData.push({ type: 'annotation', name: ann.name, page: pageNum });
+                // Author and date
+                pdf.setFontSize(9);
+                pdf.setTextColor(170, 129, 1);
+                const entryDate = new Date(entry.timestamp);
+                const entryDateStr = entryDate.toLocaleDateString() + ' ' + entryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                pdf.text(`${entry.author || 'Unknown'} • ${entryDateStr}`, margin, yPos);
+                yPos += 5;
+
+                // Description
+                pdf.setFontSize(10);
+                pdf.setTextColor(60, 60, 60);
+                if (entry.description) {
+                    const descLines = pdf.splitTextToSize(entry.description, contentWidth);
+                    pdf.text(descLines, margin, yPos);
+                    yPos += descLines.length * 5;
+                }
+
+                // Links
+                if (entry.links && entry.links.length > 0) {
+                    yPos += 2;
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(100, 100, 200);
+                    entry.links.forEach(link => {
+                        if (yPos > pageHeight - 15) {
+                            pdf.addPage();
+                            yPos = margin;
                         }
-                        pageNum++;
+                        const displayLink = link.length > 60 ? link.substring(0, 57) + '...' : link;
+                        pdf.textWithLink('\u{1F517} ' + displayLink, margin, yPos, { url: link });
+                        yPos += 4;
                     });
                 }
+
+                yPos += 6;
             });
 
-            // ===== TITLE PAGE =====
-            // Add title
+            return yPos;
+        }
+
+        /**
+         * Renders the title page: overview screenshot, model info, and summary stats.
+         * @param {jsPDF} pdf - The jsPDF instance
+         * @param {Object} layout - Page layout constants
+         * @param {boolean} includeScalebar - Whether to include scalebar on screenshots
+         * @param {Array} visibleGroups - Currently visible groups
+         * @param {Array} visibleAnnotations - Currently visible annotations
+         */
+        async function pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, visibleAnnotations) {
+            const { margin, contentWidth, pageWidth, pageHeight } = layout;
+
+            // Title
             pdf.setFontSize(24);
-            pdf.setTextColor(170, 129, 1); // Gold
+            pdf.setTextColor(170, 129, 1);
             pdf.text('MeshNotes Report', pageWidth / 2, 25, { align: 'center' });
 
             // Model filename
@@ -5900,21 +5969,7 @@
             // Overview screenshot
             await delay(100);
             renderer.render(scene, camera);
-            
-            // Create canvas with scalebar if applicable
-            let overviewImg;
-            if (includeScalebar && isOrthographic) {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvas.width;
-                tempCanvas.height = canvas.height;
-                const ctx = tempCanvas.getContext('2d');
-                ctx.drawImage(canvas, 0, 0);
-                drawScalebarOnCanvas(tempCanvas);
-                overviewImg = tempCanvas.toDataURL('image/jpeg', 0.9);
-            } else {
-                overviewImg = renderer.domElement.toDataURL('image/jpeg', 0.9);
-            }
-            // Calculate height based on canvas aspect ratio
+            const overviewImg = pdfCaptureScreenshot(includeScalebar);
             const canvasAspect = canvas.width / canvas.height;
             const imgHeight = contentWidth / canvasAspect;
             pdf.addImage(overviewImg, 'JPEG', margin, 50, contentWidth, imgHeight);
@@ -5931,38 +5986,7 @@
                 pdf.setTextColor(120, 120, 120);
                 pdf.text('No model information entries.', margin, yPos);
             } else {
-                modelInfo.entries.forEach(entry => {
-                    if (yPos > pageHeight - 40) {
-                        pdf.addPage();
-                        yPos = margin;
-                    }
-
-                    // Author and date
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(170, 129, 1);
-                    const entryDate = new Date(entry.timestamp);
-                    const entryDateStr = entryDate.toLocaleDateString() + ' ' + entryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    pdf.text(`${entry.author || 'Unknown'} • ${entryDateStr}`, margin, yPos);
-                    yPos += 5;
-
-                    // Description
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(60, 60, 60);
-                    const descLines = pdf.splitTextToSize(entry.description || '', contentWidth);
-                    pdf.text(descLines, margin, yPos);
-                    yPos += descLines.length * 5 + 3;
-
-                    // Links
-                    if (entry.links && entry.links.length > 0) {
-                        pdf.setFontSize(8);
-                        pdf.setTextColor(100, 100, 200);
-                        entry.links.forEach(link => {
-                            pdf.textWithLink(link, margin, yPos, { url: link });
-                            yPos += 4;
-                        });
-                    }
-                    yPos += 5;
-                });
+                yPos = pdfRenderEntries(pdf, modelInfo.entries, yPos, layout);
             }
 
             // Summary stats
@@ -5974,8 +5998,17 @@
             pdf.setFontSize(10);
             pdf.setTextColor(100, 100, 100);
             pdf.text(`Total: ${visibleGroups.length} groups, ${visibleAnnotations.length} annotations`, margin, yPos);
+        }
 
-            // ===== AXIS VIEWS PAGE (unfolded cube) =====
+        /**
+         * Renders the axis views page with an unfolded cube layout showing six orthogonal views.
+         * @param {jsPDF} pdf - The jsPDF instance
+         * @param {Object} layout - Page layout constants
+         * @param {boolean} includeScalebar - Whether to include scalebar on screenshots
+         */
+        async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
+            const { margin } = layout;
+
             pdf.addPage();
             pdf.setFontSize(18);
             pdf.setTextColor(170, 129, 1);
@@ -5984,14 +6017,14 @@
             pdf.setTextColor(120, 120, 120);
             pdf.text('Unfolded cube \u2014 six orthogonal views of the model', margin, 28);
 
-            // Calculate model bounds for axis views
+            // Calculate model bounds for consistent framing
             const axisBox = new THREE.Box3().setFromObject(currentModel);
             const axisSize = axisBox.getSize(new THREE.Vector3());
             const axisMaxDim = Math.max(axisSize.x, axisSize.y, axisSize.z);
             const axisDist = axisMaxDim * 1.8;
             const axisTarget = new THREE.Vector3(0, 0, 0);
 
-            // 6 views in unfolded cube cross layout:
+            // Unfolded cube cross layout:
             //            [Top]
             // [Left] [Front] [Right] [Back]
             //           [Bottom]
@@ -6009,12 +6042,10 @@
             ];
 
             for (const axView of axisViews) {
-                // Position camera along axis (manual setup, bypass OrbitControls)
                 camera.position.copy(axisTarget).addScaledVector(axView.dir, axisDist);
                 camera.up.copy(axView.up);
                 camera.lookAt(axisTarget);
 
-                // For orthographic camera, adjust frustum to fit model
                 if (isOrthographic) {
                     const aspect = canvas.width / canvas.height;
                     const frustumHalf = axisMaxDim * 0.75;
@@ -6040,50 +6071,40 @@
                 const offsetY = (canvas.height - cropSize) / 2;
                 cropCtx.drawImage(canvas, offsetX, offsetY, cropSize, cropSize, 0, 0, cropSize, cropSize);
 
-                // Add scalebar if applicable
                 if (includeScalebar && isOrthographic) {
                     drawScalebarOnCanvas(cropCanvas);
                 }
 
                 const axImg = cropCanvas.toDataURL('image/jpeg', 0.9);
-
                 const cellX = margin + axView.col * (cellSize + cellGap);
                 const cellY = gridStartY + axView.row * (cellSize + cellGap);
 
-                // Light border around each view
                 pdf.setDrawColor(180, 180, 180);
                 pdf.setLineWidth(0.3);
                 pdf.rect(cellX, cellY, cellSize, cellSize);
-
                 pdf.addImage(axImg, 'JPEG', cellX, cellY, cellSize, cellSize);
 
-                // Label below image
                 pdf.setFontSize(8);
                 pdf.setTextColor(120, 120, 120);
                 pdf.text(axView.name, cellX + cellSize / 2, cellY + cellSize + 4, { align: 'center' });
             }
+        }
 
-            // Restore camera fully
-            camera.up.copy(originalUp);
-            camera.position.copy(originalCamPos);
-            controls.target.copy(originalTarget);
-            if (isOrthographic && originalFrustum) {
-                camera.left = originalFrustum.left;
-                camera.right = originalFrustum.right;
-                camera.top = originalFrustum.top;
-                camera.bottom = originalFrustum.bottom;
-                camera.zoom = originalZoom;
-                camera.updateProjectionMatrix();
-            }
-            controls.update();
+        /**
+         * Renders the table of contents page.
+         * @param {jsPDF} pdf - The jsPDF instance
+         * @param {Array} tocData - Array of {type, name, page} entries
+         * @param {Object} layout - Page layout constants
+         */
+        function pdfRenderTOC(pdf, tocData, layout) {
+            const { margin, pageWidth, pageHeight } = layout;
 
-            // ===== TABLE OF CONTENTS =====
             pdf.addPage();
             pdf.setFontSize(18);
             pdf.setTextColor(170, 129, 1);
             pdf.text('Table of Contents', margin, 20);
 
-            yPos = 35;
+            let yPos = 35;
             pdf.setFontSize(10);
 
             tocData.forEach(item => {
@@ -6108,273 +6129,260 @@
                     yPos += 6;
                 }
             });
+        }
 
-            // ===== ANNOTATION PAGES =====
+        /**
+         * Renders a single annotation page with screenshot, metadata, coordinates, and entries.
+         * @param {jsPDF} pdf - The jsPDF instance
+         * @param {Object} ann - The annotation object
+         * @param {Object} group - The group this annotation belongs to
+         * @param {Array} groupAnns - All annotations in this group
+         * @param {number} annIdx - Index of this annotation within the group
+         * @param {Object} layout - Page layout constants
+         * @param {boolean} includeScalebar - Whether to include scalebar on screenshots
+         */
+        async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layout, includeScalebar) {
+            const { margin, contentWidth, pageWidth, pageHeight } = layout;
+
+            pdf.addPage();
+
+            // Group header (first annotation) or colored bar (subsequent)
+            let contentStartY;
+            if (annIdx === 0) {
+                pdf.setFillColor(10, 53, 89);
+                pdf.rect(0, 0, pageWidth, 25, 'F');
+
+                const rgb = hexToRgb(group.color);
+                pdf.setFillColor(rgb.r, rgb.g, rgb.b);
+                pdf.rect(margin, 8, 8, 8, 'F');
+
+                pdf.setFontSize(14);
+                pdf.setTextColor(255, 255, 255);
+                pdf.text(group.name, margin + 12, 14);
+
+                pdf.setFontSize(10);
+                pdf.setTextColor(200, 200, 200);
+                pdf.text(`${groupAnns.length} annotation${groupAnns.length !== 1 ? 's' : ''}`, margin + 12, 21);
+                contentStartY = 32;
+            } else {
+                const headerRgb = hexToRgb(group.color);
+                pdf.setFillColor(headerRgb.r, headerRgb.g, headerRgb.b);
+                pdf.rect(0, 0, pageWidth, 12, 'F');
+
+                pdf.setFontSize(10);
+                pdf.setTextColor(255, 255, 255);
+                pdf.text(group.name, margin, 8);
+                contentStartY = 22;
+            }
+
+            // Position camera to frame the annotation
+            const center = new THREE.Vector3();
+            const annPoints = ann.points.map(p => new THREE.Vector3(p.x, p.y, p.z));
+            annPoints.forEach(p => center.add(p));
+            center.divideScalar(annPoints.length);
+
+            let annExtent = 0;
+            if (annPoints.length > 1) {
+                const annBox = new THREE.Box3().setFromPoints(annPoints);
+                const annSize = annBox.getSize(new THREE.Vector3());
+                annExtent = Math.max(annSize.x, annSize.y, annSize.z);
+            }
+
+            const box = new THREE.Box3().setFromObject(currentModel);
+            const modelSize = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+            const baseDistance = annExtent > 0 ? annExtent * 2 : maxDim * 0.15;
+            const distance = Math.max(baseDistance, maxDim * 0.08);
+
+            const angle = Math.PI / 3; // 60 degrees from horizontal
+            const horizontalOffset = distance * Math.cos(angle);
+            const verticalOffset = distance * Math.sin(angle);
+            const horizontalDir = new THREE.Vector3(1, 0, 1).normalize();
+
+            camera.position.set(
+                center.x + horizontalDir.x * horizontalOffset,
+                center.y + verticalOffset,
+                center.z + horizontalDir.z * horizontalOffset
+            );
+            controls.target.copy(center);
+            camera.lookAt(center);
+
+            if (isOrthographic) {
+                const aspect = canvas.width / canvas.height;
+                const frustumHalf = distance * 0.8;
+                camera.left = -frustumHalf * aspect;
+                camera.right = frustumHalf * aspect;
+                camera.top = frustumHalf;
+                camera.bottom = -frustumHalf;
+                camera.zoom = 1;
+                camera.updateProjectionMatrix();
+            }
+
+            controls.update();
+
+            // Temporarily enlarge markers for visibility in screenshot
+            const originalScales = [];
+            annotationObjects.children.forEach(obj => {
+                if (obj.userData.annotationId === ann.id && obj.isMesh) {
+                    originalScales.push({ obj, scale: obj.scale.clone() });
+                    if (obj.geometry.type === 'SphereGeometry') {
+                        obj.scale.multiplyScalar(2.5);
+                    }
+                }
+            });
+
+            // For surface annotations, temporarily increase opacity
+            let originalOpacity = null;
+            if (ann.type === 'surface') {
+                annotationObjects.children.forEach(obj => {
+                    if (obj.userData.annotationId === ann.id && obj.isMesh && obj.material) {
+                        originalOpacity = obj.material.opacity;
+                        obj.material.opacity = 0.75;
+                        obj.material.needsUpdate = true;
+                    }
+                });
+            }
+
+            // Render and capture
+            renderer.clear();
+            renderer.render(scene, camera);
+            await delay(50);
+            renderer.render(scene, camera);
+
+            const screenshot = pdfCaptureScreenshot(includeScalebar);
+
+            // Restore marker scales and surface opacity
+            originalScales.forEach(({ obj, scale }) => obj.scale.copy(scale));
+            if (ann.type === 'surface' && originalOpacity !== null) {
+                annotationObjects.children.forEach(obj => {
+                    if (obj.userData.annotationId === ann.id && obj.isMesh && obj.material) {
+                        obj.material.opacity = originalOpacity;
+                        obj.material.needsUpdate = true;
+                    }
+                });
+            }
+
+            // Annotation name and type
+            pdf.setFontSize(16);
+            pdf.setTextColor(60, 60, 60);
+            pdf.text(ann.name || 'Unnamed', margin, contentStartY);
+
+            pdf.setFontSize(9);
+            pdf.setTextColor(150, 150, 150);
+            const typeLabels = { point: 'Point', line: 'Line', polygon: 'Polygon', surface: 'Surface' };
+            pdf.text(typeLabels[ann.type] || ann.type, margin, contentStartY + 6);
+
+            // Screenshot
+            const canvasAspect = canvas.width / canvas.height;
+            const screenshotHeight = contentWidth / canvasAspect;
+            const screenshotY = contentStartY + 10;
+            pdf.addImage(screenshot, 'JPEG', margin, screenshotY, contentWidth, screenshotHeight);
+
+            // Coordinates
+            pdf.setFontSize(7);
+            pdf.setTextColor(150, 150, 150);
+            const coordStrings = ann.points.map((p, i) =>
+                `P${i + 1}: (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`
+            );
+            const coordLine = coordStrings.join('  \u2022  ');
+            const coordLines = pdf.splitTextToSize(coordLine, contentWidth);
+            pdf.text(coordLines, margin, screenshotY + screenshotHeight + 4);
+            const coordHeight = coordLines.length * 3;
+
+            // Entries
+            let yPos = screenshotY + screenshotHeight + 6 + coordHeight;
+            const entries = ann.entries || [];
+
+            if (entries.length === 0) {
+                pdf.setFontSize(10);
+                pdf.setTextColor(150, 150, 150);
+                pdf.text('No entries.', margin, yPos);
+            } else {
+                pdfRenderEntries(pdf, entries, yPos, layout);
+            }
+        }
+
+        // ============ PDF Export (main coordinator) ============
+
+        /**
+         * Generates a multi-page PDF report with title page, axis views,
+         * table of contents, and one page per annotation with auto-screenshots.
+         * @param {boolean} includeScalebar - Whether to include scalebar on screenshots
+         */
+        async function doExportPdfReport(includeScalebar) {
+            // Store and override light settings for consistent screenshots
+            const originalLightMode = lightFollowsCamera;
+            lightFollowsCamera = true;
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const layout = {
+                pageWidth: 210,
+                pageHeight: 297,
+                margin: 15,
+                contentWidth: 210 - 30  // pageWidth - 2*margin
+            };
+
+            // Save camera state
+            const savedCamera = pdfSaveCameraState();
+
+            showStatus('Generating PDF report...');
+            renderAnnotations();
+            await delay(100);
+
+            // Determine visible content
+            const visibleGroups = groups.filter(g => g.visible);
+            const visibleAnnotations = annotations.filter(ann => {
+                const group = groups.find(g => g.id === ann.groupId);
+                return group && group.visible;
+            });
+
+            // Build table of contents data
+            const tocData = [];
+            let pageNum = 4; // After title, axis views, and TOC pages
+            visibleGroups.forEach(group => {
+                const groupAnns = visibleAnnotations.filter(a => a.groupId === group.id);
+                if (groupAnns.length > 0) {
+                    tocData.push({ type: 'group', name: group.name, page: pageNum });
+                    groupAnns.forEach((ann, idx) => {
+                        if (idx === 0) {
+                            tocData.push({ type: 'annotation', name: ann.name, page: pageNum });
+                        } else {
+                            tocData.push({ type: 'annotation', name: ann.name, page: pageNum });
+                        }
+                        pageNum++;
+                    });
+                }
+            });
+
+            // Render each section
+            await pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, visibleAnnotations);
+
+            await pdfRenderAxisViews(pdf, layout, includeScalebar);
+            pdfRestoreCamera(savedCamera);
+
+            pdfRenderTOC(pdf, tocData, layout);
+
+            // Render annotation pages
             for (const group of visibleGroups) {
                 const groupAnns = visibleAnnotations.filter(a => a.groupId === group.id);
                 if (groupAnns.length === 0) continue;
 
-                // Annotations in this group
                 for (let annIdx = 0; annIdx < groupAnns.length; annIdx++) {
-                    const ann = groupAnns[annIdx];
-                    pdf.addPage();
-
-                    // For first annotation, add group header
-                    let contentStartY = 32;
-                    if (annIdx === 0) {
-                        // Group header bar
-                        pdf.setFillColor(10, 53, 89); // Dark blue
-                        pdf.rect(0, 0, pageWidth, 25, 'F');
-
-                        // Color indicator
-                        const rgb = hexToRgb(group.color);
-                        pdf.setFillColor(rgb.r, rgb.g, rgb.b);
-                        pdf.rect(margin, 8, 8, 8, 'F');
-
-                        pdf.setFontSize(14);
-                        pdf.setTextColor(255, 255, 255);
-                        pdf.text(group.name, margin + 12, 14);
-
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(200, 200, 200);
-                        pdf.text(`${groupAnns.length} annotation${groupAnns.length !== 1 ? 's' : ''}`, margin + 12, 21);
-                        
-                        contentStartY = 32;
-                    } else {
-                        // Regular annotation header bar (colored by group)
-                        const headerRgb = hexToRgb(group.color);
-                        pdf.setFillColor(headerRgb.r, headerRgb.g, headerRgb.b);
-                        pdf.rect(0, 0, pageWidth, 12, 'F');
-
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(255, 255, 255);
-                        pdf.text(group.name, margin, 8);
-                        
-                        contentStartY = 22;
-                    }
-
-                    // Calculate annotation center and bounding box
-                    const center = new THREE.Vector3();
-                    const annPoints = ann.points.map(p => new THREE.Vector3(p.x, p.y, p.z));
-                    annPoints.forEach(p => center.add(p));
-                    center.divideScalar(annPoints.length);
-
-                    // Calculate annotation extent (bounding box)
-                    let annExtent = 0;
-                    if (annPoints.length > 1) {
-                        const annBox = new THREE.Box3().setFromPoints(annPoints);
-                        const annSize = annBox.getSize(new THREE.Vector3());
-                        annExtent = Math.max(annSize.x, annSize.y, annSize.z);
-                    }
-
-                    // Get model size for reference
-                    const box = new THREE.Box3().setFromObject(currentModel);
-                    const modelSize = box.getSize(new THREE.Vector3());
-                    const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
-
-                    // Calculate zoom distance - close enough to see annotation clearly
-                    // Use annotation extent if available, otherwise use a fraction of model size
-                    const baseDistance = annExtent > 0 ? annExtent * 2 : maxDim * 0.15;
-                    const distance = Math.max(baseDistance, maxDim * 0.08); // Minimum distance
-
-                    // Position camera from top-down angle (about 60 degrees from horizontal)
-                    // This gives a good view of the annotation on the surface
-                    const angle = Math.PI / 3; // 60 degrees
-                    const horizontalOffset = distance * Math.cos(angle);
-                    const verticalOffset = distance * Math.sin(angle);
-
-                    // Use a consistent horizontal direction (towards positive X and Z)
-                    const horizontalDir = new THREE.Vector3(1, 0, 1).normalize();
-                    
-                    camera.position.set(
-                        center.x + horizontalDir.x * horizontalOffset,
-                        center.y + verticalOffset,
-                        center.z + horizontalDir.z * horizontalOffset
-                    );
-                    controls.target.copy(center);
-                    camera.lookAt(center);
-
-                    // For orthographic camera, adjust frustum to fit annotation view
-                    if (isOrthographic) {
-                        const aspect = canvas.width / canvas.height;
-                        const frustumHalf = distance * 0.8;
-                        camera.left = -frustumHalf * aspect;
-                        camera.right = frustumHalf * aspect;
-                        camera.top = frustumHalf;
-                        camera.bottom = -frustumHalf;
-                        camera.zoom = 1;
-                        camera.updateProjectionMatrix();
-                    }
-
-                    controls.update();
-
-                    // Temporarily enlarge markers for this annotation
-                    const originalScales = [];
-                    annotationObjects.children.forEach(obj => {
-                        if (obj.userData.annotationId === ann.id && obj.isMesh) {
-                            originalScales.push({ obj, scale: obj.scale.clone() });
-                            // Only scale point/vertex markers, not surface meshes
-                            if (obj.geometry.type === 'SphereGeometry') {
-                                obj.scale.multiplyScalar(2.5); // Make markers 2.5x larger
-                            }
-                        }
-                    });
-
-                    // For surface annotations, temporarily increase opacity for visibility
-                    let originalOpacity = null;
-                    if (ann.type === 'surface') {
-                        annotationObjects.children.forEach(obj => {
-                            if (obj.userData.annotationId === ann.id && obj.isMesh && obj.material) {
-                                originalOpacity = obj.material.opacity;
-                                obj.material.opacity = 0.75; // More visible for screenshot
-                                obj.material.needsUpdate = true;
-                            }
-                        });
-                    }
-
-                    // Force clear and multiple render passes to ensure surface is captured
-                    renderer.clear();
-                    renderer.render(scene, camera);
-                    await delay(50);
-                    renderer.render(scene, camera);
-
-                    // Capture screenshot with scalebar if applicable
-                    let screenshot;
-                    if (includeScalebar && isOrthographic) {
-                        const tempCanvas = document.createElement('canvas');
-                        tempCanvas.width = canvas.width;
-                        tempCanvas.height = canvas.height;
-                        const ctx = tempCanvas.getContext('2d');
-                        ctx.drawImage(canvas, 0, 0);
-                        drawScalebarOnCanvas(tempCanvas);
-                        screenshot = tempCanvas.toDataURL('image/jpeg', 0.9);
-                    } else {
-                        screenshot = renderer.domElement.toDataURL('image/jpeg', 0.9);
-                    }
-
-                    // Restore original marker scales
-                    originalScales.forEach(({ obj, scale }) => {
-                        obj.scale.copy(scale);
-                    });
-                    
-                    // Restore original surface opacity
-                    if (ann.type === 'surface' && originalOpacity !== null) {
-                        annotationObjects.children.forEach(obj => {
-                            if (obj.userData.annotationId === ann.id && obj.isMesh && obj.material) {
-                                obj.material.opacity = originalOpacity;
-                                obj.material.needsUpdate = true;
-                            }
-                        });
-                    }
-
-                    // Annotation name
-                    pdf.setFontSize(16);
-                    pdf.setTextColor(60, 60, 60);
-                    pdf.text(ann.name || 'Unnamed', margin, contentStartY);
-
-                    // Type badge
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(150, 150, 150);
-                    const typeLabels = { point: 'Point', line: 'Line', polygon: 'Polygon', surface: 'Surface' };
-                    pdf.text(typeLabels[ann.type] || ann.type, margin, contentStartY + 6);
-
-                    // Screenshot - calculate height based on canvas aspect ratio
-                    const canvasAspect = canvas.width / canvas.height;
-                    const screenshotHeight = contentWidth / canvasAspect;
-                    const screenshotY = contentStartY + 10;
-                    pdf.addImage(screenshot, 'JPEG', margin, screenshotY, contentWidth, screenshotHeight);
-
-                    // Coordinates (subtle, right under screenshot)
-                    pdf.setFontSize(7);
-                    pdf.setTextColor(150, 150, 150);
-                    const coordStrings = ann.points.map((p, i) => 
-                        `P${i + 1}: (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`
-                    );
-                    const coordLine = coordStrings.join('  •  ');
-                    // Split into multiple lines if too long
-                    const coordLines = pdf.splitTextToSize(coordLine, contentWidth);
-                    pdf.text(coordLines, margin, screenshotY + screenshotHeight + 4);
-                    const coordHeight = coordLines.length * 3;
-
-                    // Entries
-                    yPos = screenshotY + screenshotHeight + 6 + coordHeight;
-                    const entries = ann.entries || [];
-
-                    if (entries.length === 0) {
-                        pdf.setFontSize(10);
-                        pdf.setTextColor(150, 150, 150);
-                        pdf.text('No entries.', margin, yPos);
-                    } else {
-                        entries.forEach((entry, idx) => {
-                            if (yPos > pageHeight - 35) {
-                                pdf.addPage();
-                                yPos = margin;
-                            }
-
-                            // Entry header
-                            pdf.setFontSize(9);
-                            pdf.setTextColor(170, 129, 1);
-                            const entryDate = new Date(entry.timestamp);
-                            const entryDateStr = entryDate.toLocaleDateString() + ' ' + entryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                            pdf.text(`${entry.author || 'Unknown'} • ${entryDateStr}`, margin, yPos);
-                            yPos += 5;
-
-                            // Description
-                            pdf.setFontSize(10);
-                            pdf.setTextColor(60, 60, 60);
-                            if (entry.description) {
-                                const descLines = pdf.splitTextToSize(entry.description, contentWidth);
-                                pdf.text(descLines, margin, yPos);
-                                yPos += descLines.length * 5;
-                            }
-
-                            // Links
-                            if (entry.links && entry.links.length > 0) {
-                                yPos += 2;
-                                pdf.setFontSize(8);
-                                pdf.setTextColor(100, 100, 200);
-                                entry.links.forEach(link => {
-                                    if (yPos > pageHeight - 15) {
-                                        pdf.addPage();
-                                        yPos = margin;
-                                    }
-                                    const displayLink = link.length > 60 ? link.substring(0, 57) + '...' : link;
-                                    pdf.textWithLink('🔗 ' + displayLink, margin, yPos, { url: link });
-                                    yPos += 4;
-                                });
-                            }
-
-                            yPos += 6;
-                        });
-                    }
+                    await pdfRenderAnnotationPage(pdf, groupAnns[annIdx], group, groupAnns, annIdx, layout, includeScalebar);
                 }
             }
 
-            // Restore camera position and projection
-            camera.up.set(0, 1, 0);
-            camera.position.copy(originalCamPos);
-            controls.target.copy(originalTarget);
-            if (isOrthographic && originalFrustum) {
-                camera.left = originalFrustum.left;
-                camera.right = originalFrustum.right;
-                camera.top = originalFrustum.top;
-                camera.bottom = originalFrustum.bottom;
-                camera.zoom = originalZoom;
-                camera.updateProjectionMatrix();
-            }
-            controls.update();
-            
-            // Restore original light mode
+            // Restore everything
+            pdfRestoreCamera(savedCamera);
             lightFollowsCamera = originalLightMode;
             if (!lightFollowsCamera) {
                 updateFixedLightDirection();
             }
-            
-            // Re-render annotations to ensure normal marker sizes
             renderAnnotations();
             renderer.render(scene, camera);
 
-            // Save PDF
+            // Save
             pdf.save(`meshnotes-report-${modelFileName || 'export'}-${Date.now()}.pdf`);
             showStatus('PDF report exported');
         }
