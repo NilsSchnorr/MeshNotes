@@ -1480,17 +1480,6 @@
             margin: 0;
         }
 
-        .beta-tag {
-            background: var(--color-orange);
-            color: #000;
-            font-size: 9px;
-            padding: 2px 5px;
-            border-radius: 3px;
-            margin-left: 8px;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
         .limitation-note {
             background: rgba(232, 163, 60, 0.15);
             border-left: 3px solid var(--color-orange);
@@ -1724,18 +1713,18 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header" onclick="toggleManualItem(this)">
-                            <span>Surface Annotations <span class="beta-tag">Beta</span></span>
+                            <span>Surface Annotations</span>
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Surface</strong> to paint directly on the 3D model's mesh faces. Adjust the brush size using the slider (0.1-20% of model size), then click and drag to highlight faces. <strong>Right-click and drag</strong> to rotate the view while painting — this lets you paint a continuous surface annotation from multiple angles (e.g., wrapping around a statue's arm). Hold <strong>Shift</strong> while painting to erase. Double-click to finish and open the annotation popup.</p>
                             <p style="margin-top: 10px;">Surface annotations are ideal for marking 3D regions like weathered areas, specific architectural features, or body parts on sculptures that can't be easily captured with flat polygons.</p>
                             <div class="limitation-note">
-                                <strong>Performance Note:</strong> The Surface tool works best on smaller models (statues, ceramics, artifacts). Performance depends on face count:
+                                <strong>Performance Note:</strong> The Surface tool uses BVH (Bounding Volume Hierarchy) acceleration for fast spatial queries, significantly improving painting performance. It works best on smaller models (statues, ceramics, artifacts). Performance depends on face count:
                                 <ul style="margin: 8px 0 0 20px; padding: 0;">
                                     <li><strong>&lt; 500k faces:</strong> Smooth painting</li>
                                     <li><strong>500k - 1M faces:</strong> May experience slight lag</li>
-                                    <li><strong>&gt; 1M faces:</strong> Painting may be slow (consider decimating the model)</li>
+                                    <li><strong>&gt; 1M faces:</strong> Painting may be slow — use a small brush size (0.1–0.2) for stable performance, or consider decimating the model</li>
                                 </ul>
                                 The face count is shown in the bottom-right corner after loading a model.
                             </div>
@@ -2031,7 +2020,7 @@
                 <button class="tool-btn" id="btn-point" disabled title="Add Point Annotation">📍 Point</button>
                 <button class="tool-btn" id="btn-line" disabled title="Add Line Annotation">📏 Line</button>
                 <button class="tool-btn" id="btn-polygon" disabled title="Add Polygon Annotation">⬡ Polygon</button>
-                <button class="tool-btn" id="btn-surface" disabled title="Add Surface Annotation (Beta)">🎨 Surface</button>
+                <button class="tool-btn" id="btn-surface" disabled title="Add Surface Annotation">🎨 Surface</button>
                 <button class="tool-btn" id="btn-measure" disabled title="Measure Distance">📐 Measure</button>
                 
                 <div class="tool-separator"></div>
