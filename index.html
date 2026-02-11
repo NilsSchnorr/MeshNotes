@@ -258,6 +258,38 @@
             background: var(--color-blue-hover);
         }
 
+        .obj-dialog .axis-selector {
+            margin: 0 0 18px 0;
+            text-align: left;
+        }
+
+        .obj-dialog .axis-selector label.axis-heading {
+            display: block;
+            color: var(--color-text-medium);
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .obj-dialog .axis-options {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .obj-dialog .axis-options label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--color-text-light);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .obj-dialog .axis-options input[type="radio"] {
+            accent-color: var(--color-gold);
+            cursor: pointer;
+        }
+
         /* Sidebar */
         #sidebar {
             width: 320px;
@@ -2338,6 +2370,13 @@
                 <div class="obj-dialog">
                     <h3>OBJ File Detected</h3>
                     <p>Would you like to add material (.mtl) and/or texture files (.jpg, .png)?<br>You can select one or multiple files.</p>
+                    <div class="axis-selector">
+                        <label class="axis-heading">Model up-axis orientation:</label>
+                        <div class="axis-options">
+                            <label><input type="radio" name="obj-up-axis" value="z-up" checked> Z-up (typically Metashape, CloudCompare, MeshLab, and others)</label>
+                            <label><input type="radio" name="obj-up-axis" value="y-up"> Y-up (typically Blender OBJ export)</label>
+                        </div>
+                    </div>
                     <div class="btn-row">
                         <button class="btn-secondary" id="obj-load-plain">Load without materials</button>
                         <button class="btn-primary" id="obj-add-materials">Add Textures & Materials</button>
@@ -2349,6 +2388,13 @@
                 <div class="obj-dialog">
                     <h3>PLY File Detected</h3>
                     <p>Would you like to add a texture image (.jpg, .png)?<br>This requires your PLY to contain UV coordinates.</p>
+                    <div class="axis-selector">
+                        <label class="axis-heading">Model up-axis orientation:</label>
+                        <div class="axis-options">
+                            <label><input type="radio" name="ply-up-axis" value="z-up" checked> Z-up (typically Metashape, CloudCompare, MeshLab, Blender, and others)</label>
+                            <label><input type="radio" name="ply-up-axis" value="y-up"> Y-up (e.g. manually converted)</label>
+                        </div>
+                    </div>
                     <div class="btn-row">
                         <button class="btn-secondary" id="ply-load-plain">Load without texture</button>
                         <button class="btn-primary" id="ply-add-texture">Add Texture</button>
@@ -2500,6 +2546,7 @@
         let isErasingMode = false;
         let modelMeshes = []; // Cache of meshes in the model
         let modelBoundingSize = 1; // For brush size calculation
+        let modelUpAxis = 'z-up'; // Track loaded model's original up-axis ('y-up' or 'z-up')
 
         // Three.js objects for annotations
         let annotationObjects = new THREE.Group();
@@ -2865,7 +2912,8 @@
             loader.load(
                 url,
                 (gltf) => {
-                    setupLoadedModel(gltf.scene, file.name);
+                    // glTF/GLB spec mandates Y-up, no user choice needed
+                    setupLoadedModel(gltf.scene, file.name, 'y-up');
                     URL.revokeObjectURL(url);
                 },
                 undefined,
@@ -2914,8 +2962,14 @@
          * counts faces, and configures the camera to frame the model.
          * @param {THREE.Object3D} model - The loaded Three.js model/scene
          * @param {string} fileName - Original filename for display and export metadata
+         * @param {string} [upAxis='y-up'] - Original up-axis of the model ('y-up' or 'z-up').
+         *   Z-up models (from Agisoft, CloudCompare, Blender) are rotated -90° around X.
+         *   GLB/GLTF always pass 'y-up' per glTF spec.
          */
-        function setupLoadedModel(model, fileName) {
+        function setupLoadedModel(model, fileName, upAxis) {
+            // Store the model's original up-axis for coordinate transforms in export/import
+            modelUpAxis = upAxis || 'y-up';
+
             if (currentModel) {
                 // Dispose old model's GPU resources (geometries, materials, textures, BVH trees)
                 disposeObject3D(currentModel);
@@ -2926,6 +2980,13 @@
 
             const grid = scene.getObjectByName('gridHelper');
             if (grid) scene.remove(grid);
+
+            // If the model uses Z-up (standard in photogrammetry/archaeology), rotate it
+            // into Three.js Y-up space: rotate -90° around X so Z points up visually
+            if (modelUpAxis === 'z-up') {
+                model.rotation.x = -Math.PI / 2;
+                model.updateMatrixWorld(true);
+            }
 
             currentModel = model;
             scene.add(currentModel);
@@ -3005,7 +3066,7 @@
         }
         
         // Load OBJ model with optional material/texture files
-        function loadOBJModel(objFile, materialFiles) {
+        function loadOBJModel(objFile, materialFiles, upAxis) {
             loading.classList.add('visible');
             modelFileName = objFile.name;
             
@@ -3071,7 +3132,7 @@
                                     if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
                                 }
                             });
-                            setupLoadedModel(obj, objFile.name);
+                            setupLoadedModel(obj, objFile.name, upAxis);
                             // Clean up object URLs
                             URL.revokeObjectURL(objUrl);
                             Object.values(textureUrlMap).forEach(u => URL.revokeObjectURL(u));
@@ -3087,20 +3148,20 @@
                 mtlReader.onerror = () => {
                     console.error('Error reading MTL file');
                     showStatus('MTL failed, loading OBJ without materials...');
-                    loadOBJPlain(objUrl, textureUrlMap, objFile.name);
+                    loadOBJPlain(objUrl, textureUrlMap, objFile.name, upAxis);
                 };
                 mtlReader.readAsText(mtlFile);
             } else if (textureFiles.length > 0) {
                 // Path B: Texture only (no MTL) - apply as diffuse map to all meshes
-                loadOBJPlain(objUrl, textureUrlMap, objFile.name);
+                loadOBJPlain(objUrl, textureUrlMap, objFile.name, upAxis);
             } else {
                 // Path C: No materials at all
-                loadOBJPlain(objUrl, {}, objFile.name);
+                loadOBJPlain(objUrl, {}, objFile.name, upAxis);
             }
         }
         
         // Load OBJ without MTL, optionally applying a single texture as diffuse map
-        function loadOBJPlain(objUrl, textureUrlMap, fileName) {
+        function loadOBJPlain(objUrl, textureUrlMap, fileName, upAxis) {
             const objLoader = new OBJLoader();
             
             objLoader.load(
@@ -3124,7 +3185,7 @@
                         });
                     }
                     
-                    setupLoadedModel(obj, fileName);
+                    setupLoadedModel(obj, fileName, upAxis);
                     URL.revokeObjectURL(objUrl);
                     Object.values(textureUrlMap).forEach(u => URL.revokeObjectURL(u));
                 },
@@ -3138,7 +3199,7 @@
         }
 
         // Load PLY with optional texture
-        function loadPLYModel(plyFile, textureFile) {
+        function loadPLYModel(plyFile, textureFile, upAxis) {
             loading.classList.add('visible');
             modelFileName = plyFile.name;
             modelInfo = { entries: [] };
@@ -3198,7 +3259,7 @@
                     const group = new THREE.Group();
                     group.add(mesh);
                     
-                    setupLoadedModel(group, plyFile.name);
+                    setupLoadedModel(group, plyFile.name, upAxis);
                     URL.revokeObjectURL(url);
                 },
                 undefined,
@@ -7295,16 +7356,25 @@
             fileInput.value = ''; // Reset so same file can be loaded again
         });
         
+        // Helper: read selected up-axis from a dialog's radio buttons
+        function getSelectedUpAxis(radioName) {
+            const selected = document.querySelector(`input[name="${radioName}"]:checked`);
+            return selected ? selected.value : 'z-up';
+        }
+
         // OBJ dialog event listeners
+        let pendingObjUpAxis = 'z-up'; // Holds up-axis choice while file picker is open
         objLoadPlain.addEventListener('click', () => {
+            const upAxis = getSelectedUpAxis('obj-up-axis');
             objDialogOverlay.classList.remove('visible');
             if (pendingObjFile) {
-                loadOBJModel(pendingObjFile, null);
+                loadOBJModel(pendingObjFile, null, upAxis);
                 pendingObjFile = null;
             }
         });
         
         objAddMaterials.addEventListener('click', () => {
+            pendingObjUpAxis = getSelectedUpAxis('obj-up-axis');
             objDialogOverlay.classList.remove('visible');
             objMaterialInput.click();
             
@@ -7313,7 +7383,7 @@
                 window.removeEventListener('focus', handleCancel);
                 setTimeout(() => {
                     if (pendingObjFile && objMaterialInput.files.length === 0) {
-                        loadOBJModel(pendingObjFile, null);
+                        loadOBJModel(pendingObjFile, null, pendingObjUpAxis);
                         pendingObjFile = null;
                     }
                 }, 300);
@@ -7324,22 +7394,25 @@
         objMaterialInput.addEventListener('change', (e) => {
             if (pendingObjFile) {
                 const materialFiles = Array.from(e.target.files);
-                loadOBJModel(pendingObjFile, materialFiles);
+                loadOBJModel(pendingObjFile, materialFiles, pendingObjUpAxis);
                 pendingObjFile = null;
             }
             objMaterialInput.value = ''; // Reset
         });
 
         // PLY dialog event listeners
+        let pendingPlyUpAxis = 'z-up'; // Holds up-axis choice while file picker is open
         plyLoadPlain.addEventListener('click', () => {
+            const upAxis = getSelectedUpAxis('ply-up-axis');
             plyDialogOverlay.classList.remove('visible');
             if (pendingPlyFile) {
-                loadPLYModel(pendingPlyFile, null);
+                loadPLYModel(pendingPlyFile, null, upAxis);
                 pendingPlyFile = null;
             }
         });
 
         plyAddTexture.addEventListener('click', () => {
+            pendingPlyUpAxis = getSelectedUpAxis('ply-up-axis');
             plyDialogOverlay.classList.remove('visible');
             plyTextureInput.click();
 
@@ -7348,7 +7421,7 @@
                 window.removeEventListener('focus', handleCancel);
                 setTimeout(() => {
                     if (pendingPlyFile && plyTextureInput.files.length === 0) {
-                        loadPLYModel(pendingPlyFile, null);
+                        loadPLYModel(pendingPlyFile, null, pendingPlyUpAxis);
                         pendingPlyFile = null;
                     }
                 }, 300);
@@ -7359,7 +7432,7 @@
         plyTextureInput.addEventListener('change', (e) => {
             if (pendingPlyFile) {
                 const textureFile = e.target.files[0] || null;
-                loadPLYModel(pendingPlyFile, textureFile);
+                loadPLYModel(pendingPlyFile, textureFile, pendingPlyUpAxis);
                 pendingPlyFile = null;
             }
             plyTextureInput.value = ''; // Reset
