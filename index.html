@@ -7023,16 +7023,63 @@
                     // Clone the content to process it
                     const contentClone = contentEl.cloneNode(true);
                     
-                    // Extract paragraphs and lists
+                    // Extract paragraphs, lists, and notes with proper structure
                     const paragraphs = [];
-                    const children = contentClone.querySelectorAll('p, .limitation-note');
                     
-                    if (children.length > 0) {
-                        children.forEach(child => {
-                            // Check if it's a limitation note
+                    // Helper function to process a limitation note with potential nested content
+                    function processLimitationNote(noteEl) {
+                        const noteContent = [];
+                        
+                        // Get direct text content (not from child elements)
+                        // by cloning and removing child elements
+                        const clonedNote = noteEl.cloneNode(true);
+                        const nestedLists = clonedNote.querySelectorAll('ul');
+                        nestedLists.forEach(ul => ul.remove());
+                        const directText = clonedNote.textContent.trim();
+                        
+                        if (directText) {
+                            noteContent.push({ type: 'note-text', text: directText });
+                        }
+                        
+                        // Process nested lists within the note
+                        const lists = noteEl.querySelectorAll('ul');
+                        lists.forEach(ul => {
+                            const listItems = [];
+                            ul.querySelectorAll('li').forEach(li => {
+                                listItems.push(li.textContent.trim());
+                            });
+                            if (listItems.length > 0) {
+                                noteContent.push({ type: 'note-list', items: listItems });
+                            }
+                        });
+                        
+                        return { type: 'note', content: noteContent };
+                    }
+                    
+                    // Gather all p, ul, and .limitation-note elements
+                    const allElements = contentClone.querySelectorAll('p, ul, .limitation-note');
+                    
+                    if (allElements.length > 0) {
+                        allElements.forEach(child => {
+                            // Skip if this element is nested inside a limitation-note
+                            if (child.closest('.limitation-note') && !child.classList.contains('limitation-note')) {
+                                return;
+                            }
+                            
                             if (child.classList && child.classList.contains('limitation-note')) {
-                                paragraphs.push({ type: 'note', text: child.textContent.trim() });
+                                // Process limitation note with potential nested content
+                                paragraphs.push(processLimitationNote(child));
+                            } else if (child.tagName === 'UL') {
+                                // Process unordered list
+                                const listItems = [];
+                                child.querySelectorAll('li').forEach(li => {
+                                    listItems.push(li.textContent.trim());
+                                });
+                                if (listItems.length > 0) {
+                                    paragraphs.push({ type: 'list', items: listItems });
+                                }
                             } else {
+                                // Regular paragraph
                                 paragraphs.push({ type: 'paragraph', text: child.textContent.trim() });
                             }
                         });
@@ -7102,12 +7149,29 @@
                     }
                     
                     if (para.type === 'note') {
-                        // Draw note box
+                        // Draw note box with potentially nested content (text + lists)
                         pdf.setFillColor(255, 248, 230); // Light yellow background
                         pdf.setDrawColor(232, 163, 60); // Orange border
                         
-                        const noteLines = pdf.splitTextToSize(para.text, contentWidth - 10);
-                        const noteHeight = noteLines.length * 5 + 8;
+                        // Calculate total height needed for the note
+                        let noteHeight = 8; // Base padding
+                        const noteContentLines = [];
+                        
+                        para.content.forEach(item => {
+                            if (item.type === 'note-text') {
+                                const textLines = pdf.splitTextToSize(item.text, contentWidth - 14);
+                                noteContentLines.push({ type: 'text', lines: textLines });
+                                noteHeight += textLines.length * 5 + 2;
+                            } else if (item.type === 'note-list') {
+                                const listLines = [];
+                                item.items.forEach(listItem => {
+                                    const itemLines = pdf.splitTextToSize('• ' + listItem, contentWidth - 20);
+                                    listLines.push(...itemLines);
+                                });
+                                noteContentLines.push({ type: 'list', lines: listLines });
+                                noteHeight += listLines.length * 5 + 2;
+                            }
+                        });
                         
                         // Check if note fits on page
                         if (yPos + noteHeight > pageHeight - margin) {
@@ -7117,10 +7181,48 @@
                         
                         pdf.roundedRect(margin, yPos - 2, contentWidth, noteHeight, 2, 2, 'FD');
                         
+                        // Render note content
                         pdf.setTextColor(100, 80, 40);
-                        pdf.text(noteLines, margin + 5, yPos + 4);
+                        let noteYPos = yPos + 4;
+                        
+                        noteContentLines.forEach(content => {
+                            if (content.type === 'text') {
+                                content.lines.forEach(line => {
+                                    pdf.text(line, margin + 5, noteYPos);
+                                    noteYPos += 5;
+                                });
+                                noteYPos += 1; // Small gap after text
+                            } else if (content.type === 'list') {
+                                content.lines.forEach(line => {
+                                    pdf.text(line, margin + 8, noteYPos);
+                                    noteYPos += 5;
+                                });
+                                noteYPos += 1; // Small gap after list
+                            }
+                        });
+                        
                         yPos += noteHeight + 4;
+                    } else if (para.type === 'list') {
+                        // Render standalone list
+                        pdf.setTextColor(60, 60, 60);
+                        
+                        para.items.forEach(item => {
+                            const itemLines = pdf.splitTextToSize('• ' + item, contentWidth - 10);
+                            
+                            itemLines.forEach((line, idx) => {
+                                if (yPos > pageHeight - margin) {
+                                    pdf.addPage();
+                                    yPos = margin;
+                                }
+                                // Indent continuation lines (lines after the first)
+                                const xPos = idx === 0 ? margin + 5 : margin + 8;
+                                pdf.text(line, xPos, yPos);
+                                yPos += 5;
+                            });
+                        });
+                        yPos += 3; // Extra space after list
                     } else {
+                        // Regular paragraph
                         pdf.setTextColor(60, 60, 60);
                         const textLines = pdf.splitTextToSize(para.text, contentWidth);
                         
