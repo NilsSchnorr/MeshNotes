@@ -6222,7 +6222,8 @@
             // Create box geometry
             const boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
             
-            // Transparent fill
+            // Transparent fill - use depth test so box is properly occluded by model
+            // renderOrder ensures box renders after model for correct transparency
             const fillMaterial = new THREE.MeshBasicMaterial({
                 color: color,
                 transparent: true,
@@ -6238,17 +6239,21 @@
                 boxMesh.rotation.set(rotation.x, rotation.y, rotation.z);
             }
             boxMesh.userData.isBoxBody = true;
+            boxMesh.renderOrder = 1; // Render after model (which has default 0)
             objects.push(boxMesh);
             
-            // Wireframe edges
+            // Wireframe edges - depth tested for proper occlusion
             const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
             const edgesMaterial = new THREE.LineBasicMaterial({
                 color: color,
-                linewidth: 2
+                linewidth: 2,
+                depthTest: true,
+                depthWrite: false
             });
             const wireframe = new THREE.LineSegments(edgesGeometry, edgesMaterial);
             wireframe.position.copy(boxMesh.position);
             wireframe.rotation.copy(boxMesh.rotation);
+            wireframe.renderOrder = 2; // Render after fill
             objects.push(wireframe);
             
             // Corner handles (8 corners) - sized to match line/polygon vertex markers
@@ -6262,7 +6267,11 @@
             const handleGeometry = new THREE.SphereGeometry(0.02, 12, 12);
             
             corners.forEach((corner, index) => {
-                const handleMaterial = new THREE.MeshBasicMaterial({ color: color });
+                const handleMaterial = new THREE.MeshBasicMaterial({ 
+                    color: color,
+                    depthTest: true,
+                    depthWrite: false
+                });
                 const handle = new THREE.Mesh(handleGeometry, handleMaterial);
                 
                 // Position handle at corner in local space
@@ -6288,6 +6297,7 @@
                 handle.userData.isBoxHandle = true;
                 handle.userData.handleIndex = index;
                 handle.userData.isAnnotationMarker = true;
+                handle.renderOrder = 3; // Render after wireframe
                 objects.push(handle);
             });
             
