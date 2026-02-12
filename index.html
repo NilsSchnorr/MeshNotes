@@ -5936,7 +5936,32 @@
         }
         
         /**
+         * Transforms a point from Three.js Y-up world space to Z-up export space.
+         * MeshNotes always exports in Z-up coordinates for interoperability with
+         * photogrammetry/archaeology tools (Agisoft, CloudCompare, Blender, etc.).
+         *
+         * The model was rotated -90° around X on load (Z-up → Y-up), so the
+         * inverse transform converts back: (x, y, z)_threejs → (x, -z, y)_zup
+         * @param {{x: number, y: number, z: number}} p - Point in Three.js Y-up space
+         * @returns {{x: number, y: number, z: number}} Point in Z-up space
+         */
+        function pointToZUp(p) {
+            return { x: p.x, y: -p.z, z: p.y };
+        }
+
+        /**
+         * Transforms a point from Z-up import space to Three.js Y-up world space.
+         * Inverse of pointToZUp: (x, y, z)_zup → (x, z, -y)_threejs
+         * @param {{x: number, y: number, z: number}} p - Point in Z-up space
+         * @returns {{x: number, y: number, z: number}} Point in Three.js Y-up space
+         */
+        function pointFromZUp(p) {
+            return { x: p.x, y: p.z, z: -p.y };
+        }
+
+        /**
          * Converts an annotation's geometry into a W3C Web Annotation selector.
+         * All coordinates are transformed to Z-up space for export.
          * Uses FragmentSelector with IIIF 3D conformance for point/line/polygon types,
          * and a custom MeshNotes surface selector for painted face annotations.
          * @see https://www.w3.org/TR/annotation-model/#fragment-selector
@@ -5945,17 +5970,19 @@
          */
         function formatPointsAsSelector(ann) {
             // Create W3C-compliant selector for 3D geometry
+            // All coordinates are transformed from Three.js Y-up to Z-up for export
             if (ann.type === 'point') {
+                const p = pointToZUp(ann.points[0]);
                 return {
                     type: 'PointSelector',
                     refinedBy: {
                         type: 'FragmentSelector',
                         conformsTo: 'https://github.com/IIIF/3d',
-                        value: `point=${ann.points[0].x},${ann.points[0].y},${ann.points[0].z}`
+                        value: `point=${p.x},${p.y},${p.z}`
                     }
                 };
             } else if (ann.type === 'line') {
-                const coords = ann.points.map(p => `${p.x},${p.y},${p.z}`).join(';');
+                const coords = ann.points.map(p => { const z = pointToZUp(p); return `${z.x},${z.y},${z.z}`; }).join(';');
                 return {
                     type: 'SvgSelector',
                     refinedBy: {
@@ -5965,7 +5992,7 @@
                     }
                 };
             } else if (ann.type === 'polygon') {
-                const coords = ann.points.map(p => `${p.x},${p.y},${p.z}`).join(';');
+                const coords = ann.points.map(p => { const z = pointToZUp(p); return `${z.x},${z.y},${z.z}`; }).join(';');
                 return {
                     type: 'SvgSelector',
                     refinedBy: {
@@ -5975,13 +6002,15 @@
                     }
                 };
             } else if (ann.type === 'surface' && ann.faceData) {
+                // Face indices don't need transformation, only the centroid point
+                const centroid = ann.points.length > 0 ? pointToZUp(ann.points[0]) : null;
                 return {
                     type: 'FragmentSelector',
                     conformsTo: 'https://github.com/IIIF/3d',
                     value: `faces=${ann.faceData.join(',')}`,
-                    refinedBy: ann.points.length > 0 ? {
+                    refinedBy: centroid ? {
                         type: 'PointSelector',
-                        value: `centroid=${ann.points[0].x},${ann.points[0].y},${ann.points[0].z}`
+                        value: `centroid=${centroid.x},${centroid.y},${centroid.z}`
                     } : undefined
                 };
             }
@@ -6125,9 +6154,9 @@
             w3cAnn['meshnotes:internalId'] = ann.id;
             w3cAnn['meshnotes:groupId'] = ann.groupId;
             w3cAnn['meshnotes:groupUuid'] = group ? group.uuid : undefined;
-            w3cAnn['meshnotes:annotationType'] = ann.type;
+            w3cAnn['annotationType'] = ann.type;
             if (ann.surfaceProjection === false) {
-                w3cAnn['meshnotes:surfaceProjection'] = false;
+                w3cAnn['surfaceProjection'] = false;
             }
             
             return w3cAnn;
@@ -6143,7 +6172,7 @@
             const ann = {
                 id: Date.now() + Math.floor(Math.random() * 10000),
                 uuid: importedUuid || generateUUID(),
-                type: w3cAnn['meshnotes:annotationType'] || 'point',
+                type: w3cAnn['annotationType'] || w3cAnn['meshnotes:annotationType'] || 'point',
                 name: w3cAnn['schema:name'] || 'Unnamed',
                 groupId: null,
                 points: [],
@@ -6160,7 +6189,7 @@
             }
             
             // Restore surface projection setting (default true for line/polygon)
-            if (w3cAnn['meshnotes:surfaceProjection'] === false) {
+            if (w3cAnn['surfaceProjection'] === false || w3cAnn['meshnotes:surfaceProjection'] === false) {
                 ann.surfaceProjection = false;
             }
 
@@ -6217,7 +6246,12 @@
                     'http://www.w3.org/ns/anno.jsonld',
                     {
                         'meshnotes': 'https://github.com/NilsSchnorr/MeshNotes#',
-                        'schema': 'http://schema.org/'
+                        'schema': 'http://schema.org/',
+                        'upAxis': 'meshnotes:upAxis',
+                        'modelSource': 'meshnotes:modelSource',
+                        'annotationType': 'meshnotes:annotationType',
+                        'surfaceProjection': 'meshnotes:surfaceProjection',
+                        'modelInfo': 'meshnotes:modelInfo'
                     }
                 ],
                 type: 'AnnotationCollection',
@@ -6231,8 +6265,12 @@
                 },
                 generated: new Date().toISOString(),
                 
+                // Coordinate system: MeshNotes always exports Z-up coordinates
+                // for interoperability with photogrammetry/archaeology tools
+                'upAxis': 'Z',
+                
                 // Target model
-                'meshnotes:modelSource': {
+                'modelSource': {
                     id: `urn:meshnotes:model:${modelFileName || 'unknown'}`,
                     type: 'Dataset',
                     'schema:name': modelFileName,
@@ -6252,7 +6290,7 @@
                 })),
                 
                 // Model information entries
-                'meshnotes:modelInfo': modelInfo.entries.length > 0 ? {
+                'modelInfo': modelInfo.entries.length > 0 ? {
                     type: 'Annotation',
                     motivation: 'describing',
                     'schema:name': 'Model Information',
@@ -6521,20 +6559,24 @@
             const axisDist = axisMaxDim * 1.8;
             const axisTarget = new THREE.Vector3(0, 0, 0);
 
-            // Unfolded cube cross layout:
-            //            [Top]
-            // [Left] [Front] [Right] [Back]
-            //           [Bottom]
+            // Unfolded cube cross layout (Z-up display convention):
+            //             [Top Z+]
+            // [Left X-] [Front Y+] [Right X+] [Back Y-]
+            //            [Bottom Z-]
+            // Note: Internally Three.js uses Y-up, but MeshNotes displays Z-up.
+            // Mapping: display Z = internal Y, display Y = internal -Z.
+            // "Front" = camera at display +Y (internal -Z) looking toward model.
             const cellSize = 42;
             const cellGap = 3;
+            const labelSpace = 8; // extra vertical space for labels between rows
             const gridStartY = 35;
 
             const axisViews = [
                 { name: 'Top',    col: 1, row: 0, dir: new THREE.Vector3(0, 1, 0),  up: new THREE.Vector3(0, 0, -1) },
                 { name: 'Left',   col: 0, row: 1, dir: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0) },
-                { name: 'Front',  col: 1, row: 1, dir: new THREE.Vector3(0, 0, 1),  up: new THREE.Vector3(0, 1, 0) },
+                { name: 'Front',  col: 1, row: 1, dir: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) },
                 { name: 'Right',  col: 2, row: 1, dir: new THREE.Vector3(1, 0, 0),  up: new THREE.Vector3(0, 1, 0) },
-                { name: 'Back',   col: 3, row: 1, dir: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) },
+                { name: 'Back',   col: 3, row: 1, dir: new THREE.Vector3(0, 0, 1),  up: new THREE.Vector3(0, 1, 0) },
                 { name: 'Bottom', col: 1, row: 2, dir: new THREE.Vector3(0, -1, 0), up: new THREE.Vector3(0, 0, 1) },
             ];
 
@@ -6574,7 +6616,7 @@
 
                 const axImg = cropCanvas.toDataURL('image/jpeg', 0.9);
                 const cellX = margin + axView.col * (cellSize + cellGap);
-                const cellY = gridStartY + axView.row * (cellSize + cellGap);
+                const cellY = gridStartY + axView.row * (cellSize + cellGap + labelSpace);
 
                 pdf.setDrawColor(180, 180, 180);
                 pdf.setLineWidth(0.3);
@@ -6583,7 +6625,7 @@
 
                 pdf.setFontSize(8);
                 pdf.setTextColor(120, 120, 120);
-                pdf.text(axView.name, cellX + cellSize / 2, cellY + cellSize + 4, { align: 'center' });
+                pdf.text(axView.name, cellX + cellSize / 2, cellY + cellSize + 6, { align: 'center' });
             }
         }
 
@@ -7138,6 +7180,19 @@
             let mergedCount = 0;
             let skippedCount = 0;
             
+            // Detect coordinate system of imported file
+            // Files with upAxis 'Z' (or 'z') contain Z-up coordinates that need
+            // transformation to Three.js Y-up space. Legacy files (upAxis 'Y',
+            // 'y', or missing) are already in Y-up space and need no transform.
+            const importedUpAxis = (data['upAxis'] || data['meshnotes:upAxis'] || '').toString().toUpperCase();
+            const needsTransform = (importedUpAxis === 'Z');
+            
+            // Helper: transform all coordinates in an annotation from Z-up to Three.js Y-up
+            function transformAnnotationCoords(ann) {
+                if (!needsTransform) return;
+                ann.points = ann.points.map(p => pointFromZUp(p));
+            }
+            
             // Helper: get effective timestamp for an entry (modified or created)
             function entryTimestamp(entry) {
                 return entry.modified || entry.timestamp || entry.created || '';
@@ -7192,10 +7247,11 @@
             }
             
             // Merge model info entries
-            if (data['meshnotes:modelInfo'] && data['meshnotes:modelInfo'].body) {
-                const bodies = Array.isArray(data['meshnotes:modelInfo'].body) 
-                    ? data['meshnotes:modelInfo'].body 
-                    : [data['meshnotes:modelInfo'].body];
+            const importedModelInfo = data['modelInfo'] || data['meshnotes:modelInfo'];
+            if (importedModelInfo && importedModelInfo.body) {
+                const bodies = Array.isArray(importedModelInfo.body) 
+                    ? importedModelInfo.body 
+                    : [importedModelInfo.body];
                 
                 const importedEntries = bodies.map((body, idx) => ({
                     id: Date.now() + idx + Math.floor(Math.random() * 1000),
@@ -7252,6 +7308,9 @@
             if (data.first && data.first.items) {
                 data.first.items.forEach(w3cAnn => {
                     const importedAnn = convertFromW3CAnnotation(w3cAnn, groupIdMap);
+                    
+                    // Transform coordinates from Z-up to Three.js Y-up if needed
+                    transformAnnotationCoords(importedAnn);
                     
                     // If no group assigned, use default
                     if (!importedAnn.groupId) {
