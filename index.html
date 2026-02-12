@@ -1740,9 +1740,27 @@
                                 <li><strong>Over 1M faces</strong> — Consider decimating your model for annotation work. You can use <a href="https://www.blender.org/" target="_blank">Blender</a> (Decimate modifier) or <a href="https://www.meshlab.net/" target="_blank">MeshLab</a> (Simplification filters) to reduce the face count while preserving visual quality. A decimated copy for annotation and the full-resolution original for final presentation is a common workflow.</li>
                             </ul>
 
-                            <p style="margin-top: 10px;"><strong>Orientation:</strong> Make sure your model uses the correct up-axis before exporting. MeshNotes cannot change the orientation after loading. If your model appears sideways or upside down, re-export it with Y-up orientation (the most common convention for web-based 3D viewers) in your 3D software.</p>
+                            <p style="margin-top: 10px;"><strong>Orientation:</strong> When loading OBJ or PLY files, MeshNotes will ask you which axis is "up" in your source software. Most photogrammetry and cultural heritage tools (Agisoft Metashape, CloudCompare, MeshLab, Blender) use <strong>Z-up</strong>, while some game engines and web viewers use Y-up. Selecting the correct option ensures your model displays upright. GLB/GLTF files handle orientation automatically per the glTF specification. See the <em>Coordinate System</em> section below for more details.</p>
 
                             <p style="margin-top: 10px;"><strong>Units:</strong> MeshNotes displays distances and scalebar values in whatever unit your model was created with. If your photogrammetry software exports in meters, distances will be in meters. If it exports in millimeters, they will be in millimeters. There is no unit conversion — consistency depends on your source data. Check your 3D software's export settings if distances seem off by a factor of 1000.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>Coordinate System</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>MeshNotes displays all models and exports all annotation coordinates with <strong>Z pointing up</strong>. This matches the convention used by most software in cultural heritage, photogrammetry, and geospatial work, including Agisoft Metashape, CloudCompare, MeshLab, QGIS, and Blender.</p>
+
+                            <p style="margin-top: 10px;"><strong>Why this matters:</strong> When you annotate a model in MeshNotes and export the annotations as JSON, the coordinates in that file use Z-up. If a colleague opens the same model in a different software and overlays your annotations, the points will be in the correct positions — no manual coordinate conversion needed.</p>
+
+                            <p style="margin-top: 10px;"><strong>How it works internally:</strong> The 3D engine that MeshNotes is built on (Three.js) uses Y-up internally, which is common for web-based 3D viewers. MeshNotes handles the translation between these two conventions automatically, so you never need to worry about it. The View Helper in the top-right corner always shows Z (blue) pointing up, Y (green) pointing forward, and X (red) pointing right, reflecting the Z-up convention you are used to.</p>
+
+                            <p style="margin-top: 10px;"><strong>On import:</strong> When loading OBJ or PLY files, MeshNotes asks which axis is up in your source software and rotates the model accordingly. GLB/GLTF files always use Y-up by specification, so MeshNotes handles them automatically. When importing annotation files, MeshNotes checks the <code>upAxis</code> field in the JSON. Files marked as Z-up are loaded directly; older files without this field are treated as legacy Y-up data and converted automatically.</p>
+
+                            <p style="margin-top: 10px;"><strong>On export:</strong> All annotation JSON files include an <code>"upAxis": "Z"</code> field near the top of the file. This tells any software reading the file which coordinate convention to expect. The field is deliberately not prefixed with a MeshNotes-specific namespace, so it is easy for other tools to read and interpret.</p>
                         </div>
                     </div>
 
