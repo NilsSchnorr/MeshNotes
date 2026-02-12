@@ -107,8 +107,8 @@
 
         #container {
             display: flex;
-            height: calc(100vh - 50px);
-            margin-top: 50px;
+            height: calc(100vh - 88px);
+            margin-top: 88px;
         }
 
         #viewport {
@@ -122,14 +122,18 @@
 
         /* Toolbar */
         #toolbar {
-            position: absolute;
-            top: 10px;
-            left: 10px;
+            position: fixed;
+            top: 50px;
+            left: 0;
+            right: 0;
+            height: 38px;
+            background: var(--color-blue-dark);
+            border-bottom: 1px solid var(--color-blue);
             display: flex;
+            align-items: center;
+            padding: 0 12px;
             gap: 6px;
-            flex-wrap: wrap;
-            max-width: calc(100% - 340px);
-            z-index: 100;
+            z-index: 500;
         }
 
         .tool-btn {
@@ -159,8 +163,9 @@
 
         .tool-separator {
             width: 1px;
+            align-self: stretch;
             background: var(--color-blue);
-            margin: 0 4px;
+            margin: 4px 4px;
         }
 
         #file-input, #import-input, #obj-material-input, #ply-texture-input {
@@ -995,20 +1000,17 @@
 
         /* Camera toggle button */
         #camera-toggle {
-            position: absolute;
-            top: 10px;
-            right: 10px;
+            margin-left: auto;
             width: 128px;
             text-align: center;
-            padding: 8px 12px;
+            padding: 6px 12px;
             border: none;
             border-radius: 6px;
-            background: var(--color-blue-dark);
+            background: var(--color-blue);
             color: var(--color-text-light);
             cursor: pointer;
             font-size: 12px;
             transition: background 0.2s;
-            z-index: 100;
         }
 
         #camera-toggle:hover {
@@ -1061,7 +1063,7 @@
         /* ViewHelper (orientation gizmo) */
         #viewhelper-container {
             position: absolute;
-            top: 48px;
+            top: 10px;
             right: 10px;
             width: 128px;
             height: 128px;
@@ -2187,36 +2189,36 @@
         </div>
     </div>
 
+    <div id="toolbar">
+        <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply">
+        <input type="file" id="import-input" accept=".json,.jsonld">
+        <input type="file" id="obj-material-input" accept=".mtl,.jpg,.jpeg,.png,.tif,.tiff" multiple>
+        <input type="file" id="ply-texture-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
+        
+        <button class="tool-btn" id="btn-load" title="Load 3D Model (GLB, GLTF, OBJ, PLY)">📂 Load Model</button>
+        <button class="tool-btn" id="btn-texture" disabled title="Toggle Texture">🖼️ Texture</button>
+        
+        <div class="tool-separator"></div>
+        
+        <button class="tool-btn" id="btn-point" disabled title="Add Point Annotation">📍 Point</button>
+        <button class="tool-btn" id="btn-line" disabled title="Add Line Annotation">📏 Line</button>
+        <button class="tool-btn" id="btn-polygon" disabled title="Add Polygon Annotation">⬡ Polygon</button>
+        <button class="tool-btn" id="btn-surface" disabled title="Add Surface Annotation">🎨 Surface</button>
+        <button class="tool-btn" id="btn-measure" disabled title="Measure Distance">📐 Measure</button>
+        
+        <div class="tool-separator"></div>
+        
+        <button class="tool-btn" id="btn-screenshot" disabled title="Take Screenshot">📷 Screenshot</button>
+        <button class="tool-btn" id="btn-export" disabled title="Export Annotations as JSON">💾 JSON</button>
+        <button class="tool-btn" id="btn-export-pdf" disabled title="Export as PDF Report">📄 PDF</button>
+        <button class="tool-btn" id="btn-import" title="Import Annotations">📥 Import</button>
+        
+        <button id="camera-toggle" title="Toggle Orthographic/Perspective View">Perspective</button>
+    </div>
+
     <div id="container">
         <div id="viewport">
             <canvas id="canvas"></canvas>
-            
-            <button id="camera-toggle" title="Toggle Orthographic/Perspective View">Perspective</button>
-            
-            <div id="toolbar">
-                <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply">
-                <input type="file" id="import-input" accept=".json,.jsonld">
-                <input type="file" id="obj-material-input" accept=".mtl,.jpg,.jpeg,.png,.tif,.tiff" multiple>
-                <input type="file" id="ply-texture-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
-                
-                <button class="tool-btn" id="btn-load" title="Load 3D Model (GLB, GLTF, OBJ, PLY)">📂 Load Model</button>
-                <button class="tool-btn" id="btn-texture" disabled title="Toggle Texture">🖼️ Texture</button>
-                
-                <div class="tool-separator"></div>
-                
-                <button class="tool-btn" id="btn-point" disabled title="Add Point Annotation">📍 Point</button>
-                <button class="tool-btn" id="btn-line" disabled title="Add Line Annotation">📏 Line</button>
-                <button class="tool-btn" id="btn-polygon" disabled title="Add Polygon Annotation">⬡ Polygon</button>
-                <button class="tool-btn" id="btn-surface" disabled title="Add Surface Annotation">🎨 Surface</button>
-                <button class="tool-btn" id="btn-measure" disabled title="Measure Distance">📐 Measure</button>
-                
-                <div class="tool-separator"></div>
-                
-                <button class="tool-btn" id="btn-screenshot" disabled title="Take Screenshot">📷 Screenshot</button>
-                <button class="tool-btn" id="btn-export" disabled title="Export Annotations as JSON">💾 JSON</button>
-                <button class="tool-btn" id="btn-export-pdf" disabled title="Export as PDF Report">📄 PDF</button>
-                <button class="tool-btn" id="btn-import" title="Import Annotations">📥 Import</button>
-            </div>
 
             <div id="measurement-display">
                 <div id="measurements-list"></div>
