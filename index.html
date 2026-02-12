@@ -1845,6 +1845,24 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header" onclick="toggleManualItem(this)">
+                            <span>Box Annotations</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Click <strong>Box</strong> to activate the box tool, then click on the model to place a 3D box annotation. A default-sized box appears at the click location. Boxes are useful for marking volumetric regions like rooms, excavation contexts, architectural spaces, or reconstruction hypotheses.</p>
+                            <p style="margin-top: 10px;"><strong>Manipulating boxes:</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Move:</strong> Click and drag the box body to reposition it freely in 3D space</li>
+                                <li><strong>Resize:</strong> Drag any corner handle to reshape the box (the opposite corner stays fixed)</li>
+                                <li><strong>Rotate:</strong> Right-click and drag on the box body — horizontal movement spins the box, vertical movement tilts it</li>
+                                <li><strong>Snap:</strong> Hold <code>Shift</code> while rotating to snap to 15° increments</li>
+                            </ul>
+                            <p style="margin-top: 10px;">Unlike other annotations, boxes can float freely in 3D space — they don't need to touch the model surface. This makes them ideal for marking "negative space" like missing architectural elements or hypothetical reconstructions.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header" onclick="toggleManualItem(this)">
                             <span>Measurement Tool</span>
                             <span class="toggle-icon">▶</span>
                         </div>
@@ -2221,6 +2239,7 @@
         <button class="tool-btn" id="btn-line" disabled title="Add Line Annotation">📏 Line</button>
         <button class="tool-btn" id="btn-polygon" disabled title="Add Polygon Annotation">⬡ Polygon</button>
         <button class="tool-btn" id="btn-surface" disabled title="Add Surface Annotation">🎨 Surface</button>
+        <button class="tool-btn" id="btn-box" disabled title="Add Box Annotation">📦 Box</button>
         <button class="tool-btn" id="btn-measure" disabled title="Measure Distance">📐 Measure</button>
         
         <div class="tool-separator"></div>
@@ -2534,7 +2553,7 @@
         let fixedLightElevation = 45; // degrees (vertical angle, 0 = horizon, 90 = top, -90 = bottom)
         
         // Tools
-        let currentTool = null; // 'point', 'line', 'polygon', 'measure'
+        let currentTool = null; // 'point', 'line', 'polygon', 'surface', 'box', 'measure'
         let tempPoints = [];
         let tempProjectedEdges = []; // Cached projected edges during drawing
         let tempLine = null;
@@ -2580,6 +2599,15 @@
         let modelBoundingSize = 1; // For brush size calculation
         let modelUpAxis = 'z-up'; // Track loaded model's original up-axis ('y-up' or 'z-up')
 
+        // Box annotation manipulation
+        let selectedBoxAnnotation = null; // Currently selected box for manipulation
+        let isManipulatingBox = false;
+        let boxManipulationMode = null; // 'move', 'resize', 'rotate'
+        let boxDragStartMouse = null; // {x, y} screen coords at drag start
+        let boxDragStartData = null; // Original box center/size/rotation at drag start
+        let activeBoxHandle = null; // Index of corner handle being dragged (0-7)
+        let boxHandleObjects = []; // THREE.Mesh objects for corner handles
+
         // Three.js objects for annotations
         let annotationObjects = new THREE.Group();
 
@@ -2604,6 +2632,7 @@
         const btnLine = document.getElementById('btn-line');
         const btnPolygon = document.getElementById('btn-polygon');
         const btnSurface = document.getElementById('btn-surface');
+        const btnBox = document.getElementById('btn-box');
         const btnMeasure = document.getElementById('btn-measure');
         const btnScreenshot = document.getElementById('btn-screenshot');
         const btnExport = document.getElementById('btn-export');
@@ -3174,6 +3203,7 @@
             btnLine.disabled = false;
             btnPolygon.disabled = false;
             btnSurface.disabled = false;
+            btnBox.disabled = false;
             btnMeasure.disabled = false;
             btnScreenshot.disabled = false;
             btnExport.disabled = false;
@@ -3699,6 +3729,7 @@
             btnLine.classList.toggle('active', currentTool === 'line');
             btnPolygon.classList.toggle('active', currentTool === 'polygon');
             btnSurface.classList.toggle('active', currentTool === 'surface');
+            btnBox.classList.toggle('active', currentTool === 'box');
             btnMeasure.classList.toggle('active', currentTool === 'measure');
 
             if (currentTool === 'measure') {
@@ -3730,6 +3761,8 @@
                 text = '<strong>Polygon:</strong> Click to add points · Double-click to close';
             } else if (currentTool === 'surface') {
                 text = '<strong>Surface:</strong> Click/drag to paint · Right-drag to rotate · Hold Shift to erase · Double-click to finish';
+            } else if (currentTool === 'box') {
+                text = '<strong>Box:</strong> Click to place box · Drag corners to resize · Drag body to move · Right-drag to rotate (Shift=snap 15°)';
             } else if (currentTool === 'measure') {
                 text = '<strong>Measure:</strong> Click two points to measure distance';
             }
@@ -4373,6 +4406,16 @@
                 if (hitInfo) {
                     paintAtPoint(hitInfo.point, hitInfo.mesh, hitInfo.faceIndex);
                 }
+            } else if (currentTool === 'box') {
+                // Place a default-sized box at the click point
+                const defaultSize = modelBoundingSize * 0.15; // 15% of model size
+                const boxData = {
+                    center: { x: point.x, y: point.y, z: point.z },
+                    size: { x: defaultSize, y: defaultSize, z: defaultSize },
+                    rotation: { x: 0, y: 0, z: 0 }
+                };
+                openAnnotationPopup(event, 'box', [point], boxData);
+                setTool(null);
             }
         }
 
@@ -4437,6 +4480,22 @@
                 const annId = marker.userData.annotationId;
                 const pointIndex = marker.userData.pointIndex;
                 
+                // Check if this is a box handle
+                if (marker.userData.isBoxHandle) {
+                    const ann = annotations.find(a => a.id === annId);
+                    if (ann && ann.type === 'box') {
+                        selectedBoxAnnotation = ann;
+                        isManipulatingBox = true;
+                        boxManipulationMode = 'resize';
+                        activeBoxHandle = marker.userData.handleIndex;
+                        boxDragStartMouse = { x: event.clientX, y: event.clientY };
+                        boxDragStartData = JSON.parse(JSON.stringify(ann.boxData));
+                        controls.enabled = false;
+                        canvas.style.cursor = 'nwse-resize';
+                        return;
+                    }
+                }
+                
                 draggedAnnotation = annotations.find(a => a.id === annId);
                 if (draggedAnnotation) {
                     isDraggingPoint = true;
@@ -4444,6 +4503,38 @@
                     draggedMarker = marker;
                     controls.enabled = false; // Disable orbit controls during drag
                     canvas.style.cursor = 'grabbing';
+                }
+            }
+            
+            // Check for clicks on box body (for move or rotate)
+            if (!isDraggingPoint && !isManipulatingBox) {
+                const boxObjects = annotationObjects.children.filter(obj => 
+                    obj.userData.isBoxBody && obj.isMesh
+                );
+                const boxIntersects = raycaster.intersectObjects(boxObjects);
+                
+                if (boxIntersects.length > 0) {
+                    const boxMesh = boxIntersects[0].object;
+                    const annId = boxMesh.userData.annotationId;
+                    const ann = annotations.find(a => a.id === annId);
+                    
+                    if (ann && ann.type === 'box') {
+                        selectedBoxAnnotation = ann;
+                        isManipulatingBox = true;
+                        boxDragStartMouse = { x: event.clientX, y: event.clientY };
+                        boxDragStartData = JSON.parse(JSON.stringify(ann.boxData));
+                        controls.enabled = false;
+                        
+                        if (event.button === 2) {
+                            // Right-click: rotate
+                            boxManipulationMode = 'rotate';
+                            canvas.style.cursor = 'ew-resize';
+                        } else {
+                            // Left-click: move
+                            boxManipulationMode = 'move';
+                            canvas.style.cursor = 'move';
+                        }
+                    }
                 }
             }
         }
@@ -4506,19 +4597,178 @@
                 return;
             }
             
+            // Handle box manipulation (move, resize, rotate)
+            if (isManipulatingBox && selectedBoxAnnotation && boxDragStartData) {
+                const deltaX = event.clientX - boxDragStartMouse.x;
+                const deltaY = event.clientY - boxDragStartMouse.y;
+                
+                if (boxManipulationMode === 'move') {
+                    // Move the box freely in 3D space using a plane parallel to the camera
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(mouse, camera);
+                    
+                    // Create a plane at the box center, facing the camera
+                    const startCenter = new THREE.Vector3(
+                        boxDragStartData.center.x,
+                        boxDragStartData.center.y,
+                        boxDragStartData.center.z
+                    );
+                    const cameraDir = new THREE.Vector3();
+                    camera.getWorldDirection(cameraDir);
+                    const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
+                    
+                    // Find intersection with the plane
+                    const intersection = new THREE.Vector3();
+                    if (raycaster.ray.intersectPlane(movePlane, intersection)) {
+                        selectedBoxAnnotation.boxData.center = {
+                            x: intersection.x,
+                            y: intersection.y,
+                            z: intersection.z
+                        };
+                        selectedBoxAnnotation.points[0] = { ...selectedBoxAnnotation.boxData.center };
+                        renderAnnotations();
+                    }
+                } else if (boxManipulationMode === 'resize') {
+                    // Reshape box by moving the dragged corner while keeping the opposite corner fixed
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(mouse, camera);
+                    
+                    // Get the corner positions from the original box
+                    // Corner indices: 0-7, arranged as:
+                    // Bottom (y=-0.5): 0=(-,-,-), 1=(+,-,-), 2=(-,+,-), 3=(+,+,-) -- wait, let me check the actual layout
+                    // From renderBoxAnnotation: [-0.5,-0.5,-0.5], [0.5,-0.5,-0.5], [-0.5,0.5,-0.5], [0.5,0.5,-0.5],
+                    //                          [-0.5,-0.5,0.5], [0.5,-0.5,0.5], [-0.5,0.5,0.5], [0.5,0.5,0.5]
+                    // So corners are indexed by: x=idx%2, y=(idx>>1)%2, z=idx>>2
+                    // Opposite corner has index: 7 - activeBoxHandle
+                    
+                    const corners = [
+                        [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
+                        [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
+                        [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
+                        [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+                    ];
+                    
+                    const draggedCornerFactors = corners[activeBoxHandle];
+                    const oppositeIndex = 7 - activeBoxHandle;
+                    const oppositeCornerFactors = corners[oppositeIndex];
+                    
+                    // Calculate the fixed opposite corner position in world space
+                    const startCenter = new THREE.Vector3(
+                        boxDragStartData.center.x,
+                        boxDragStartData.center.y,
+                        boxDragStartData.center.z
+                    );
+                    const startSize = boxDragStartData.size;
+                    const startRotation = boxDragStartData.rotation || { x: 0, y: 0, z: 0 };
+                    const euler = new THREE.Euler(startRotation.x, startRotation.y, startRotation.z);
+                    
+                    const oppositeCornerLocal = new THREE.Vector3(
+                        oppositeCornerFactors[0] * startSize.x,
+                        oppositeCornerFactors[1] * startSize.y,
+                        oppositeCornerFactors[2] * startSize.z
+                    );
+                    oppositeCornerLocal.applyEuler(euler);
+                    const fixedCorner = oppositeCornerLocal.add(startCenter);
+                    
+                    // Create a plane at the dragged corner's original position, facing the camera
+                    const draggedCornerLocal = new THREE.Vector3(
+                        draggedCornerFactors[0] * startSize.x,
+                        draggedCornerFactors[1] * startSize.y,
+                        draggedCornerFactors[2] * startSize.z
+                    );
+                    draggedCornerLocal.applyEuler(euler);
+                    const draggedCornerWorld = draggedCornerLocal.clone().add(startCenter);
+                    
+                    const cameraDir = new THREE.Vector3();
+                    camera.getWorldDirection(cameraDir);
+                    const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, draggedCornerWorld);
+                    
+                    // Find where the ray intersects the drag plane
+                    const newCornerPos = new THREE.Vector3();
+                    if (raycaster.ray.intersectPlane(dragPlane, newCornerPos)) {
+                        // Calculate new center and size from the fixed corner and new dragged corner
+                        // New center is midpoint between fixed corner and new corner position
+                        const newCenter = new THREE.Vector3().addVectors(fixedCorner, newCornerPos).multiplyScalar(0.5);
+                        
+                        // To get new size, we need to work in local (unrotated) space
+                        // Transform the diagonal vector back to local space
+                        const diagonal = new THREE.Vector3().subVectors(newCornerPos, fixedCorner);
+                        const inverseEuler = new THREE.Euler(-startRotation.x, -startRotation.y, -startRotation.z, 'ZYX');
+                        diagonal.applyEuler(inverseEuler);
+                        
+                        // The size is the absolute value of the diagonal components
+                        // (since diagonal goes from -0.5 to +0.5 factors, it spans the full size)
+                        const newSize = {
+                            x: Math.max(0.01, Math.abs(diagonal.x)),
+                            y: Math.max(0.01, Math.abs(diagonal.y)),
+                            z: Math.max(0.01, Math.abs(diagonal.z))
+                        };
+                        
+                        selectedBoxAnnotation.boxData.center = {
+                            x: newCenter.x,
+                            y: newCenter.y,
+                            z: newCenter.z
+                        };
+                        selectedBoxAnnotation.boxData.size = newSize;
+                        selectedBoxAnnotation.points[0] = { ...selectedBoxAnnotation.boxData.center };
+                        renderAnnotations();
+                    }
+                } else if (boxManipulationMode === 'rotate') {
+                    // Rotate around both axes simultaneously:
+                    // - Horizontal drag → Y rotation (spin around vertical axis)
+                    // - Vertical drag → X rotation (tilt forward/backward)
+                    const rotationSpeed = 0.01;
+                    let rotX = (boxDragStartData.rotation?.x || 0) + deltaY * rotationSpeed;
+                    let rotY = (boxDragStartData.rotation?.y || 0) + deltaX * rotationSpeed;
+                    let rotZ = boxDragStartData.rotation?.z || 0;
+                    
+                    // Snap to 15° increments when Shift is held
+                    if (event.shiftKey) {
+                        const snapAngle = Math.PI / 12; // 15 degrees in radians
+                        rotX = Math.round(rotX / snapAngle) * snapAngle;
+                        rotY = Math.round(rotY / snapAngle) * snapAngle;
+                    }
+                    
+                    selectedBoxAnnotation.boxData.rotation = {
+                        x: rotX,
+                        y: rotY,
+                        z: rotZ
+                    };
+                    renderAnnotations();
+                }
+                return;
+            }
+            
             // Handle hover cursor when not dragging and no tool active
             if (!currentTool && currentModel) {
                 const raycaster = new THREE.Raycaster();
                 raycaster.setFromCamera(mouse, camera);
                 
+                // Check for annotation markers (including box handles)
                 const markerObjects = annotationObjects.children.filter(obj => 
                     obj.userData.isAnnotationMarker && obj.isMesh
                 );
                 
-                const intersects = raycaster.intersectObjects(markerObjects);
+                const markerIntersects = raycaster.intersectObjects(markerObjects);
                 
-                if (intersects.length > 0) {
-                    canvas.style.cursor = 'grab';
+                if (markerIntersects.length > 0) {
+                    const hitMarker = markerIntersects[0].object;
+                    if (hitMarker.userData.isBoxHandle) {
+                        canvas.style.cursor = 'nwse-resize';
+                    } else {
+                        canvas.style.cursor = 'grab';
+                    }
+                    return;
+                }
+                
+                // Check for box bodies
+                const boxObjects = annotationObjects.children.filter(obj => 
+                    obj.userData.isBoxBody && obj.isMesh
+                );
+                const boxIntersects = raycaster.intersectObjects(boxObjects);
+                
+                if (boxIntersects.length > 0) {
+                    canvas.style.cursor = 'move';
                 } else {
                     canvas.style.cursor = 'default';
                 }
@@ -4555,6 +4805,28 @@
                 renderAnnotations();
                 updateGroupsList();
                 showStatus('Point moved');
+            }
+            
+            // Handle box manipulation end
+            if (isManipulatingBox) {
+                wasDragging = true; // Prevent click event
+                
+                const statusMsg = boxManipulationMode === 'move' ? 'Box moved' :
+                                  boxManipulationMode === 'resize' ? 'Box resized' :
+                                  boxManipulationMode === 'rotate' ? 'Box rotated' : 'Box updated';
+                
+                isManipulatingBox = false;
+                selectedBoxAnnotation = null;
+                boxManipulationMode = null;
+                boxDragStartMouse = null;
+                boxDragStartData = null;
+                activeBoxHandle = null;
+                controls.enabled = true;
+                canvas.style.cursor = 'default';
+                
+                renderAnnotations();
+                updateGroupsList();
+                showStatus(statusMsg);
             }
         }
 
@@ -4891,7 +5163,7 @@
         }
 
         // ============ Annotations ============
-        function openAnnotationPopup(event, type, points, faceData = null) {
+        function openAnnotationPopup(event, type, points, extraData = null) {
             editingAnnotation = null;
             editingModelInfo = false;
             isAddingEntry = false;
@@ -4924,10 +5196,17 @@
             }
 
             // Store face data for surface annotations
-            if (faceData) {
-                annotationPopup.dataset.faceData = JSON.stringify(faceData);
+            if (type === 'surface' && extraData) {
+                annotationPopup.dataset.faceData = JSON.stringify(extraData);
             } else {
                 delete annotationPopup.dataset.faceData;
+            }
+            
+            // Store box data for box annotations
+            if (type === 'box' && extraData) {
+                annotationPopup.dataset.boxData = JSON.stringify(extraData);
+            } else {
+                delete annotationPopup.dataset.boxData;
             }
 
             // For surface annotations, center the popup since double-click position is arbitrary
@@ -5607,6 +5886,11 @@
                     newAnnotation.faceData = JSON.parse(annotationPopup.dataset.faceData);
                 }
                 
+                // Add box data for box annotations
+                if (type === 'box' && annotationPopup.dataset.boxData) {
+                    newAnnotation.boxData = JSON.parse(annotationPopup.dataset.boxData);
+                }
+                
                 // Compute surface-projected edges for lines and polygons
                 if ((type === 'line' || type === 'polygon') && points.length >= 2) {
                     const wantsProjection = surfaceProjectionEnabled && annSurfaceProjection.checked;
@@ -5817,6 +6101,24 @@
                             ann.points[0].z
                         );
                     }
+                } else if (ann.type === 'box' && ann.boxData) {
+                    // Render box annotation
+                    const boxObjects = renderBoxAnnotation(ann, color, maxDim);
+                    if (boxObjects) {
+                        boxObjects.forEach(obj => {
+                            obj.userData.annotationId = ann.id;
+                            annotationObjects.add(obj);
+                        });
+                    }
+                    
+                    // Label position at top of box
+                    const center = ann.boxData.center;
+                    const size = ann.boxData.size;
+                    labelPosition = new THREE.Vector3(
+                        center.x,
+                        center.y + size.y / 2 + labelOffset,
+                        center.z
+                    );
                 }
                 
                 // Add name label if annotation has a name
@@ -5902,6 +6204,94 @@
             const mesh = new THREE.Mesh(highlightGeometry, highlightMaterial);
             mesh.renderOrder = 999; // Render after everything else
             return mesh;
+        }
+
+        /**
+         * Renders a box annotation with transparent fill, wireframe edges, and corner handles.
+         * @param {Object} ann - Annotation object with boxData {center, size, rotation}
+         * @param {THREE.Color} color - Group color for the annotation
+         * @param {number} maxDim - Maximum dimension of the model (for handle sizing)
+         * @returns {THREE.Object3D[]} Array of Three.js objects (box mesh, wireframe, handles)
+         */
+        function renderBoxAnnotation(ann, color, maxDim) {
+            if (!ann.boxData) return null;
+            
+            const { center, size, rotation } = ann.boxData;
+            const objects = [];
+            
+            // Create box geometry
+            const boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+            
+            // Transparent fill
+            const fillMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.25,
+                side: THREE.DoubleSide,
+                depthTest: true,
+                depthWrite: false
+            });
+            
+            const boxMesh = new THREE.Mesh(boxGeometry.clone(), fillMaterial);
+            boxMesh.position.set(center.x, center.y, center.z);
+            if (rotation) {
+                boxMesh.rotation.set(rotation.x, rotation.y, rotation.z);
+            }
+            boxMesh.userData.isBoxBody = true;
+            objects.push(boxMesh);
+            
+            // Wireframe edges
+            const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
+            const edgesMaterial = new THREE.LineBasicMaterial({
+                color: color,
+                linewidth: 2
+            });
+            const wireframe = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+            wireframe.position.copy(boxMesh.position);
+            wireframe.rotation.copy(boxMesh.rotation);
+            objects.push(wireframe);
+            
+            // Corner handles (8 corners) - sized to match line/polygon vertex markers
+            const corners = [
+                [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
+                [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
+                [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
+                [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+            ];
+            
+            const handleGeometry = new THREE.SphereGeometry(0.02, 12, 12);
+            
+            corners.forEach((corner, index) => {
+                const handleMaterial = new THREE.MeshBasicMaterial({ color: color });
+                const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+                
+                // Position handle at corner in local space
+                const localPos = new THREE.Vector3(
+                    corner[0] * size.x,
+                    corner[1] * size.y,
+                    corner[2] * size.z
+                );
+                
+                // Apply rotation and translate to world position
+                if (rotation) {
+                    const euler = new THREE.Euler(rotation.x, rotation.y, rotation.z);
+                    localPos.applyEuler(euler);
+                }
+                handle.position.set(
+                    center.x + localPos.x,
+                    center.y + localPos.y,
+                    center.z + localPos.z
+                );
+                
+                // Use same scale formula as line/polygon vertex markers (0.018 factor)
+                handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * pointSizeMultiplier);
+                handle.userData.isBoxHandle = true;
+                handle.userData.handleIndex = index;
+                handle.userData.isAnnotationMarker = true;
+                objects.push(handle);
+            });
+            
+            return objects;
         }
 
         function updateAnnotationsPanel() {
@@ -6045,6 +6435,17 @@
                         value: `centroid=${centroid.x},${centroid.y},${centroid.z}`
                     } : undefined
                 };
+            } else if (ann.type === 'box' && ann.boxData) {
+                // Box: center, size, and rotation (Euler angles in radians)
+                const center = pointToZUp(ann.boxData.center);
+                const size = ann.boxData.size;
+                const rot = ann.boxData.rotation || { x: 0, y: 0, z: 0 };
+                // Size stays the same, rotation needs Y/Z swap for Z-up coordinate system
+                return {
+                    type: 'FragmentSelector',
+                    conformsTo: 'https://github.com/IIIF/3d',
+                    value: `box=${center.x},${center.y},${center.z};${size.x},${size.z},${size.y};${rot.x},${rot.z},${rot.y}`
+                };
             }
             return null;
         }
@@ -6101,6 +6502,25 @@
                     if (coords.length === 3) {
                         ann.points = [{ x: coords[0], y: coords[1], z: coords[2] }];
                     }
+                }
+            }
+            // Parse box=cx,cy,cz;sx,sy,sz;rx,ry,rz
+            else if (fragmentValue.startsWith('box=')) {
+                const parts = fragmentValue.replace('box=', '').split(';');
+                if (parts.length >= 2) {
+                    const centerCoords = parts[0].split(',').map(Number);
+                    const sizeCoords = parts[1].split(',').map(Number);
+                    const rotCoords = parts.length >= 3 ? parts[2].split(',').map(Number) : [0, 0, 0];
+                    
+                    ann.type = 'box';
+                    // Center point for compatibility with other annotation types
+                    ann.points = [{ x: centerCoords[0], y: centerCoords[1], z: centerCoords[2] }];
+                    // Box-specific data (size swapped back from Z-up to Y-up)
+                    ann.boxData = {
+                        center: { x: centerCoords[0], y: centerCoords[1], z: centerCoords[2] },
+                        size: { x: sizeCoords[0], y: sizeCoords[2], z: sizeCoords[1] },
+                        rotation: { x: rotCoords[0], y: rotCoords[2], z: rotCoords[1] }
+                    };
                 }
             }
             // Parse centroid for surface types
@@ -7325,6 +7745,10 @@
             function transformAnnotationCoords(ann) {
                 if (!needsTransform) return;
                 ann.points = ann.points.map(p => pointFromZUp(p));
+                // Also transform box center for box annotations
+                if (ann.boxData && ann.boxData.center) {
+                    ann.boxData.center = pointFromZUp(ann.boxData.center);
+                }
             }
             
             // Helper: get effective timestamp for an entry (modified or created)
@@ -7477,6 +7901,7 @@
                             existingAnn.groupId = importedAnn.groupId;
                             existingAnn.points = importedAnn.points;
                             if (importedAnn.faceData) existingAnn.faceData = importedAnn.faceData;
+                            if (importedAnn.boxData) existingAnn.boxData = importedAnn.boxData;
                             if (importedAnn.projectedEdges) existingAnn.projectedEdges = importedAnn.projectedEdges;
                         }
                         
@@ -7740,6 +8165,7 @@
         btnLine.addEventListener('click', () => setTool('line'));
         btnPolygon.addEventListener('click', () => setTool('polygon'));
         btnSurface.addEventListener('click', () => setTool('surface'));
+        btnBox.addEventListener('click', () => setTool('box'));
         btnMeasure.addEventListener('click', () => setTool('measure'));
         btnScreenshot.addEventListener('click', takeScreenshot);
         btnExport.addEventListener('click', exportAnnotations);
@@ -7820,6 +8246,13 @@
         canvas.addEventListener('mousedown', onCanvasMouseDown);
         canvas.addEventListener('mousemove', onCanvasMouseMove);
         canvas.addEventListener('mouseup', onCanvasMouseUp);
+        
+        // Prevent context menu when right-clicking on boxes (for rotation)
+        canvas.addEventListener('contextmenu', (e) => {
+            if (isManipulatingBox && boxManipulationMode === 'rotate') {
+                e.preventDefault();
+            }
+        });
 
         brightnessSlider.addEventListener('input', (e) => setBrightness(parseInt(e.target.value)));
         opacitySlider.addEventListener('input', (e) => setModelOpacity(parseInt(e.target.value)));
