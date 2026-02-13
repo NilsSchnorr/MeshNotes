@@ -52,24 +52,50 @@ export function setModelOpacity(value) {
 // ============ Point Size Control ============
 
 /**
- * Converts slider value to display percentage with non-linear scaling.
- * - 25-500: linear (25% to 500%)
- * - 500-600: maps to 500%-1000% in 50% increments
- *   (slider 510 = 550%, 520 = 600%, ..., 600 = 1000%)
+ * Converts slider value (25-600) to multiplier using exponential scaling.
+ * This provides intuitive control where small movements have larger effect
+ * at high values, allowing a huge effective range (0.25× to 50×).
+ * 
+ * Anchored at slider=100 → multiplier=1.0×
+ * 
+ * Lower range (25-100): 0.25× to 1.0× using formula 0.25 × 4^((slider-25)/75)
+ * Upper range (100-600): 1.0× to 50× using formula 50^((slider-100)/500)
+ * 
+ * Example values:
+ *   Slider 25  → 0.25×
+ *   Slider 50  → 0.50×
+ *   Slider 100 → 1.0×
+ *   Slider 200 → 2.0×
+ *   Slider 300 → 3.8×
+ *   Slider 400 → 7.4×
+ *   Slider 500 → 14.5×
+ *   Slider 600 → 50×
  */
-function sliderToDisplayValue(sliderValue) {
-    if (sliderValue <= 500) {
-        return sliderValue;
+function sliderToMultiplier(sliderValue) {
+    if (sliderValue <= 100) {
+        // Exponential curve from 0.25× at slider=25 to 1.0× at slider=100
+        return 0.25 * Math.pow(4, (sliderValue - 25) / 75);
     } else {
-        // Each 10 units above 500 adds 50% to the display value
-        return 500 + (sliderValue - 500) * 5;
+        // Exponential curve from 1.0× at slider=100 to 50× at slider=600
+        return Math.pow(50, (sliderValue - 100) / 500);
+    }
+}
+
+/**
+ * Formats multiplier for display (e.g., "×2.5" or "×50").
+ * Uses one decimal place for values under 10, whole numbers above.
+ */
+function formatMultiplier(multiplier) {
+    if (multiplier < 10) {
+        return `×${multiplier.toFixed(1)}`;
+    } else {
+        return `×${Math.round(multiplier)}`;
     }
 }
 
 export function setPointSize(value) {
-    const displayValue = sliderToDisplayValue(value);
-    state.pointSizeMultiplier = displayValue / 100;
-    dom.pointSizeValue.textContent = `${displayValue}%`;
+    state.pointSizeMultiplier = sliderToMultiplier(value);
+    dom.pointSizeValue.textContent = formatMultiplier(state.pointSizeMultiplier);
     localStorage.setItem('meshnotes_pointSize', value);
     // Note: renderAnnotations() will be called by the event listener
     // to avoid circular dependency, caller is responsible for re-rendering
@@ -78,9 +104,8 @@ export function setPointSize(value) {
 // ============ Text Size Control ============
 
 export function setTextSize(value) {
-    const displayValue = sliderToDisplayValue(value);
-    state.textSizeMultiplier = displayValue / 100;
-    dom.textSizeValue.textContent = `${displayValue}%`;
+    state.textSizeMultiplier = sliderToMultiplier(value);
+    dom.textSizeValue.textContent = formatMultiplier(state.textSizeMultiplier);
     localStorage.setItem('meshnotes_textSize', value);
     // Note: renderAnnotations() will be called by the event listener
     // to avoid circular dependency, caller is responsible for re-rendering

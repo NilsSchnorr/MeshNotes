@@ -81,15 +81,25 @@ function animate() {
 }
 
 /**
- * Converts slider value to display percentage with non-linear scaling.
- * - 25-500: linear (25% to 500%)
- * - 500-600: maps to 500%-1000% in 50% increments
+ * Converts slider value (25-600) to multiplier using exponential scaling.
+ * Must match the formula in lighting.js for consistency.
  */
-function sliderToDisplayValue(sliderValue) {
-    if (sliderValue <= 500) {
-        return sliderValue;
+function sliderToMultiplier(sliderValue) {
+    if (sliderValue <= 100) {
+        return 0.25 * Math.pow(4, (sliderValue - 25) / 75);
     } else {
-        return 500 + (sliderValue - 500) * 5;
+        return Math.pow(50, (sliderValue - 100) / 500);
+    }
+}
+
+/**
+ * Formats multiplier for display (e.g., "×2.5" or "×50").
+ */
+function formatMultiplier(multiplier) {
+    if (multiplier < 10) {
+        return `×${multiplier.toFixed(1)}`;
+    } else {
+        return `×${Math.round(multiplier)}`;
     }
 }
 
@@ -99,18 +109,16 @@ function loadSavedSettings() {
     if (savedPointSize) {
         const sliderValue = parseInt(savedPointSize);
         dom.pointSizeSlider.value = sliderValue;
-        const displayValue = sliderToDisplayValue(sliderValue);
-        state.pointSizeMultiplier = displayValue / 100;
-        dom.pointSizeValue.textContent = `${displayValue}%`;
+        state.pointSizeMultiplier = sliderToMultiplier(sliderValue);
+        dom.pointSizeValue.textContent = formatMultiplier(state.pointSizeMultiplier);
     }
 
     const savedTextSize = localStorage.getItem('meshnotes_textSize');
     if (savedTextSize) {
         const sliderValue = parseInt(savedTextSize);
         dom.textSizeSlider.value = sliderValue;
-        const displayValue = sliderToDisplayValue(sliderValue);
-        state.textSizeMultiplier = displayValue / 100;
-        dom.textSizeValue.textContent = `${displayValue}%`;
+        state.textSizeMultiplier = sliderToMultiplier(sliderValue);
+        dom.textSizeValue.textContent = formatMultiplier(state.textSizeMultiplier);
     }
 }
 
