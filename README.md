@@ -1,7 +1,8 @@
 # MeshNotes – 3D Annotation Tool for Research & Heritage
 
 A browser-based tool for annotating 3D models with points, lines, polygons, surfaces, and boxes — designed for cultural heritage documentation.
-You can either download the html file and documentation here or use the deployed version at: https://nilsschnorr.github.io/MeshNotes/
+
+Use the deployed version at: https://nilsschnorr.github.io/MeshNotes/ — or clone/download the repository to run it locally with a web server.
 
 
 ## About
@@ -26,13 +27,15 @@ Key features include:
 - **Display controls** — adjust brightness, opacity, point size, text size, and toggle between texture, vertex colors, and gray display modes
 - **Light controls** — camera-linked or fixed direction lighting with horizontal/vertical control for raking light analysis
 
-The tool runs entirely in your browser — no installation or server required. Simply open the HTML file and start annotating. Your data stays on your computer unless you share the exported JSON file.
+The tool runs entirely in your browser — your data stays on your computer unless you share the exported JSON file.
 
 
 ## Getting Started
 
-1. Download and then open `index.html` in a modern web browser (Chrome, Firefox, Edge, or Safari - a chromium-based browser was used for most of the testing)
-   Alternatively: use the deployed version of the same file on GitHub Pages: https://nilsschnorr.github.io/MeshNotes/
+1. **Use the deployed version** at https://nilsschnorr.github.io/MeshNotes/ (recommended)
+   
+   **Or run locally:** Clone/download this repository and serve it with a local web server (e.g., `python -m http.server` or VS Code Live Server). Opening `index.html` directly via `file://` won't work due to browser security restrictions on ES modules.
+
 2. Click **Load Model** to open a 3D model (`.glb`, `.gltf`, `.obj`, or `.ply` format)
 3. Use the toolbar to add annotations
 4. Export your work as JSON for backup/saving or team collaboration

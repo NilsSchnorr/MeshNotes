@@ -36,7 +36,7 @@
                         measurement tools, customizable groups with color coding, draggable points for editing, and <strong>W3C Web Annotation</strong> compliant export/import for interoperability and team collaboration.
                     </p>
                     <p>
-                        The tool runs entirely in your browser — no installation or server required. Simply open the HTML file and start annotating. 
+                        The tool runs entirely in your browser — no data is uploaded to any server. 
                         Your data stays on your computer unless you share the exported file. The export format follows the 
                         <a href="https://www.w3.org/TR/annotation-model/" target="_blank">W3C Web Annotation Data Model</a>, 
                         ensuring compatibility with IIIF-based systems and other annotation tools.
@@ -426,7 +426,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>MeshNotes runs entirely in your web browser. No data is uploaded to any server — your 3D models, annotations, and all other data remain on your computer at all times. The tool does not use cookies, analytics, tracking, or any external services.</p>
-                            <p style="margin-top: 10px;">When hosted on GitHub Pages, the HTML file itself is downloaded once, after which all processing happens locally. You can also save the HTML file to your computer and open it directly in a browser for fully offline use — no internet connection required.</p>
+                            <p style="margin-top: 10px;">When hosted on GitHub Pages, the application files are downloaded once, after which all processing happens locally. For offline use, you can clone or download the <a href="https://github.com/NilsSchnorr/MeshNotes" target="_blank">GitHub repository</a> and run a local web server (e.g., <code>python -m http.server</code> or VS Code Live Server). Note that opening <code>index.html</code> directly via <code>file://</code> won't work due to browser security restrictions on ES modules.</p>
                             <p style="margin-top: 10px;">Exported JSON and PDF files are generated locally in your browser and saved directly to your downloads folder. Sharing annotation data with collaborators is always an explicit action on your part — you decide when and with whom to share your exported files. This makes MeshNotes suitable for documenting sensitive or unpublished archaeological sites where data confidentiality is important.</p>
                         </div>
                     </div>
