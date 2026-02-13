@@ -51,9 +51,25 @@ export function setModelOpacity(value) {
 
 // ============ Point Size Control ============
 
+/**
+ * Converts slider value to display percentage with non-linear scaling.
+ * - 25-500: linear (25% to 500%)
+ * - 500-600: maps to 500%-1000% in 50% increments
+ *   (slider 510 = 550%, 520 = 600%, ..., 600 = 1000%)
+ */
+function sliderToDisplayValue(sliderValue) {
+    if (sliderValue <= 500) {
+        return sliderValue;
+    } else {
+        // Each 10 units above 500 adds 50% to the display value
+        return 500 + (sliderValue - 500) * 5;
+    }
+}
+
 export function setPointSize(value) {
-    state.pointSizeMultiplier = value / 100;
-    dom.pointSizeValue.textContent = `${value}%`;
+    const displayValue = sliderToDisplayValue(value);
+    state.pointSizeMultiplier = displayValue / 100;
+    dom.pointSizeValue.textContent = `${displayValue}%`;
     localStorage.setItem('meshnotes_pointSize', value);
     // Note: renderAnnotations() will be called by the event listener
     // to avoid circular dependency, caller is responsible for re-rendering
@@ -62,8 +78,9 @@ export function setPointSize(value) {
 // ============ Text Size Control ============
 
 export function setTextSize(value) {
-    state.textSizeMultiplier = value / 100;
-    dom.textSizeValue.textContent = `${value}%`;
+    const displayValue = sliderToDisplayValue(value);
+    state.textSizeMultiplier = displayValue / 100;
+    dom.textSizeValue.textContent = `${displayValue}%`;
     localStorage.setItem('meshnotes_textSize', value);
     // Note: renderAnnotations() will be called by the event listener
     // to avoid circular dependency, caller is responsible for re-rendering

@@ -80,20 +80,37 @@ function animate() {
     }
 }
 
+/**
+ * Converts slider value to display percentage with non-linear scaling.
+ * - 25-500: linear (25% to 500%)
+ * - 500-600: maps to 500%-1000% in 50% increments
+ */
+function sliderToDisplayValue(sliderValue) {
+    if (sliderValue <= 500) {
+        return sliderValue;
+    } else {
+        return 500 + (sliderValue - 500) * 5;
+    }
+}
+
 // Load saved slider settings
 function loadSavedSettings() {
     const savedPointSize = localStorage.getItem('meshnotes_pointSize');
     if (savedPointSize) {
-        dom.pointSizeSlider.value = savedPointSize;
-        state.pointSizeMultiplier = parseInt(savedPointSize) / 100;
-        dom.pointSizeValue.textContent = `${savedPointSize}%`;
+        const sliderValue = parseInt(savedPointSize);
+        dom.pointSizeSlider.value = sliderValue;
+        const displayValue = sliderToDisplayValue(sliderValue);
+        state.pointSizeMultiplier = displayValue / 100;
+        dom.pointSizeValue.textContent = `${displayValue}%`;
     }
 
     const savedTextSize = localStorage.getItem('meshnotes_textSize');
     if (savedTextSize) {
-        dom.textSizeSlider.value = savedTextSize;
-        state.textSizeMultiplier = parseInt(savedTextSize) / 100;
-        dom.textSizeValue.textContent = `${savedTextSize}%`;
+        const sliderValue = parseInt(savedTextSize);
+        dom.textSizeSlider.value = sliderValue;
+        const displayValue = sliderToDisplayValue(sliderValue);
+        state.textSizeMultiplier = displayValue / 100;
+        dom.textSizeValue.textContent = `${displayValue}%`;
     }
 }
 
