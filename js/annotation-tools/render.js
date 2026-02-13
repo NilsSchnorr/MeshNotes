@@ -252,11 +252,10 @@ export function renderBoxAnnotation(ann, color, maxDim) {
     const edgesMaterial = new THREE.LineBasicMaterial({
         color: color,
         linewidth: 2,
+        transparent: true,
+        opacity: 1.0,
         depthTest: true,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -4,
-        polygonOffsetUnits: -4
+        depthWrite: false
     });
     const wireframe = new THREE.LineSegments(edgesGeometry, edgesMaterial);
     wireframe.position.copy(boxMesh.position);
@@ -276,11 +275,10 @@ export function renderBoxAnnotation(ann, color, maxDim) {
     corners.forEach((corner, index) => {
         const handleMaterial = new THREE.MeshBasicMaterial({
             color: color,
+            transparent: true,
+            opacity: 1.0,
             depthTest: true,
-            depthWrite: false,
-            polygonOffset: true,
-            polygonOffsetFactor: -4,
-            polygonOffsetUnits: -4
+            depthWrite: false
         });
         const handle = new THREE.Mesh(handleGeometry, handleMaterial);
 
