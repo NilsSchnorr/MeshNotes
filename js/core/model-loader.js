@@ -383,6 +383,8 @@ export function toggleTexture() {
         state.displayMode = state.hasVertexColors ? 'vertexColors' : 'gray';
     } else if (state.displayMode === 'vertexColors') {
         state.displayMode = 'gray';
+    } else if (state.displayMode === 'gray') {
+        state.displayMode = 'wireframe';
     } else {
         state.displayMode = 'texture';
     }
@@ -393,7 +395,8 @@ export function toggleTexture() {
     const modeLabels = {
         'texture': 'Texture',
         'vertexColors': 'Vertex Colors',
-        'gray': 'Gray'
+        'gray': 'Gray',
+        'wireframe': 'Wireframe'
     };
     showStatus(`Display: ${modeLabels[state.displayMode]}`);
 }
@@ -416,7 +419,14 @@ export function applyDisplayMode() {
                     roughness: 0.7,
                     metalness: 0.0
                 });
+            } else if (state.displayMode === 'wireframe') {
+                // Gold accent color: rgb(170, 129, 1)
+                child.material = new THREE.MeshBasicMaterial({
+                    color: 0xaa8101,
+                    wireframe: true
+                });
             } else {
+                // Gray mode
                 child.material = new THREE.MeshStandardMaterial({
                     color: 0x888888,
                     roughness: 0.7,
@@ -435,7 +445,8 @@ export function updateTextureButtonLabel() {
     const labels = {
         'texture': '🖼️ Texture',
         'vertexColors': '🎨 Colors',
-        'gray': '⬜ Gray'
+        'gray': '⬜ Gray',
+        'wireframe': '🔲 Wireframe'
     };
     dom.btnTexture.innerHTML = labels[state.displayMode] || '🖼️ Texture';
     dom.btnTexture.classList.toggle('active', state.displayMode !== 'texture');

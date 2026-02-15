@@ -154,6 +154,12 @@
             cursor: not-allowed;
         }
 
+        /* Fixed width for display mode button to prevent toolbar shift when cycling modes */
+        #btn-texture {
+            min-width: 105px;
+            text-align: center;
+        }
+
         .tool-separator {
             width: 1px;
             align-self: stretch;

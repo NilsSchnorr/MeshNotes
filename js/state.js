@@ -29,7 +29,7 @@ export const state = {
     currentModel: null,
     modelFileName: '',
     originalMaterials: new Map(),
-    displayMode: 'texture', // 'texture', 'vertexColors', 'gray'
+    displayMode: 'texture', // 'texture', 'vertexColors', 'gray', 'wireframe'
     hasVertexColors: false,
     modelOpacity: 1.0,
     modelMeshes: [],
