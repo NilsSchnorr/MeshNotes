@@ -4,7 +4,7 @@ import { initScene, initControls, addGrid, onWindowResize } from './core/scene.j
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
 import { initLighting, updateLightFromCamera } from './core/lighting.js';
 import { setUpdateModelInfoDisplay } from './core/model-loader.js';
-import { createDefaultGroup, updateGroupsList, setGroupCallbacks } from './annotation-tools/groups.js';
+import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
 import { setEditingCallbacks, finishSurfacePainting } from './annotation-tools/editing.js';
 import { updateMeasurementsDisplay } from './annotation-tools/editing.js';
@@ -47,6 +47,7 @@ function init() {
 
     // Event listeners
     setupEventListeners();
+    initGroupsEventDelegation(); // Set up delegated click/dblclick for annotation items
     window.addEventListener('resize', onWindowResize);
 
     // Start render loop

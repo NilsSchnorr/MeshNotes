@@ -50,11 +50,18 @@ export function loadModel(file) {
     loader.load(
         url,
         (gltf) => {
+            console.log('GLB/GLTF file parsed, setting up model...');
             // glTF/GLB spec mandates Y-up, no user choice needed
             setupLoadedModel(gltf.scene, file.name, 'y-up');
             URL.revokeObjectURL(url);
         },
-        undefined,
+        (progress) => {
+            // Progress callback for large files
+            if (progress.lengthComputable) {
+                const percent = Math.round((progress.loaded / progress.total) * 100);
+                console.log(`Loading: ${percent}%`);
+            }
+        },
         (error) => {
             console.error('Error loading model:', error);
             dom.loading.classList.remove('visible');
@@ -88,6 +95,16 @@ export function disposeObject3D(obj) {
 }
 
 export function setupLoadedModel(model, fileName, upAxis) {
+    try {
+        setupLoadedModelInternal(model, fileName, upAxis);
+    } catch (error) {
+        console.error('Critical error during model setup:', error);
+        dom.loading.classList.remove('visible');
+        showStatus('Error setting up model - check console for details');
+    }
+}
+
+function setupLoadedModelInternal(model, fileName, upAxis) {
     // Store the model's original up-axis for coordinate transforms in export/import
     state.modelUpAxis = upAxis || 'y-up';
 
@@ -115,15 +132,13 @@ export function setupLoadedModel(model, fileName, upAxis) {
     state.modelMeshes = [];
     state.hasVertexColors = false;
     let totalFaces = 0;
+    let bvhBuildFailed = false;
+    
+    // First pass: count faces, store materials, check vertex colors
     state.currentModel.traverse((child) => {
         if (child.isMesh) {
             state.originalMaterials.set(child.uuid, child.material.clone());
             state.modelMeshes.push(child);
-
-            // Build BVH for accelerated raycasting and surface projection
-            if (!child.geometry.boundsTree) {
-                child.geometry.computeBoundsTree();
-            }
 
             // Check for vertex colors
             if (child.geometry.attributes.color) {
@@ -139,21 +154,73 @@ export function setupLoadedModel(model, fileName, upAxis) {
             }
         }
     });
+    
+    // Build BVH trees separately with error handling
+    // BVH is required for surface tools and efficient raycasting
+    const BVH_FACE_LIMIT = 5000000; // Skip BVH for extremely large models
+    
+    if (totalFaces > BVH_FACE_LIMIT) {
+        console.warn(`Model has ${totalFaces.toLocaleString()} faces - skipping BVH for performance. Surface tools may be slower.`);
+        showStatus(`Large model loaded (${(totalFaces/1000000).toFixed(1)}M faces) - some tools may be slower`);
+        bvhBuildFailed = true;
+    } else {
+        for (const mesh of state.modelMeshes) {
+            try {
+                if (!mesh.geometry.boundsTree) {
+                    mesh.geometry.computeBoundsTree();
+                }
+            } catch (error) {
+                console.error('BVH computation failed for mesh:', mesh.name || 'unnamed', error);
+                bvhBuildFailed = true;
+                // Continue without BVH for this mesh - raycasting will still work, just slower
+            }
+        }
+        
+        if (bvhBuildFailed) {
+            console.warn('BVH build failed for one or more meshes. Raycasting will use standard (slower) method.');
+        }
+    }
 
     // Display face count
     updateFaceCountDisplay(totalFaces);
+    
+    // Validate model has actual geometry
+    if (state.modelMeshes.length === 0) {
+        console.error('Model contains no meshes!');
+        dom.loading.classList.remove('visible');
+        showStatus('Error: Model contains no renderable geometry');
+        return;
+    }
 
-    // Center and fit
+    // Center and fit with validation
     const box = new THREE.Box3().setFromObject(state.currentModel);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
+    
+    // Validate bounding box - can be empty or NaN for corrupt/empty models
+    if (box.isEmpty() || !isFinite(size.x) || !isFinite(size.y) || !isFinite(size.z)) {
+        console.error('Model has invalid bounding box:', { isEmpty: box.isEmpty(), size });
+        dom.loading.classList.remove('visible');
+        showStatus('Error: Model geometry is empty or invalid');
+        return;
+    }
+    
     const maxDim = Math.max(size.x, size.y, size.z);
-    state.modelBoundingSize = maxDim;
+    
+    // Guard against zero-size models (points only, or degenerate geometry)
+    if (maxDim === 0 || !isFinite(maxDim)) {
+        console.error('Model has zero or invalid size:', maxDim);
+        state.modelBoundingSize = 1; // Use fallback size
+    } else {
+        state.modelBoundingSize = maxDim;
+    }
 
     state.currentModel.position.sub(center);
-    state.camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
+    state.camera.position.set(state.modelBoundingSize * 1.5, state.modelBoundingSize * 1.5, state.modelBoundingSize * 1.5);
     state.controls.target.set(0, 0, 0);
     state.controls.update();
+    
+    console.log(`Model loaded: ${state.modelMeshes.length} meshes, ${totalFaces.toLocaleString()} faces, size: ${state.modelBoundingSize.toFixed(3)}`);
 
     // Enable tools
     dom.btnTexture.disabled = false;

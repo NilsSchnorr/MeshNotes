@@ -96,7 +96,7 @@ export function toggleGroupVisibility(group) {
     renderAnnotations();
 }
 
-export function selectAnnotation(id) {
+export function selectAnnotation(id, skipRebuild = false) {
     state.selectedAnnotation = id;
     const ann = state.annotations.find(a => a.id === id);
 
@@ -108,7 +108,24 @@ export function selectAnnotation(id) {
         state.controls.update();
     }
 
-    updateGroupsList();
+    if (!skipRebuild) {
+        updateGroupsList();
+    } else {
+        // Just update the visual selection without rebuilding DOM
+        updateSelectionHighlight(id);
+    }
+}
+
+function updateSelectionHighlight(selectedId) {
+    // Remove selected class from all items
+    dom.groupsContainer.querySelectorAll('.annotation-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    // Add selected class to the newly selected item
+    const selectedItem = dom.groupsContainer.querySelector(`.annotation-item[data-id="${selectedId}"]`);
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
+    }
 }
 
 export function updateGroupsList() {
@@ -157,16 +174,48 @@ export function updateGroupsList() {
         });
     });
 
-    dom.groupsContainer.querySelectorAll('.annotation-item').forEach(item => {
-        item.addEventListener('click', () => {
+    // Use event delegation for click/dblclick to avoid issues with DOM rebuilding
+    // Remove old listeners by replacing container content (innerHTML already does this)
+    // Attach delegated listeners only once during init, not here
+}
+
+// Call this once during initialization to set up delegated event listeners
+export function initGroupsEventDelegation() {
+    let clickTimeout = null;
+    
+    dom.groupsContainer.addEventListener('click', (e) => {
+        const item = e.target.closest('.annotation-item');
+        if (!item) return;
+        
+        // Clear any pending single-click action
+        if (clickTimeout) {
+            clearTimeout(clickTimeout);
+            clickTimeout = null;
+        }
+        
+        // Delay single-click action to allow dblclick to fire first
+        clickTimeout = setTimeout(() => {
             const id = parseInt(item.dataset.id);
-            selectAnnotation(id);
-        });
-        item.addEventListener('dblclick', () => {
-            const id = parseInt(item.dataset.id);
-            const ann = state.annotations.find(a => a.id === id);
-            if (ann && _openAnnotationPopupForEdit) _openAnnotationPopupForEdit(ann);
-        });
+            selectAnnotation(id, true); // skipRebuild=true to preserve DOM
+            clickTimeout = null;
+        }, 200);
+    });
+    
+    dom.groupsContainer.addEventListener('dblclick', (e) => {
+        const item = e.target.closest('.annotation-item');
+        if (!item) return;
+        
+        // Cancel the pending single-click action
+        if (clickTimeout) {
+            clearTimeout(clickTimeout);
+            clickTimeout = null;
+        }
+        
+        const id = parseInt(item.dataset.id);
+        const ann = state.annotations.find(a => a.id === id);
+        if (ann && _openAnnotationPopupForEdit) {
+            _openAnnotationPopupForEdit(ann);
+        }
     });
 }
 
