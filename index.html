@@ -757,6 +757,19 @@
                 </div>
             </div>
 
+            <!-- Annotation Clear Dialog (shown when loading new model with existing annotations) -->
+            <div class="confirm-overlay" id="annotation-clear-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <p id="annotation-clear-message">You have annotations from the current model. What would you like to do?</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Clearing will remove all annotations, groups, and measurements from the workspace.</p>
+                    <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
+                        <button class="btn-cancel" id="annotation-clear-cancel">Cancel</button>
+                        <button class="btn-delete" id="annotation-clear-discard">Clear</button>
+                        <button class="btn-save" id="annotation-clear-export">Export & Clear</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Scalebar Confirmation Dialog -->
             <div class="confirm-overlay" id="scalebar-confirm-overlay">
                 <div class="confirm-dialog" style="max-width: 450px;">

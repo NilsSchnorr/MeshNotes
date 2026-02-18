@@ -852,6 +852,21 @@
             font-size: 13px;
         }
 
+        .confirm-dialog .btn-save {
+            background: var(--color-gold-dark);
+            color: white;
+        }
+
+        .confirm-dialog .btn-cancel {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
+        .confirm-dialog .btn-delete {
+            background: var(--color-danger);
+            color: white;
+        }
+
         #group-popup {
             width: 260px;
             top: 50%;

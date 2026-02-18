@@ -182,6 +182,12 @@ export function initDomReferences() {
     dom.confirmOk = document.getElementById('confirm-ok');
     dom.confirmCancel = document.getElementById('confirm-cancel');
 
+    // Annotation clear dialog
+    dom.annotationClearOverlay = document.getElementById('annotation-clear-overlay');
+    dom.annotationClearCancel = document.getElementById('annotation-clear-cancel');
+    dom.annotationClearDiscard = document.getElementById('annotation-clear-discard');
+    dom.annotationClearExport = document.getElementById('annotation-clear-export');
+
     // Scalebar confirm
     dom.scalebarConfirmOverlay = document.getElementById('scalebar-confirm-overlay');
     dom.scalebarNoSwitch = document.getElementById('scalebar-no-switch');

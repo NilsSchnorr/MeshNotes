@@ -5,8 +5,8 @@ import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } fr
 import { toggleCamera } from '../core/camera.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize } from '../core/lighting.js';
 import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements } from '../annotation-tools/editing.js';
-import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList } from '../annotation-tools/groups.js';
-import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup } from '../annotation-tools/data.js';
+import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup } from '../annotation-tools/groups.js';
+import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
@@ -65,11 +65,96 @@ function getSelectedUpAxis(radioName) {
     return selected ? selected.value : 'z-up';
 }
 
+// ============ Annotation Clearing on Model Load ============
+
+/**
+ * Clears all annotations, groups, measurements, and model info,
+ * then resets the workspace to a clean state with a default group.
+ */
+function clearAnnotationsAndGroups() {
+    state.annotations = [];
+    state.groups = [];
+    state.selectedAnnotation = null;
+    state.editingAnnotation = null;
+    state.modelInfo = { entries: [] };
+
+    // Close any open popups
+    dom.annotationPopup.classList.remove('visible');
+    dom.groupPopup.classList.remove('visible');
+    state.isAddingEntry = false;
+    state.editingEntryId = null;
+    state.editingModelInfo = false;
+
+    // Clear active tool state
+    setTool(null);
+    clearTempDrawing();
+    clearAllMeasurements();
+
+    // Re-create default group and update UI
+    createDefaultGroup();
+    renderAnnotations();
+    updateGroupsList();
+    updateModelInfoDisplay();
+}
+
+function hideAnnotationClearDialog() {
+    dom.annotationClearOverlay.classList.remove('visible');
+}
+
+/**
+ * Wraps loadModel() with a check for existing annotations.
+ * If annotations exist, prompts the user to export, clear, or cancel.
+ */
+function handleModelLoad(file) {
+    if (state.annotations.length === 0) {
+        loadModel(file);
+        return;
+    }
+
+    // Store file reference and show the three-option dialog
+    const pendingFile = file;
+
+    // Update message with annotation count
+    const count = state.annotations.length;
+    document.getElementById('annotation-clear-message').textContent =
+        `You have ${count} annotation${count !== 1 ? 's' : ''} from the current model. What would you like to do?`;
+
+    dom.annotationClearOverlay.classList.add('visible');
+
+    // Remove old listeners to avoid stacking
+    const newCancel = dom.annotationClearCancel.cloneNode(true);
+    const newDiscard = dom.annotationClearDiscard.cloneNode(true);
+    const newExport = dom.annotationClearExport.cloneNode(true);
+    dom.annotationClearCancel.replaceWith(newCancel);
+    dom.annotationClearDiscard.replaceWith(newDiscard);
+    dom.annotationClearExport.replaceWith(newExport);
+    dom.annotationClearCancel = newCancel;
+    dom.annotationClearDiscard = newDiscard;
+    dom.annotationClearExport = newExport;
+
+    newCancel.addEventListener('click', () => {
+        hideAnnotationClearDialog();
+    });
+
+    newDiscard.addEventListener('click', () => {
+        hideAnnotationClearDialog();
+        clearAnnotationsAndGroups();
+        loadModel(pendingFile);
+    });
+
+    newExport.addEventListener('click', () => {
+        hideAnnotationClearDialog();
+        exportAnnotations();
+        clearAnnotationsAndGroups();
+        loadModel(pendingFile);
+    });
+}
+
 export function setupEventListeners() {
     // File loading
     dom.btnLoad.addEventListener('click', () => dom.fileInput.click());
     dom.fileInput.addEventListener('change', (e) => {
-        if (e.target.files[0]) loadModel(e.target.files[0]);
+        if (e.target.files[0]) handleModelLoad(e.target.files[0]);
         dom.fileInput.value = '';
     });
 
@@ -217,6 +302,11 @@ export function setupEventListeners() {
         if (e.target === dom.confirmOverlay) hideConfirm();
     });
 
+    // Annotation clear dialog - click overlay to dismiss
+    dom.annotationClearOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.annotationClearOverlay) hideAnnotationClearDialog();
+    });
+
     // Scalebar confirmation dialog
     dom.scalebarSwitch.addEventListener('click', () => {
         if (state.scalebarConfirmCallback) state.scalebarConfirmCallback();
@@ -339,6 +429,11 @@ export function setupEventListeners() {
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (dom.annotationClearOverlay.classList.contains('visible')) {
+                hideAnnotationClearDialog();
+                return;
+            }
+
             if (dom.confirmOverlay.classList.contains('visible')) {
                 hideConfirm();
                 return;
