@@ -1029,7 +1029,7 @@
             color: var(--color-gold);
             padding: 12px 16px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             z-index: 100;
             min-width: 200px;
             max-height: 300px;
@@ -1078,7 +1078,7 @@
         }
 
         .measure-title .name {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--color-gold);
         }
@@ -1094,7 +1094,7 @@
             align-items: center;
             gap: 6px;
             margin-bottom: 3px;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .measure-help-row:last-child {
@@ -1115,7 +1115,7 @@
             color: var(--color-gold);
             padding: 12px 16px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             z-index: 100;
             min-width: 200px;
         }
@@ -1130,6 +1130,10 @@
             margin-bottom: 6px;
             color: var(--color-text-medium);
             font-size: 12px;
+        }
+
+        .brush-controls label span:first-child {
+            color: var(--color-text-medium);
         }
 
         .brush-controls label span:last-child {
@@ -1156,7 +1160,7 @@
         }
 
         .brush-title .name {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--color-gold);
         }
@@ -1176,7 +1180,7 @@
         }
 
         .brush-help-title {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--color-text-muted);
             text-transform: uppercase;
@@ -1189,7 +1193,7 @@
             align-items: center;
             gap: 6px;
             margin-bottom: 3px;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .brush-help-row:last-child {
@@ -1208,7 +1212,7 @@
             border: 1px solid var(--color-blue);
             border-radius: 3px;
             padding: 1px 5px;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 500;
             color: var(--color-gold);
             white-space: nowrap;
@@ -1285,13 +1289,13 @@
         }
 
         #tool-help-title .name {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--color-gold);
         }
 
         #tool-help-content {
-            font-size: 11px;
+            font-size: 12px;
             line-height: 1.4;
             color: var(--color-text-light);
         }
@@ -1305,7 +1309,7 @@
         }
 
         #tool-help-content .help-section-title {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--color-text-muted);
             text-transform: uppercase;
@@ -1447,51 +1451,51 @@
             background: var(--color-surface);
             border-radius: 6px;
             z-index: 100;
-            min-width: 210px;
+            min-width: 200px;
         }
 
         #sliders-panel.collapsed {
             min-width: auto;
-            background: transparent;
+        }
+
+        #sliders-panel-content {
+            padding: 10px 14px 6px 14px;
+        }
+
+        #sliders-panel.collapsed #sliders-panel-content {
+            display: none;
+        }
+
+        #sliders-panel-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding: 0 14px 8px 14px;
+        }
+
+        #sliders-panel.collapsed #sliders-panel-footer {
+            padding: 8px;
         }
 
         #sliders-panel-toggle {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            width: 24px;
-            height: 24px;
+            width: 18px;
+            height: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             color: var(--color-text-medium);
-            font-size: 12px;
-            background: var(--color-surface-80);
-            border-radius: 4px;
+            font-size: 10px;
+            background: var(--color-blue-darkest);
+            border: 1px solid var(--color-blue);
+            border-radius: 3px;
             user-select: none;
-            z-index: 1;
+            transition: all 0.15s;
         }
 
         #sliders-panel-toggle:hover {
-            background: rgba(26, 90, 138, 0.9);
+            background: var(--color-blue);
             color: var(--color-text-light);
-        }
-
-        #sliders-panel.collapsed #sliders-panel-toggle {
-            position: relative;
-            top: auto;
-            right: auto;
-            background: var(--color-surface);
-        }
-
-        #sliders-panel-content {
-            padding: 12px 16px;
-            padding-top: 32px;
-        }
-
-        #sliders-panel.collapsed #sliders-panel-content {
-            display: none;
+            border-color: var(--color-gold);
         }
 
         /* Light mode toggle */
@@ -1499,8 +1503,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
             border-bottom: 1px solid var(--color-white-hover);
         }
 
@@ -1510,10 +1514,10 @@
         }
 
         .light-toggle-btn {
-            padding: 4px 10px;
+            padding: 3px 8px;
             background: var(--color-blue-darkest);
             border: 1px solid var(--color-blue);
-            border-radius: 4px;
+            border-radius: 3px;
             color: var(--color-text-light);
             cursor: pointer;
             font-size: 11px;
@@ -1540,12 +1544,12 @@
         /* Light direction sliders */
         .light-sliders-group {
             border-top: 1px solid var(--color-white-hover);
-            padding-top: 10px;
-            margin-top: 10px;
+            padding-top: 8px;
+            margin-top: 8px;
         }
 
         .light-sliders-group .slider-row {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .light-sliders-group .slider-row:last-child {
@@ -1877,7 +1881,7 @@
         }
 
         .slider-row {
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
 
         .slider-row:last-child {
@@ -1885,7 +1889,7 @@
         }
 
         .slider-row.slider-divider {
-            padding-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 1px solid var(--color-white-hover);
         }
 
@@ -1894,32 +1898,32 @@
             justify-content: space-between;
             color: var(--color-text-medium);
             font-size: 12px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .slider-row input[type="range"] {
             width: 100%;
-            height: 6px;
+            height: 4px;
             -webkit-appearance: none;
             appearance: none;
             background: var(--color-blue-darkest);
-            border-radius: 3px;
+            border-radius: 2px;
             outline: none;
         }
 
         .slider-row input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             background: var(--color-gold);
             border-radius: 50%;
             cursor: pointer;
         }
 
         .slider-row input[type="range"]::-moz-range-thumb {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             background: var(--color-gold);
             border-radius: 50%;
             cursor: pointer;
@@ -1930,22 +1934,22 @@
         .background-controls {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .background-presets {
             display: flex;
-            gap: 4px;
+            gap: 3px;
         }
 
         .bg-preset {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
             border: 2px solid transparent;
             cursor: pointer;
-            font-size: 16px;
-            line-height: 16px;
+            font-size: 14px;
+            line-height: 14px;
             padding: 0;
             transition: all 0.2s;
             display: flex;
@@ -1990,11 +1994,11 @@
         }
 
         #background-color-picker {
-            width: 24px;
-            height: 20px;
+            width: 22px;
+            height: 18px;
             padding: 0;
             border: 2px solid var(--color-blue);
-            border-radius: 4px;
+            border-radius: 3px;
             cursor: pointer;
             background: none;
         }
