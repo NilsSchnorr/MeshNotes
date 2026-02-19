@@ -220,7 +220,7 @@ export function initGroupsEventDelegation() {
 }
 
 function renderAnnotationItem(ann) {
-    const icons = { point: '📍', line: '📏', polygon: '⬡', surface: '🎨' };
+    const icons = { point: '📍', line: '📏', polygon: '⬡', surface: '🎨', box: '📦' };
     const entryCount = (ann.entries && ann.entries.length) || 0;
     const entryText = entryCount === 1 ? '1 entry' : `${entryCount} entries`;
     return `
