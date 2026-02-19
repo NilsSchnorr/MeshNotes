@@ -142,6 +142,9 @@ export function createTextSprite(text, color = '#EDC040', backgroundColor = null
     });
 
     const sprite = new THREE.Sprite(spriteMaterial);
+    
+    // Ensure text labels render on top of everything (including flat models)
+    sprite.renderOrder = 9999;
 
     // Scale sprite based on canvas aspect ratio
     const aspect = canvas.width / canvas.height;
