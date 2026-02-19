@@ -540,6 +540,40 @@ export function clearTempSurface() {
     _highlightBufferCapacity = 0;
 }
 
+/**
+ * Undo the last point placed during line or polygon drawing.
+ * Removes the last point and its corresponding projected edge, then updates the visual.
+ * @returns {boolean} True if a point was removed, false if no points to undo.
+ */
+export function undoLastPoint() {
+    if (state.tempPoints.length === 0) {
+        return false;
+    }
+    
+    // Remove the last point
+    state.tempPoints.pop();
+    
+    // Remove the last projected edge if it exists
+    // Note: tempProjectedEdges[i] corresponds to the edge from tempPoints[i] to tempPoints[i+1]
+    // So when we remove the last point, we should remove the edge that ended at that point
+    if (state.tempProjectedEdges.length > 0 && state.tempProjectedEdges.length >= state.tempPoints.length) {
+        state.tempProjectedEdges.pop();
+    }
+    
+    // Update the visual representation
+    updateTempLine();
+    
+    // Provide feedback
+    const remaining = state.tempPoints.length;
+    if (remaining === 0) {
+        showStatus('All points removed. Click to start again.');
+    } else {
+        showStatus(`Point removed. ${remaining} point${remaining !== 1 ? 's' : ''} remaining.`);
+    }
+    
+    return true;
+}
+
 export function clearTempDrawing() {
     state.tempPoints = [];
     state.tempProjectedEdges = [];

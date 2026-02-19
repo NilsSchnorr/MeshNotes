@@ -4,7 +4,7 @@ import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helper
 import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor } from '../core/lighting.js';
-import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements } from '../annotation-tools/editing.js';
+import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
@@ -13,6 +13,10 @@ import { exportPdfReport } from '../export/pdf-report.js';
 import { importAnnotations } from '../export/import-json.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
+import { showToolHelp, restoreToolHelp } from './tool-help.js';
+
+// Re-export for modules that import from here
+export { hideToolHelp, restoreToolHelp, hideAllToolPanels } from './tool-help.js';
 
 export function setTool(tool) {
     state.currentTool = tool;
@@ -28,36 +32,9 @@ export function setTool(tool) {
     else if (tool === 'box') dom.btnBox.classList.add('active');
     else if (tool === 'measure') dom.btnMeasure.classList.add('active');
 
-    // Show/hide brush controls
-    if (tool === 'surface') {
-        dom.brushDisplay.classList.add('visible');
-    } else {
-        dom.brushDisplay.classList.remove('visible');
-    }
-
-    // Show/hide measurement display
-    if (tool === 'measure') {
-        dom.measurementDisplay.classList.add('visible');
-    } else if (!tool) {
-        dom.measurementDisplay.classList.remove('visible');
-    }
-
-    updateInstructions(tool);
-}
-
-function updateInstructions(tool) {
-    const instructions = {
-        point: 'Click on model to place point. Press Esc to cancel.',
-        line: 'Click to add points. Double-click to finish line. Press Esc to cancel.',
-        polygon: 'Click to add points. Double-click to close polygon. Press Esc to cancel.',
-        surface: 'Click or drag to paint faces. Hold Shift to erase. Double-click to finish. Press Esc to cancel.',
-        box: 'Click on model to place box. Press Esc to cancel.',
-        measure: 'Click two points to measure distance. Press Esc to clear measurements.'
-    };
-
-    if (tool && instructions[tool]) {
-        showStatus(instructions[tool]);
-    }
+    // Show/hide tool info panels (tool-help, brush-display, measurement-display)
+    // All panel visibility is managed by showToolHelp() in tool-help.js
+    showToolHelp(tool);
 }
 
 function getSelectedUpAxis(radioName) {
@@ -288,6 +265,8 @@ export function setupEventListeners() {
         state.isAddingEntry = false;
         state.editingEntryId = null;
         hideInlineGroupForm();
+        // Restore tool help if a tool is still active
+        restoreToolHelp();
     });
     dom.btnPopupDelete.addEventListener('click', deleteAnnotation);
     dom.btnAddLink.addEventListener('click', addLink);
@@ -443,6 +422,19 @@ export function setupEventListeners() {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+        // Undo last point with Ctrl+Z (Cmd+Z on Mac) for line/polygon tools
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            // Only trigger if we're in line/polygon mode and not in a text input
+            const activeElement = document.activeElement;
+            const isTextInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+            
+            if (!isTextInput && (state.currentTool === 'line' || state.currentTool === 'polygon') && state.tempPoints.length > 0) {
+                e.preventDefault();
+                undoLastPoint();
+                return;
+            }
+        }
+        
         if (e.key === 'Escape') {
             if (dom.annotationClearOverlay.classList.contains('visible')) {
                 hideAnnotationClearDialog();

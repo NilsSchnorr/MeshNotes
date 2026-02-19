@@ -1023,7 +1023,7 @@
         #measurement-display {
             display: none;
             position: absolute;
-            top: 70px;
+            top: 10px;
             left: 10px;
             background: var(--color-surface);
             color: var(--color-gold);
@@ -1064,19 +1064,52 @@
             color: var(--color-gold);
         }
 
-        #measurement-display .hint {
-            font-size: 11px;
-            color: var(--color-text-muted);
-            margin-top: 8px;
-            padding-top: 8px;
+        .measure-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--color-blue);
+        }
+
+        .measure-title .icon {
+            font-size: 16px;
+        }
+
+        .measure-title .name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-gold);
+        }
+
+        .measure-help {
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 1px solid var(--color-white-hover);
+        }
+
+        .measure-help-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+
+        .measure-help-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .measure-help-desc {
+            color: var(--color-text-medium);
         }
 
         /* Brush Display for Surface Tool */
         #brush-display {
             display: none;
             position: absolute;
-            top: 70px;
+            top: 10px;
             left: 10px;
             background: var(--color-surface);
             color: var(--color-gold);
@@ -1109,12 +1142,76 @@
             cursor: pointer;
         }
 
-        #brush-display .hint {
-            font-size: 11px;
-            color: var(--color-text-muted);
-            margin-top: 8px;
-            padding-top: 8px;
+        .brush-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--color-blue);
+        }
+
+        .brush-title .icon {
+            font-size: 16px;
+        }
+
+        .brush-title .name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-gold);
+        }
+
+        .brush-help {
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 1px solid var(--color-white-hover);
+        }
+
+        .brush-help-section {
+            margin-bottom: 8px;
+        }
+
+        .brush-help-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .brush-help-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .brush-help-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+            font-size: 11px;
+        }
+
+        .brush-help-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .brush-help-desc {
+            color: var(--color-text-medium);
+        }
+
+        /* Shared help-key style (used by both tool-help and brush-display) */
+        .help-key {
+            display: inline-flex;
+            align-items: center;
+            background: var(--color-blue-darkest);
+            border: 1px solid var(--color-blue);
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--color-gold);
+            white-space: nowrap;
         }
 
         /* Camera toggle button */
@@ -1155,6 +1252,80 @@
 
         #instructions strong {
             color: var(--color-gold);
+        }
+
+        /* Tool Help Panel - persistent instructions while tool is active */
+        #tool-help {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--color-surface);
+            border-radius: 6px;
+            padding: 12px 16px;
+            z-index: 100;
+            min-width: 200px;
+        }
+
+        #tool-help.visible {
+            display: block;
+        }
+
+        #tool-help-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--color-blue);
+        }
+
+        #tool-help-title .icon {
+            font-size: 16px;
+        }
+
+        #tool-help-title .name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-gold);
+        }
+
+        #tool-help-content {
+            font-size: 11px;
+            line-height: 1.4;
+            color: var(--color-text-light);
+        }
+
+        #tool-help-content .help-section {
+            margin-bottom: 8px;
+        }
+
+        #tool-help-content .help-section:last-child {
+            margin-bottom: 0;
+        }
+
+        #tool-help-content .help-section-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        #tool-help-content .help-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+        }
+
+        #tool-help-content .help-row:last-child {
+            margin-bottom: 0;
+        }
+
+        #tool-help-content .help-desc {
+            color: var(--color-text-medium);
         }
 
         /* Model Stats */

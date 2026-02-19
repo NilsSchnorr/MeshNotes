@@ -5,6 +5,7 @@ import { computeProjectedEdges } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList, updateGroupSelect } from './groups.js';
 import { clearTempDrawing } from './editing.js';
+import { hideAllToolPanels, restoreToolHelp } from '../ui/tool-help.js';
 
 export function positionPopup(popup, x, y) {
     popup.style.transform = 'none';
@@ -40,6 +41,9 @@ function resetPopupPosition() {
 }
 
 export function openAnnotationPopup(event, type, points, extraData = null) {
+    // Hide all tool info panels when annotation popup opens
+    hideAllToolPanels();
+    
     state.editingAnnotation = null;
     state.editingModelInfo = false;
     state.isAddingEntry = false;
@@ -90,6 +94,9 @@ export function openAnnotationPopup(event, type, points, extraData = null) {
 }
 
 export function openAnnotationPopupForEdit(ann) {
+    // Hide all tool info panels when annotation popup opens
+    hideAllToolPanels();
+    
     state.editingAnnotation = ann;
     state.editingModelInfo = false;
     state.isAddingEntry = false;
@@ -124,6 +131,9 @@ export function openAnnotationPopupForEdit(ann) {
 }
 
 export function openModelInfoPopup() {
+    // Hide all tool info panels when popup opens
+    hideAllToolPanels();
+    
     state.editingAnnotation = null;
     state.editingModelInfo = true;
     state.isAddingEntry = false;
@@ -564,6 +574,7 @@ export function saveAnnotation() {
         state.editingModelInfo = false;
         updateModelInfoDisplay();
         showStatus('Model information saved');
+        restoreToolHelp();
         return;
     }
 
@@ -653,6 +664,9 @@ export function saveAnnotation() {
     updateGroupsList();
     renderAnnotations();
     showStatus(`Saved: ${name}`);
+    
+    // Restore tool help if a tool is still active
+    restoreToolHelp();
 }
 
 export function deleteAnnotation() {

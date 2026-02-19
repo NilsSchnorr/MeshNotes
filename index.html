@@ -161,6 +161,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Line</strong> to start drawing a polyline. Single-click to add points along the line, double-click to finish and open the annotation popup. Lines are useful for marking edges, boundaries, cracks, or linear features.</p>
+                            <p style="margin-top: 10px;"><strong>Undo:</strong> Press <code>Ctrl+Z</code> (or <code>Cmd+Z</code> on Mac) to remove the last placed point. This allows you to correct mistakes without starting over.</p>
                             <p style="margin-top: 10px;"><strong>Surface projection:</strong> By default, line edges are automatically projected onto the model surface — they follow the geometry's contour rather than cutting through it as straight lines. This works best on smaller objects with gently curved surfaces. If the projection deviates too far from the intended path (e.g., on complex geometry with deep recesses), MeshNotes falls back to a straight connection for that segment automatically. You can toggle surface projection on or off per annotation using the <strong>"Project line(s) to surface"</strong> checkbox in the annotation popup.</p>
                         </div>
                     </div>
@@ -172,6 +173,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Polygon</strong> to start drawing a closed shape. Single-click to add vertices, double-click to close the polygon and open the annotation popup. Polygons are useful for marking areas, surfaces, or regions of interest.</p>
+                            <p style="margin-top: 10px;"><strong>Undo:</strong> Press <code>Ctrl+Z</code> (or <code>Cmd+Z</code> on Mac) to remove the last placed vertex. This allows you to correct mistakes without starting over.</p>
                             <p style="margin-top: 10px;">Like line annotations, polygon edges are projected onto the model surface by default, following the geometry's contour. This can be toggled per annotation in the popup.</p>
                         </div>
                     </div>
@@ -611,11 +613,23 @@
             <canvas id="canvas"></canvas>
 
             <div id="measurement-display">
+                <div class="measure-title">
+                    <span class="icon">📐</span>
+                    <span class="name">Measurement Tool</span>
+                </div>
                 <div id="measurements-list"></div>
-                <div class="hint">Click two points to measure. Press Esc to clear all.</div>
+                <div class="measure-help">
+                    <div class="measure-help-row"><span class="help-key">Click</span><span class="measure-help-desc">Place point</span></div>
+                    <div class="measure-help-row"><span class="help-key">2nd click</span><span class="measure-help-desc">Complete</span></div>
+                    <div class="measure-help-row"><span class="help-key">Esc</span><span class="measure-help-desc">Clear all</span></div>
+                </div>
             </div>
 
             <div id="brush-display">
+                <div class="brush-title">
+                    <span class="icon">🎨</span>
+                    <span class="name">Surface Annotation</span>
+                </div>
                 <div class="brush-controls">
                     <label>
                         <span>Brush Size</span>
@@ -623,7 +637,30 @@
                     </label>
                     <input type="range" id="brush-slider" min="0.1" max="20" value="5" step="0.1">
                 </div>
-                <div class="hint">Click/drag to paint. Hold Shift to erase. Double-click to finish.</div>
+                <div class="brush-help">
+                    <div class="brush-help-section">
+                        <div class="brush-help-title">Painting</div>
+                        <div class="brush-help-row"><span class="help-key">Left-drag</span><span class="brush-help-desc">Paint faces</span></div>
+                        <div class="brush-help-row"><span class="help-key">Shift</span><span class="help-key">+drag</span><span class="brush-help-desc">Erase</span></div>
+                        <div class="brush-help-row"><span class="help-key">Double-click</span><span class="brush-help-desc">Finish</span></div>
+                        <div class="brush-help-row"><span class="help-key">Esc</span><span class="brush-help-desc">Cancel</span></div>
+                    </div>
+                    <div class="brush-help-section">
+                        <div class="brush-help-title">Navigation</div>
+                        <div class="brush-help-row"><span class="help-key">Right-drag</span><span class="brush-help-desc">Rotate view</span></div>
+                        <div class="brush-help-row"><span class="help-key">Ctrl</span><span class="help-key">Right-drag</span><span class="brush-help-desc">Pan</span></div>
+                        <div class="brush-help-row"><span class="help-key">Scroll</span><span class="brush-help-desc">Zoom</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tool Help Panel - persistent instructions while tool is active -->
+            <div id="tool-help">
+                <div id="tool-help-title">
+                    <span class="icon"></span>
+                    <span class="name"></span>
+                </div>
+                <div id="tool-help-content"></div>
             </div>
 
             <div id="instructions">

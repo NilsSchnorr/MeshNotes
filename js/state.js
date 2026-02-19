@@ -229,6 +229,11 @@ export function initDomReferences() {
     dom.measurementDisplay = document.getElementById('measurement-display');
     dom.measurementsList = document.getElementById('measurements-list');
 
+    // Tool Help Panel
+    dom.toolHelp = document.getElementById('tool-help');
+    dom.toolHelpTitle = document.getElementById('tool-help-title');
+    dom.toolHelpContent = document.getElementById('tool-help-content');
+
     // Status & loading
     dom.loading = document.getElementById('loading');
     dom.status = document.getElementById('status');
