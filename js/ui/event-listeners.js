@@ -5,7 +5,7 @@ import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } fr
 import { toggleCamera } from '../core/camera.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor } from '../core/lighting.js';
 import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements } from '../annotation-tools/editing.js';
-import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup } from '../annotation-tools/groups.js';
+import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
@@ -270,6 +270,14 @@ export function setupEventListeners() {
         if (state.editingGroup) deleteGroup(state.editingGroup);
     });
 
+    // Inline group creation in annotation popup
+    dom.btnAddGroupInline.addEventListener('click', showInlineGroupForm);
+    dom.btnSaveInlineGroup.addEventListener('click', createGroupInline);
+    dom.btnCancelInlineGroup.addEventListener('click', hideInlineGroupForm);
+    dom.inlineGroupName.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') createGroupInline();
+    });
+
     // Annotation popup
     dom.btnPopupSave.addEventListener('click', saveAnnotation);
     dom.btnPopupCancel.addEventListener('click', () => {
@@ -279,6 +287,7 @@ export function setupEventListeners() {
         state.editingModelInfo = false;
         state.isAddingEntry = false;
         state.editingEntryId = null;
+        hideInlineGroupForm();
     });
     dom.btnPopupDelete.addEventListener('click', deleteAnnotation);
     dom.btnAddLink.addEventListener('click', addLink);
@@ -465,6 +474,7 @@ export function setupEventListeners() {
             state.isAddingEntry = false;
             state.editingEntryId = null;
             state.editingModelInfo = false;
+            hideInlineGroupForm();
 
             if (state.currentTool === 'measure') {
                 clearAllMeasurements();

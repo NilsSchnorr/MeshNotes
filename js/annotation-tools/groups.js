@@ -239,3 +239,57 @@ export function updateGroupSelect() {
         `<option value="${g.id}">${escapeHtml(g.name)}</option>`
     ).join('');
 }
+
+/**
+ * Creates a new group inline from the annotation popup and selects it.
+ * This allows users to create a group on-the-fly while creating an annotation.
+ * @returns {Object} The newly created group
+ */
+export function createGroupInline() {
+    const name = dom.inlineGroupName.value.trim() || 'Unnamed Group';
+    const color = dom.inlineGroupColor.value;
+
+    const newGroup = {
+        id: Date.now(),
+        uuid: generateUUID(),
+        name,
+        color,
+        visible: true
+    };
+
+    state.groups.push(newGroup);
+    
+    // Update the group select dropdown and select the new group
+    updateGroupSelect();
+    dom.annGroup.value = newGroup.id;
+    
+    // Update the sidebar groups list
+    updateGroupsList();
+    
+    // Hide the inline form and reset it
+    hideInlineGroupForm();
+    
+    showStatus(`Group "${name}" created`);
+    
+    return newGroup;
+}
+
+/**
+ * Shows the inline group creation form in the annotation popup
+ */
+export function showInlineGroupForm() {
+    // Generate a random color for the new group
+    dom.inlineGroupColor.value = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+    dom.inlineGroupName.value = '';
+    dom.inlineNewGroupForm.classList.add('visible');
+    dom.inlineGroupName.focus();
+}
+
+/**
+ * Hides the inline group creation form and resets its values
+ */
+export function hideInlineGroupForm() {
+    dom.inlineNewGroupForm.classList.remove('visible');
+    dom.inlineGroupName.value = '';
+    dom.inlineGroupColor.value = '#EDC040';
+}

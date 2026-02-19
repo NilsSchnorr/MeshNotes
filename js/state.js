@@ -163,6 +163,14 @@ export function initDomReferences() {
     dom.popupTitle = document.getElementById('popup-title');
     dom.annName = document.getElementById('ann-name');
     dom.annGroup = document.getElementById('ann-group');
+    
+    // Inline group creation
+    dom.btnAddGroupInline = document.getElementById('btn-add-group-inline');
+    dom.inlineNewGroupForm = document.getElementById('inline-new-group-form');
+    dom.inlineGroupName = document.getElementById('inline-group-name');
+    dom.inlineGroupColor = document.getElementById('inline-group-color');
+    dom.btnCancelInlineGroup = document.getElementById('btn-cancel-inline-group');
+    dom.btnSaveInlineGroup = document.getElementById('btn-save-inline-group');
     dom.surfaceProjectionToggle = document.getElementById('surface-projection-toggle');
     dom.annSurfaceProjection = document.getElementById('ann-surface-projection');
     dom.annDescription = document.getElementById('ann-description');

@@ -721,7 +721,22 @@
                     <input type="text" id="ann-name" placeholder="e.g., Door remains">
                     
                     <label for="ann-group">Group</label>
-                    <select id="ann-group"></select>
+                    <div class="group-select-row">
+                        <select id="ann-group"></select>
+                        <button type="button" class="btn-add-group-inline" id="btn-add-group-inline" title="Create new group">+</button>
+                    </div>
+                    
+                    <!-- Inline new group form (hidden by default) -->
+                    <div id="inline-new-group-form" class="inline-new-group-form">
+                        <div class="inline-group-inputs">
+                            <input type="text" id="inline-group-name" placeholder="New group name">
+                            <input type="color" id="inline-group-color" value="#EDC040" title="Group color">
+                        </div>
+                        <div class="inline-group-buttons">
+                            <button type="button" class="btn-cancel-inline" id="btn-cancel-inline-group">Cancel</button>
+                            <button type="button" class="btn-save-inline" id="btn-save-inline-group">Create</button>
+                        </div>
+                    </div>
                     
                     <div id="surface-projection-toggle" style="display: none;">
                         <label class="projection-checkbox-label">

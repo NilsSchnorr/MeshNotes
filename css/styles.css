@@ -651,6 +651,94 @@
             margin-right: auto;
         }
 
+        /* Inline group creation in annotation popup */
+        .group-select-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .group-select-row select {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .btn-add-group-inline {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            background: var(--color-blue);
+            border: 1px solid var(--color-gold);
+            border-radius: 4px;
+            color: var(--color-gold);
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-add-group-inline:hover {
+            background: var(--color-gold);
+            color: var(--color-blue-darkest);
+        }
+
+        .inline-new-group-form {
+            display: none;
+            background: var(--color-blue-darkest);
+            border: 1px solid var(--color-gold);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .inline-new-group-form.visible {
+            display: block;
+        }
+
+        .inline-group-inputs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .inline-group-inputs input[type="text"] {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .inline-group-inputs input[type="color"] {
+            width: 34px;
+            height: 34px;
+            padding: 2px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .inline-group-buttons {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .inline-group-buttons button {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-cancel-inline {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
+        .btn-save-inline {
+            background: var(--color-gold-dark);
+            color: white;
+        }
+
         #annotation-popup {
             width: 400px;
             max-height: 80vh;
