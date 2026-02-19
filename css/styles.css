@@ -1666,3 +1666,80 @@
             cursor: pointer;
             border: none;
         }
+
+        /* Background Color Controls */
+        .background-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .background-presets {
+            display: flex;
+            gap: 4px;
+        }
+
+        .bg-preset {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 16px;
+            padding: 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bg-preset:hover {
+            border-color: var(--color-gold);
+            transform: scale(1.1);
+        }
+
+        .bg-preset.active {
+            border-color: var(--color-gold);
+            box-shadow: 0 0 4px var(--color-gold);
+        }
+
+        /* Style each preset button with its color */
+        .bg-preset[data-color="#041D31"] {
+            background: #041D31;
+            color: #1A5A8A;
+        }
+
+        .bg-preset[data-color="#000000"] {
+            background: #000000;
+            color: #333333;
+        }
+
+        .bg-preset[data-color="#1a1a1a"] {
+            background: #1a1a1a;
+            color: #444444;
+        }
+
+        .bg-preset[data-color="#808080"] {
+            background: #808080;
+            color: #aaaaaa;
+        }
+
+        .bg-preset[data-color="#ffffff"] {
+            background: #ffffff;
+            color: #cccccc;
+        }
+
+        #background-color-picker {
+            width: 24px;
+            height: 20px;
+            padding: 0;
+            border: 2px solid var(--color-blue);
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+        }
+
+        #background-color-picker:hover {
+            border-color: var(--color-gold);
+        }

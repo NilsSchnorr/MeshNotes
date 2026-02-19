@@ -17,13 +17,14 @@ export const state = {
     viewHelperRenderer: null,
     clock: new THREE.Clock(),
 
-    // Lighting
+    // Lighting & Background
     ambientLight: null,
     dirLight1: null,
     dirLight2: null,
     lightFollowsCamera: true,
     fixedLightAzimuth: 0,
     fixedLightElevation: 45,
+    backgroundColor: '#041D31',
 
     // Model
     currentModel: null,
@@ -239,6 +240,7 @@ export function initDomReferences() {
     dom.pointSizeValue = document.getElementById('point-size-value');
     dom.textSizeSlider = document.getElementById('text-size-slider');
     dom.textSizeValue = document.getElementById('text-size-value');
+    dom.backgroundColorPicker = document.getElementById('background-color-picker');
     dom.slidersPanel = document.getElementById('sliders-panel');
     dom.slidersPanelToggle = document.getElementById('sliders-panel-toggle');
 

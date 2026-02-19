@@ -3,7 +3,7 @@ import { state, dom } from '../state.js';
 import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
 import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor } from '../core/lighting.js';
 import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements } from '../annotation-tools/editing.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
@@ -343,6 +343,12 @@ export function setupEventListeners() {
     dom.lightElevationSlider.addEventListener('input', (e) => setLightElevation(parseInt(e.target.value)));
     dom.pointSizeSlider.addEventListener('input', (e) => { setPointSize(parseInt(e.target.value)); renderAnnotations(); });
     dom.textSizeSlider.addEventListener('input', (e) => { setTextSize(parseInt(e.target.value)); renderAnnotations(); });
+    
+    // Background color controls
+    dom.backgroundColorPicker.addEventListener('input', (e) => setBackgroundColor(e.target.value));
+    document.querySelectorAll('.bg-preset').forEach(btn => {
+        btn.addEventListener('click', () => setBackgroundColor(btn.dataset.color));
+    });
 
     // Sliders panel toggle
     dom.slidersPanelToggle.addEventListener('click', () => {

@@ -180,3 +180,21 @@ export function setLightElevation(value) {
         updateFixedLightDirection();
     }
 }
+
+// ============ Background Color Control ============
+
+export function setBackgroundColor(color) {
+    state.backgroundColor = color;
+    state.scene.background = new THREE.Color(color);
+    dom.backgroundColorPicker.value = color;
+    
+    // Update preset button states
+    document.querySelectorAll('.bg-preset').forEach(btn => {
+        const btnColor = btn.dataset.color.toLowerCase();
+        const selectedColor = color.toLowerCase();
+        btn.classList.toggle('active', btnColor === selectedColor);
+    });
+    
+    // Save to localStorage
+    localStorage.setItem('meshnotes_backgroundColor', color);
+}

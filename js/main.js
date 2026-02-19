@@ -2,7 +2,7 @@
 import { state, dom, initDomReferences } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
-import { initLighting, updateLightFromCamera } from './core/lighting.js';
+import { initLighting, updateLightFromCamera, setBackgroundColor } from './core/lighting.js';
 import { setUpdateModelInfoDisplay } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
@@ -120,6 +120,12 @@ function loadSavedSettings() {
         dom.textSizeSlider.value = sliderValue;
         state.textSizeMultiplier = sliderToMultiplier(sliderValue);
         dom.textSizeValue.textContent = formatMultiplier(state.textSizeMultiplier);
+    }
+    
+    // Restore background color
+    const savedBackgroundColor = localStorage.getItem('meshnotes_backgroundColor');
+    if (savedBackgroundColor) {
+        setBackgroundColor(savedBackgroundColor);
     }
 }
 
