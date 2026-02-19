@@ -10,6 +10,110 @@ import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, re
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
 
+// ============ Surface Painting Optimization Constants ============
+// Encode meshIndex + faceIndex as a single number to avoid string allocation.
+// Supports up to 10M faces per mesh, which exceeds any browser-renderable model.
+const FACE_ID_MULTIPLIER = 10_000_000;
+const INITIAL_HIGHLIGHT_CAPACITY = 10000; // faces
+
+// Reusable objects to avoid per-frame allocation during painting and highlight updates.
+// Safe because painting and highlight never run concurrently (single-threaded JS).
+const _vA = new THREE.Vector3();
+const _vB = new THREE.Vector3();
+const _vC = new THREE.Vector3();
+const _paintInvMatrix = new THREE.Matrix4();
+const _paintLocalCenter = new THREE.Vector3();
+const _paintScale = new THREE.Vector3();
+const _paintDecompPos = new THREE.Vector3();
+const _paintDecompQuat = new THREE.Quaternion();
+const _paintClosestPoint = new THREE.Vector3();
+const _paintFaceCenter = new THREE.Vector3();
+
+// Module-level reference to the highlight buffer (avoids deep property access)
+let _highlightBuffer = null;
+let _highlightBufferCapacity = 0; // in floats
+let _highlightMaterial = null;
+
+// ============ Paint Loop (rAF-gated) ============
+// Instead of running raycast + shapecast on every mousemove (60-120+ Hz),
+// we store the latest mouse position and process it once per animation frame.
+// This ensures we never do more computation than the screen can display.
+const _paintRaycaster = new THREE.Raycaster();
+const _paintMouse = new THREE.Vector2();
+let _paintLoopRAF = null;
+let _pendingPaintX = 0;
+let _pendingPaintY = 0;
+let _pendingPaintShift = false;
+let _hasPendingPaint = false;
+let _cachedCanvasRect = null;
+
+// Fast raycast for painting: reuses raycaster, mouse vector, and cached canvas rect.
+// Returns {point, faceIndex, mesh} or null.
+function _paintRaycast(clientX, clientY) {
+    if (!state.currentModel || !_cachedCanvasRect) return null;
+    _paintMouse.x = ((clientX - _cachedCanvasRect.left) / _cachedCanvasRect.width) * 2 - 1;
+    _paintMouse.y = -((clientY - _cachedCanvasRect.top) / _cachedCanvasRect.height) * 2 + 1;
+    _paintRaycaster.setFromCamera(_paintMouse, state.camera);
+    const intersects = _paintRaycaster.intersectObjects(state.modelMeshes, false);
+    if (intersects.length > 0) {
+        return {
+            point: intersects[0].point, // no .clone() — paintAtPoint only reads it
+            faceIndex: intersects[0].faceIndex,
+            mesh: intersects[0].object
+        };
+    }
+    return null;
+}
+
+// One tick of the paint loop: process the latest mouse position.
+// The loop keeps running for the entire duration of a paint stroke (mousedown to mouseup).
+// If no new mouse position has arrived since last frame, it's a no-op.
+function _paintLoopTick() {
+    _paintLoopRAF = null;
+    if (!state.isPaintingSurface) return;
+
+    // Process pending paint data if any
+    if (_hasPendingPaint) {
+        _hasPendingPaint = false;
+
+        state.isErasingMode = _pendingPaintShift;
+        const hitInfo = _paintRaycast(_pendingPaintX, _pendingPaintY);
+        if (hitInfo) {
+            paintAtPoint(hitInfo.point, hitInfo.mesh, hitInfo.faceIndex);
+            // scheduleSurfaceHighlight() is called inside paintAtPoint,
+            // but it schedules its own rAF which won't fire until next frame.
+            // Force the highlight update now so paint + display happen in the same frame.
+            if (state.surfaceHighlightDirty) {
+                state.surfaceHighlightDirty = false;
+                if (state.surfaceHighlightRAF) {
+                    cancelAnimationFrame(state.surfaceHighlightRAF);
+                    state.surfaceHighlightRAF = null;
+                }
+                updateSurfaceHighlight();
+            }
+        }
+    }
+
+    // Keep the loop alive while the mouse button is held
+    _paintLoopRAF = requestAnimationFrame(_paintLoopTick);
+}
+
+function _startPaintLoop() {
+    _cachedCanvasRect = dom.canvas.getBoundingClientRect();
+    if (!_paintLoopRAF) {
+        _paintLoopRAF = requestAnimationFrame(_paintLoopTick);
+    }
+}
+
+function _stopPaintLoop() {
+    if (_paintLoopRAF) {
+        cancelAnimationFrame(_paintLoopRAF);
+        _paintLoopRAF = null;
+    }
+    _hasPendingPaint = false;
+    _cachedCanvasRect = null;
+}
+
 // Late-bound references (set from main.js to avoid circular deps)
 let _openAnnotationPopup = null;
 let _openAnnotationPopupForEdit = null;
@@ -55,40 +159,44 @@ export function paintAtPoint(point, mesh, faceIndex) {
     const meshIndex = state.modelMeshes.indexOf(mesh);
 
     if (geometry.boundsTree) {
-        const invMatrix = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
-        const localCenter = point.clone().applyMatrix4(invMatrix);
+        _paintInvMatrix.copy(mesh.matrixWorld).invert();
+        _paintLocalCenter.copy(point).applyMatrix4(_paintInvMatrix);
 
-        const scale = new THREE.Vector3();
-        mesh.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), scale);
-        const avgScale = (scale.x + scale.y + scale.z) / 3;
+        mesh.matrixWorld.decompose(_paintDecompPos, _paintDecompQuat, _paintScale);
+        const avgScale = (_paintScale.x + _paintScale.y + _paintScale.z) / 3;
         const localRadius = brushRadius / avgScale;
 
         const localRadiusSq = localRadius * localRadius;
 
         geometry.boundsTree.shapecast({
             intersectsBounds: (box) => {
-                const closestPoint = new THREE.Vector3();
-                box.clampPoint(localCenter, closestPoint);
-                return closestPoint.distanceToSquared(localCenter) <= localRadiusSq;
+                box.clampPoint(_paintLocalCenter, _paintClosestPoint);
+                return _paintClosestPoint.distanceToSquared(_paintLocalCenter) <= localRadiusSq;
             },
             intersectsTriangle: (triangle, triIndex) => {
-                const faceCenter = new THREE.Vector3()
-                    .addVectors(triangle.a, triangle.b)
-                    .add(triangle.c)
-                    .divideScalar(3);
+                _paintFaceCenter.x = (triangle.a.x + triangle.b.x + triangle.c.x) / 3;
+                _paintFaceCenter.y = (triangle.a.y + triangle.b.y + triangle.c.y) / 3;
+                _paintFaceCenter.z = (triangle.a.z + triangle.b.z + triangle.c.z) / 3;
 
-                if (faceCenter.distanceToSquared(localCenter) <= localRadiusSq) {
-                    const faceId = `${meshIndex}_${triIndex}`;
+                if (_paintFaceCenter.distanceToSquared(_paintLocalCenter) <= localRadiusSq) {
+                    const faceId = meshIndex * FACE_ID_MULTIPLIER + triIndex;
                     if (state.isErasingMode) {
-                        state.paintedFaces.delete(faceId);
+                        if (state.paintedFaces.has(faceId)) {
+                            state.paintedFaces.delete(faceId);
+                            state.needsFullHighlightRebuild = true;
+                        }
                     } else {
-                        state.paintedFaces.add(faceId);
+                        if (!state.paintedFaces.has(faceId)) {
+                            state.paintedFaces.add(faceId);
+                            state.pendingFaces.push(faceId);
+                        }
                     }
                 }
                 return false;
             }
         });
     } else {
+        // Fallback for meshes without BVH (rare, but defensive)
         const faceCount = geometry.index
             ? geometry.index.count / 3
             : position.count / 3;
@@ -118,11 +226,17 @@ export function paintAtPoint(point, mesh, faceIndex) {
                 .divideScalar(3);
 
             if (faceCenter.distanceTo(point) <= brushRadius) {
-                const faceId = `${meshIndex}_${i}`;
+                const faceId = meshIndex * FACE_ID_MULTIPLIER + i;
                 if (state.isErasingMode) {
-                    state.paintedFaces.delete(faceId);
+                    if (state.paintedFaces.has(faceId)) {
+                        state.paintedFaces.delete(faceId);
+                        state.needsFullHighlightRebuild = true;
+                    }
                 } else {
-                    state.paintedFaces.add(faceId);
+                    if (!state.paintedFaces.has(faceId)) {
+                        state.paintedFaces.add(faceId);
+                        state.pendingFaces.push(faceId);
+                    }
                 }
             }
         }
@@ -144,69 +258,91 @@ export function scheduleSurfaceHighlight() {
     }
 }
 
-export function updateSurfaceHighlight() {
-    if (state.surfaceHighlightMesh) {
-        state.annotationObjects.remove(state.surfaceHighlightMesh);
-        state.surfaceHighlightMesh.geometry.dispose();
-        state.surfaceHighlightMesh.material.dispose();
-        state.surfaceHighlightMesh = null;
+// Write a single face's world-space vertices into the highlight buffer at the given offset.
+// Uses reusable _vA/_vB/_vC to avoid allocation.
+function writeFaceToBuffer(faceId, floatOffset) {
+    const meshIdx = Math.floor(faceId / FACE_ID_MULTIPLIER);
+    const faceIdx = faceId % FACE_ID_MULTIPLIER;
+    const mesh = state.modelMeshes[meshIdx];
+    if (!mesh) return false;
+
+    const geometry = mesh.geometry;
+    const position = geometry.attributes.position;
+
+    let a, b, c;
+    if (geometry.index) {
+        a = geometry.index.getX(faceIdx * 3);
+        b = geometry.index.getX(faceIdx * 3 + 1);
+        c = geometry.index.getX(faceIdx * 3 + 2);
+    } else {
+        a = faceIdx * 3;
+        b = faceIdx * 3 + 1;
+        c = faceIdx * 3 + 2;
     }
 
-    if (state.paintedFaces.size === 0) return;
+    _vA.fromBufferAttribute(position, a).applyMatrix4(mesh.matrixWorld);
+    _vB.fromBufferAttribute(position, b).applyMatrix4(mesh.matrixWorld);
+    _vC.fromBufferAttribute(position, c).applyMatrix4(mesh.matrixWorld);
 
-    const facesByMesh = new Map();
-    state.paintedFaces.forEach(faceId => {
-        const [meshIdx, faceIdx] = faceId.split('_');
-        if (!facesByMesh.has(meshIdx)) {
-            facesByMesh.set(meshIdx, []);
-        }
-        facesByMesh.set(meshIdx, [...facesByMesh.get(meshIdx), parseInt(faceIdx)]);
-    });
+    _highlightBuffer[floatOffset]     = _vA.x;
+    _highlightBuffer[floatOffset + 1] = _vA.y;
+    _highlightBuffer[floatOffset + 2] = _vA.z;
+    _highlightBuffer[floatOffset + 3] = _vB.x;
+    _highlightBuffer[floatOffset + 4] = _vB.y;
+    _highlightBuffer[floatOffset + 5] = _vB.z;
+    _highlightBuffer[floatOffset + 6] = _vC.x;
+    _highlightBuffer[floatOffset + 7] = _vC.y;
+    _highlightBuffer[floatOffset + 8] = _vC.z;
 
-    const vertices = [];
+    return true;
+}
 
-    facesByMesh.forEach((faceIndices, meshIdx) => {
-        const mesh = state.modelMeshes[parseInt(meshIdx)];
-        if (!mesh) return;
+// Ensure the highlight buffer has capacity for the given number of faces.
+// Grows by doubling if needed, preserving existing data.
+function ensureHighlightCapacity(neededFaces) {
+    const neededFloats = neededFaces * 9; // 3 vertices × 3 components
+    if (_highlightBuffer && _highlightBufferCapacity >= neededFloats) return;
 
-        const geometry = mesh.geometry;
-        const position = geometry.attributes.position;
+    const newCapacity = Math.max(
+        neededFloats,
+        (_highlightBufferCapacity || INITIAL_HIGHLIGHT_CAPACITY * 9) * 2
+    );
+    const newBuffer = new Float32Array(newCapacity);
 
-        faceIndices.forEach(faceIdx => {
-            let a, b, c;
-            if (geometry.index) {
-                a = geometry.index.getX(faceIdx * 3);
-                b = geometry.index.getX(faceIdx * 3 + 1);
-                c = geometry.index.getX(faceIdx * 3 + 2);
-            } else {
-                a = faceIdx * 3;
-                b = faceIdx * 3 + 1;
-                c = faceIdx * 3 + 2;
-            }
+    // Copy existing data if we're growing
+    if (_highlightBuffer && state.highlightVertexCount > 0) {
+        newBuffer.set(_highlightBuffer.subarray(0, state.highlightVertexCount * 3));
+    }
 
-            const vA = new THREE.Vector3().fromBufferAttribute(position, a);
-            const vB = new THREE.Vector3().fromBufferAttribute(position, b);
-            const vC = new THREE.Vector3().fromBufferAttribute(position, c);
+    _highlightBuffer = newBuffer;
+    _highlightBufferCapacity = newCapacity;
 
-            vA.applyMatrix4(mesh.matrixWorld);
-            vB.applyMatrix4(mesh.matrixWorld);
-            vC.applyMatrix4(mesh.matrixWorld);
+    // Update the geometry's buffer attribute to point to the new array
+    if (state.surfaceHighlightMesh) {
+        const attr = new THREE.BufferAttribute(_highlightBuffer, 3);
+        attr.setUsage(THREE.DynamicDrawUsage);
+        state.surfaceHighlightMesh.geometry.setAttribute('position', attr);
+    }
+}
 
-            vertices.push(vA.x, vA.y, vA.z);
-            vertices.push(vB.x, vB.y, vB.z);
-            vertices.push(vC.x, vC.y, vC.z);
-        });
-    });
+// Create or ensure the highlight mesh, material, and geometry exist.
+function ensureHighlightMesh() {
+    if (state.surfaceHighlightMesh) return;
 
-    if (vertices.length === 0) return;
+    const initialFloats = INITIAL_HIGHLIGHT_CAPACITY * 9;
+    _highlightBuffer = new Float32Array(initialFloats);
+    _highlightBufferCapacity = initialFloats;
+    state.highlightVertexCount = 0;
 
-    const highlightGeometry = new THREE.BufferGeometry();
-    highlightGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    highlightGeometry.computeVertexNormals();
+    const geometry = new THREE.BufferGeometry();
+    const attr = new THREE.BufferAttribute(_highlightBuffer, 3);
+    attr.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute('position', attr);
+    geometry.setDrawRange(0, 0);
 
     const color = state.groups.length > 0 ? state.groups[0].color : '#EDC040';
 
-    const highlightMaterial = new THREE.MeshBasicMaterial({
+    _highlightMaterial = new THREE.MeshBasicMaterial({
         color: color,
         transparent: true,
         opacity: 0.5,
@@ -218,9 +354,91 @@ export function updateSurfaceHighlight() {
         polygonOffsetUnits: -4
     });
 
-    state.surfaceHighlightMesh = new THREE.Mesh(highlightGeometry, highlightMaterial);
+    state.surfaceHighlightMesh = new THREE.Mesh(geometry, _highlightMaterial);
     state.surfaceHighlightMesh.renderOrder = 999;
+    state.surfaceHighlightMesh.frustumCulled = false;
     state.annotationObjects.add(state.surfaceHighlightMesh);
+}
+
+// Full rebuild: write ALL painted faces into the buffer from scratch.
+// Used after erasing or when the buffer needs compacting.
+function rebuildHighlightFull() {
+    ensureHighlightCapacity(state.paintedFaces.size);
+    state.highlightVertexCount = 0;
+
+    let floatOffset = 0;
+    state.paintedFaces.forEach(faceId => {
+        if (writeFaceToBuffer(faceId, floatOffset)) {
+            floatOffset += 9;
+            state.highlightVertexCount += 3;
+        }
+    });
+
+    // Full re-upload to GPU (clear any partial update ranges first)
+    const posAttr = state.surfaceHighlightMesh.geometry.attributes.position;
+    posAttr.clearUpdateRanges();
+    posAttr.needsUpdate = true;
+    state.surfaceHighlightMesh.geometry.setDrawRange(0, state.highlightVertexCount);
+    // Note: no computeVertexNormals() — highlight uses MeshBasicMaterial (unlit),
+    // so normals are never read. Skipping saves O(vertexCount) per update.
+}
+
+// Incremental append: only write newly added faces to the end of the buffer.
+// Uses addUpdateRange() to upload only the new data to the GPU.
+function appendPendingFaces() {
+    if (state.pendingFaces.length === 0) return;
+
+    const totalNeeded = state.paintedFaces.size;
+    ensureHighlightCapacity(totalNeeded);
+
+    const startFloat = state.highlightVertexCount * 3;
+    let floatOffset = startFloat;
+    for (let i = 0; i < state.pendingFaces.length; i++) {
+        if (writeFaceToBuffer(state.pendingFaces[i], floatOffset)) {
+            floatOffset += 9;
+            state.highlightVertexCount += 3;
+        }
+    }
+
+    // Partial GPU upload: only transfer the newly appended region
+    const newFloats = floatOffset - startFloat;
+    const posAttr = state.surfaceHighlightMesh.geometry.attributes.position;
+    posAttr.clearUpdateRanges();
+    posAttr.addUpdateRange(startFloat, newFloats);
+    posAttr.needsUpdate = true;
+    state.surfaceHighlightMesh.geometry.setDrawRange(0, state.highlightVertexCount);
+}
+
+export function updateSurfaceHighlight() {
+    // Nothing to display: hide mesh if it exists
+    if (state.paintedFaces.size === 0) {
+        if (state.surfaceHighlightMesh) {
+            state.surfaceHighlightMesh.geometry.setDrawRange(0, 0);
+            state.highlightVertexCount = 0;
+        }
+        state.pendingFaces = [];
+        state.needsFullHighlightRebuild = false;
+        return;
+    }
+
+    // Ensure the mesh/buffer infrastructure exists
+    ensureHighlightMesh();
+
+    // Update material color to match current first group
+    const color = state.groups.length > 0 ? state.groups[0].color : '#EDC040';
+    if (_highlightMaterial) {
+        _highlightMaterial.color.set(color);
+    }
+
+    // Choose update strategy: full rebuild (after erase) or incremental append
+    if (state.needsFullHighlightRebuild) {
+        rebuildHighlightFull();
+        state.needsFullHighlightRebuild = false;
+        state.pendingFaces = [];
+    } else if (state.pendingFaces.length > 0) {
+        appendPendingFaces();
+        state.pendingFaces = [];
+    }
 }
 
 export function finishSurfacePainting(event) {
@@ -233,63 +451,78 @@ export function finishSurfacePainting(event) {
     const center = new THREE.Vector3();
     let count = 0;
 
+    // Compute center using reusable vectors
     state.paintedFaces.forEach(faceId => {
-        const [meshIdx, faceIdx] = faceId.split('_');
-        const mesh = state.modelMeshes[parseInt(meshIdx)];
+        const meshIdx = Math.floor(faceId / FACE_ID_MULTIPLIER);
+        const faceIdx = faceId % FACE_ID_MULTIPLIER;
+        const mesh = state.modelMeshes[meshIdx];
         if (!mesh) return;
 
         const geometry = mesh.geometry;
         const position = geometry.attributes.position;
-        const idx = parseInt(faceIdx);
 
         let a, b, c;
         if (geometry.index) {
-            a = geometry.index.getX(idx * 3);
-            b = geometry.index.getX(idx * 3 + 1);
-            c = geometry.index.getX(idx * 3 + 2);
+            a = geometry.index.getX(faceIdx * 3);
+            b = geometry.index.getX(faceIdx * 3 + 1);
+            c = geometry.index.getX(faceIdx * 3 + 2);
         } else {
-            a = idx * 3;
-            b = idx * 3 + 1;
-            c = idx * 3 + 2;
+            a = faceIdx * 3;
+            b = faceIdx * 3 + 1;
+            c = faceIdx * 3 + 2;
         }
 
-        const vA = new THREE.Vector3().fromBufferAttribute(position, a);
-        const vB = new THREE.Vector3().fromBufferAttribute(position, b);
-        const vC = new THREE.Vector3().fromBufferAttribute(position, c);
+        _vA.fromBufferAttribute(position, a).applyMatrix4(mesh.matrixWorld);
+        _vB.fromBufferAttribute(position, b).applyMatrix4(mesh.matrixWorld);
+        _vC.fromBufferAttribute(position, c).applyMatrix4(mesh.matrixWorld);
 
-        vA.applyMatrix4(mesh.matrixWorld);
-        vB.applyMatrix4(mesh.matrixWorld);
-        vC.applyMatrix4(mesh.matrixWorld);
-
-        const faceCenter = new THREE.Vector3()
-            .addVectors(vA, vB)
-            .add(vC)
-            .divideScalar(3);
-
-        center.add(faceCenter);
+        // Compute face center without allocating a new Vector3
+        center.x += (_vA.x + _vB.x + _vC.x) / 3;
+        center.y += (_vA.y + _vB.y + _vC.y) / 3;
+        center.z += (_vA.z + _vB.z + _vC.z) / 3;
         count++;
     });
 
     center.divideScalar(count);
 
-    const faceData = Array.from(state.paintedFaces);
+    // Convert numeric face IDs back to string format for annotation storage.
+    // This preserves backward compatibility with existing JSON exports.
+    const faceData = Array.from(state.paintedFaces).map(id => {
+        const meshIdx = Math.floor(id / FACE_ID_MULTIPLIER);
+        const faceIdx = id % FACE_ID_MULTIPLIER;
+        return `${meshIdx}_${faceIdx}`;
+    });
 
     _openAnnotationPopup(event, 'surface', [center], faceData);
 
+    // Clean up highlight mesh and module-level buffer references
     if (state.surfaceHighlightMesh) {
         state.annotationObjects.remove(state.surfaceHighlightMesh);
         state.surfaceHighlightMesh.geometry.dispose();
-        state.surfaceHighlightMesh.material.dispose();
+        if (_highlightMaterial) {
+            _highlightMaterial.dispose();
+            _highlightMaterial = null;
+        }
         state.surfaceHighlightMesh = null;
     }
+    _highlightBuffer = null;
+    _highlightBufferCapacity = 0;
+    state.highlightVertexCount = 0;
     state.paintedFaces.clear();
+    state.pendingFaces = [];
+    state.needsFullHighlightRebuild = false;
     state.isPaintingSurface = false;
+    _stopPaintLoop();
 }
 
 export function clearTempSurface() {
     state.paintedFaces.clear();
+    state.pendingFaces = [];
+    state.needsFullHighlightRebuild = false;
+    state.highlightVertexCount = 0;
     state.isPaintingSurface = false;
     state.surfaceHighlightDirty = false;
+    _stopPaintLoop();
     if (state.surfaceHighlightRAF) {
         cancelAnimationFrame(state.surfaceHighlightRAF);
         state.surfaceHighlightRAF = null;
@@ -297,9 +530,14 @@ export function clearTempSurface() {
     if (state.surfaceHighlightMesh) {
         state.annotationObjects.remove(state.surfaceHighlightMesh);
         state.surfaceHighlightMesh.geometry.dispose();
-        state.surfaceHighlightMesh.material.dispose();
+        if (_highlightMaterial) {
+            _highlightMaterial.dispose();
+            _highlightMaterial = null;
+        }
         state.surfaceHighlightMesh = null;
     }
+    _highlightBuffer = null;
+    _highlightBufferCapacity = 0;
 }
 
 export function clearTempDrawing() {
@@ -474,13 +712,16 @@ export function onCanvasMouseDown(event) {
 
     if (state.currentTool === 'surface' && state.currentModel && event.button === 0) {
         state.isPaintingSurface = true;
-        state.isErasingMode = event.shiftKey;
         state.controls.enabled = false;
 
-        const hitInfo = getIntersectionWithFace(event);
-        if (hitInfo) {
-            paintAtPoint(hitInfo.point, hitInfo.mesh, hitInfo.faceIndex);
-        }
+        // Store the initial paint position and start the rAF-gated paint loop.
+        // This ensures the first click paints immediately on the next frame,
+        // and subsequent mousemoves are coalesced to one paint per frame.
+        _pendingPaintX = event.clientX;
+        _pendingPaintY = event.clientY;
+        _pendingPaintShift = event.shiftKey;
+        _hasPendingPaint = true;
+        _startPaintLoop();
         return;
     }
 
@@ -569,11 +810,12 @@ export function onCanvasMouseMove(event) {
     );
 
     if (state.isPaintingSurface && state.currentTool === 'surface' && state.currentModel) {
-        state.isErasingMode = event.shiftKey;
-        const hitInfo = getIntersectionWithFace(event);
-        if (hitInfo) {
-            paintAtPoint(hitInfo.point, hitInfo.mesh, hitInfo.faceIndex);
-        }
+        // Just store the latest position — the rAF paint loop will process it.
+        // This coalesces multiple mousemove events into one paint per frame.
+        _pendingPaintX = event.clientX;
+        _pendingPaintY = event.clientY;
+        _pendingPaintShift = event.shiftKey;
+        _hasPendingPaint = true;
         return;
     }
 
@@ -766,6 +1008,7 @@ export function onCanvasMouseUp(event) {
     if (state.isPaintingSurface) {
         state.isPaintingSurface = false;
         state.controls.enabled = true;
+        _stopPaintLoop();
     }
 
     if (state.isDraggingPoint) {

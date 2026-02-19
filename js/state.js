@@ -78,11 +78,14 @@ export const state = {
     // Surface painting
     isPaintingSurface: false,
     surfaceBrushSize: 5,
-    paintedFaces: new Set(),
+    paintedFaces: new Set(),       // Set<number> - numeric encoded face IDs
     surfaceHighlightMesh: null,
     surfaceHighlightDirty: false,
     surfaceHighlightRAF: null,
     isErasingMode: false,
+    pendingFaces: [],               // Faces added since last highlight update
+    needsFullHighlightRebuild: false, // Flag: erase occurred, need full rebuild
+    highlightVertexCount: 0,        // Current vertex count in highlight buffer
 
     // Box annotation
     selectedBoxAnnotation: null,
