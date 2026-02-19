@@ -6,6 +6,14 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state, dom } from '../state.js';
 import { createScaledTextSprite } from '../core/scene.js';
 
+// Late-bound reference to avoid circular dependency
+// (editing.js imports from render.js, render.js needs renderMeasurements from editing.js)
+let _renderMeasurements = null;
+
+export function setRenderCallbacks({ renderMeasurements }) {
+    _renderMeasurements = renderMeasurements;
+}
+
 export function renderAnnotations() {
     // Clear existing and dispose GPU resources
     while (state.annotationObjects.children.length > 0) {
@@ -148,6 +156,11 @@ export function renderAnnotations() {
             state.annotationObjects.add(label);
         }
     });
+
+    // Re-render measurements (they were cleared with annotation objects)
+    if (_renderMeasurements) {
+        _renderMeasurements();
+    }
 
     updateAnnotationsPanel();
 }

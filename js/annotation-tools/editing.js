@@ -694,6 +694,11 @@ export function onCanvasClick(event) {
             state.measurements.push({
                 id: measurementId,
                 distance: dist,
+                // Store original point coordinates for re-rendering after annotation refresh
+                points: [
+                    { x: state.measurePoints[0].x, y: state.measurePoints[0].y, z: state.measurePoints[0].z },
+                    { x: state.measurePoints[1].x, y: state.measurePoints[1].y, z: state.measurePoints[1].z }
+                ],
                 markers: [...state.measureMarkers],
                 line: state.measureLine,
                 label: label
@@ -1190,4 +1195,87 @@ export function clearAllMeasurements() {
     state.measurements = [];
 
     updateMeasurementsDisplay();
+}
+
+/**
+ * Re-creates the 3D objects for all stored measurements.
+ * Called after renderAnnotations() clears annotationObjects to preserve measurements.
+ */
+export function renderMeasurements() {
+    if (state.measurements.length === 0) return;
+    
+    // Compute scaling factor based on model size
+    let maxDim = 1;
+    if (state.currentModel) {
+        const box = new THREE.Box3().setFromObject(state.currentModel);
+        const size = box.getSize(new THREE.Vector3());
+        maxDim = Math.max(size.x, size.y, size.z);
+    }
+    
+    state.measurements.forEach(m => {
+        // Re-create markers
+        const newMarkers = [];
+        
+        // We need to derive the original points from the stored distance and midpoint
+        // Since we stored the line, we can get the positions from the measurement data
+        // But the line object has been disposed. We need to store the points instead.
+        // For now, use the label position as midpoint and recreate from stored data.
+        
+        // Actually, let's store the original points in the measurement object.
+        // For existing measurements, we'll need to extract from the line if available.
+        
+        if (m.points && m.points.length === 2) {
+            // Create markers for the two measurement points
+            m.points.forEach(point => {
+                const geometry = new THREE.SphereGeometry(0.01, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xFFFFFF,
+                    depthTest: true,
+                    polygonOffset: true,
+                    polygonOffsetFactor: -5,
+                    polygonOffsetUnits: -5
+                });
+                const marker = new THREE.Mesh(geometry, material);
+                marker.position.set(point.x, point.y, point.z);
+                marker.renderOrder = 1000;
+                marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * state.pointSizeMultiplier);
+                state.annotationObjects.add(marker);
+                newMarkers.push(marker);
+            });
+            m.markers = newMarkers;
+            
+            // Re-create line
+            const positions = [
+                m.points[0].x, m.points[0].y, m.points[0].z,
+                m.points[1].x, m.points[1].y, m.points[1].z
+            ];
+            
+            const lineGeometry = new LineGeometry();
+            lineGeometry.setPositions(positions);
+            
+            const lineMaterial = new LineMaterial({
+                color: 0xAA8101,
+                linewidth: 3,
+                resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
+                polygonOffset: true,
+                polygonOffsetFactor: -4,
+                polygonOffsetUnits: -4
+            });
+            
+            const line = new Line2(lineGeometry, lineMaterial);
+            state.annotationObjects.add(line);
+            m.line = line;
+            
+            // Re-create label
+            const midpoint = new THREE.Vector3(
+                (m.points[0].x + m.points[1].x) / 2,
+                (m.points[0].y + m.points[1].y) / 2,
+                (m.points[0].z + m.points[1].z) / 2
+            );
+            const labelText = `${m.distance.toFixed(3)} units`;
+            const label = createScaledTextSprite(labelText, '#AA8101', midpoint, 0.5);
+            state.annotationObjects.add(label);
+            m.label = label;
+        }
+    });
 }

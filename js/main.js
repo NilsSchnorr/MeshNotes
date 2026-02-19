@@ -6,9 +6,9 @@ import { initLighting, updateLightFromCamera, setBackgroundColor } from './core/
 import { setUpdateModelInfoDisplay } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
-import { setEditingCallbacks, finishSurfacePainting } from './annotation-tools/editing.js';
+import { setEditingCallbacks, finishSurfacePainting, renderMeasurements } from './annotation-tools/editing.js';
 import { updateMeasurementsDisplay } from './annotation-tools/editing.js';
-import { renderAnnotations } from './annotation-tools/render.js';
+import { renderAnnotations, setRenderCallbacks } from './annotation-tools/render.js';
 import { setRenderAnnotations } from './annotation-tools/projection.js';
 import { setupEventListeners, setTool } from './ui/event-listeners.js';
 import { openGroupPopup } from './annotation-tools/groups.js';
@@ -25,6 +25,9 @@ setEditingCallbacks({
 setGroupCallbacks({
     openGroupPopup,
     openAnnotationPopupForEdit
+});
+setRenderCallbacks({
+    renderMeasurements
 });
 
 function init() {
