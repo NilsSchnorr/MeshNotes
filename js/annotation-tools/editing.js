@@ -1305,15 +1305,115 @@ export function updateMeasurementsDisplay() {
         dom.measurementsList.innerHTML = '<div style="color: #888;">No measurements yet</div>';
     } else {
         dom.measurementsList.innerHTML = state.measurements.map(m => {
-            const segInfo = m.segments > 1 ? ` (${m.segments} segments)` : '';
+            const segmentBreakdown = buildSegmentBreakdown(m);
             return `
-            <div class="measurement-item">
-                <span class="label">Distance ${m.id}:</span>
-                <span class="value">${m.distance.toFixed(3)} units${segInfo}</span>
+            <div class="measurement-item" data-measurement-id="${m.id}">
+                <div class="measurement-main">
+                    <span class="label">Distance ${m.id}:</span>
+                    <span class="value" data-copy-value="${m.distance.toFixed(3)}">${m.distance.toFixed(3)} units</span>
+                    <button class="measurement-delete" data-delete-id="${m.id}" title="Delete this measurement">×</button>
+                </div>
+                ${segmentBreakdown}
             </div>
         `;
         }).join('');
+        
+        // Attach event listeners for delete buttons
+        dom.measurementsList.querySelectorAll('.measurement-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = parseInt(btn.dataset.deleteId);
+                deleteMeasurement(id);
+            });
+        });
+        
+        // Attach event listeners for click-to-copy on values
+        dom.measurementsList.querySelectorAll('.value').forEach(valueEl => {
+            valueEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const copyValue = valueEl.dataset.copyValue + ' units';
+                copyToClipboard(copyValue, valueEl);
+            });
+        });
     }
+}
+
+/**
+ * Build segment breakdown HTML for multi-point measurements.
+ * Shows individual segment distances in format: (1.234 + 2.345 + 3.456)
+ * @param {Object} m - Measurement object with points array
+ * @returns {string} HTML string for segment breakdown, or empty string for 2-point measurements
+ */
+function buildSegmentBreakdown(m) {
+    if (!m.points || m.points.length <= 2) return '';
+    
+    const segments = [];
+    for (let i = 0; i < m.points.length - 1; i++) {
+        const p1 = new THREE.Vector3(m.points[i].x, m.points[i].y, m.points[i].z);
+        const p2 = new THREE.Vector3(m.points[i + 1].x, m.points[i + 1].y, m.points[i + 1].z);
+        segments.push(p1.distanceTo(p2).toFixed(3));
+    }
+    
+    return `<div class="measurement-segments">(${segments.join(' + ')})</div>`;
+}
+
+/**
+ * Delete a specific measurement by ID.
+ * @param {number} id - The measurement ID to delete
+ */
+export function deleteMeasurement(id) {
+    const index = state.measurements.findIndex(m => m.id === id);
+    if (index === -1) return;
+    
+    const m = state.measurements[index];
+    
+    // Clean up 3D objects
+    if (m.markers) {
+        m.markers.forEach(marker => {
+            if (marker.geometry) marker.geometry.dispose();
+            if (marker.material) marker.material.dispose();
+            state.annotationObjects.remove(marker);
+        });
+    }
+    if (m.line) {
+        if (m.line.geometry) m.line.geometry.dispose();
+        if (m.line.material) m.line.material.dispose();
+        state.annotationObjects.remove(m.line);
+    }
+    if (m.label) {
+        if (m.label.material && m.label.material.map) m.label.material.map.dispose();
+        if (m.label.material) m.label.material.dispose();
+        state.annotationObjects.remove(m.label);
+    }
+    
+    // Remove from array
+    state.measurements.splice(index, 1);
+    
+    // Update display
+    updateMeasurementsDisplay();
+    showStatus(`Measurement #${id} deleted`);
+}
+
+/**
+ * Copy text to clipboard and show feedback on the element.
+ * @param {string} text - Text to copy
+ * @param {HTMLElement} element - Element to show feedback on
+ */
+function copyToClipboard(text, element) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Show copied feedback
+        const originalText = element.textContent;
+        element.classList.add('copied');
+        element.textContent = 'Copied!';
+        
+        setTimeout(() => {
+            element.textContent = originalText;
+            element.classList.remove('copied');
+        }, 1000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        showStatus('Failed to copy to clipboard');
+    });
 }
 
 export function clearAllMeasurements() {

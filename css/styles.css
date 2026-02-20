@@ -1045,14 +1045,18 @@
         }
 
         .measurement-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
+            padding: 6px 0;
             border-bottom: 1px solid rgba(237, 192, 64, 0.2);
         }
 
         .measurement-item:last-child {
             border-bottom: none;
+        }
+
+        .measurement-main {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .measurement-item .label {
@@ -1062,6 +1066,53 @@
         .measurement-item .value {
             font-weight: 600;
             color: var(--color-gold);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: all 0.15s;
+            flex: 1;
+            text-align: right;
+        }
+
+        .measurement-item .value:hover {
+            background: var(--color-blue-darkest);
+        }
+
+        .measurement-item .value.copied {
+            background: var(--color-gold-dark);
+            color: var(--color-blue-darkest);
+        }
+
+        .measurement-delete {
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border: none;
+            border-radius: 3px;
+            background: transparent;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .measurement-delete:hover {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .measurement-segments {
+            font-size: 10px;
+            color: var(--color-text-muted);
+            margin-top: 2px;
+            padding-left: 2px;
+            font-family: monospace;
+            word-break: break-all;
         }
 
         .measure-title {
