@@ -56,7 +56,9 @@ export const state = {
     measurePoints: [],
     measureMarkers: [],
     measureLine: null,
+    measureLabel: null,  // Live distance label during multi-point measurement
     measurements: [],
+    isMultiPointMeasure: false,  // Whether currently in multi-point measurement mode
 
     // Data
     groups: [],

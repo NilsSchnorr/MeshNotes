@@ -59,7 +59,7 @@
                         <p style="margin-bottom: 12px;"><strong>2. Add annotations</strong> — Select a tool (Point, Line, Polygon, or Surface) and click on the model. Double-click to finish lines/polygons/surfaces.</p>
                         <p style="margin-bottom: 12px;"><strong>3. Navigate annotations</strong> — Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing.</p>
                         <p style="margin-bottom: 12px;"><strong>4. Adjust annotations</strong> — When no tool is active, drag any annotation point to reposition it. Use groups to organize and color-code your work.</p>
-                        <p style="margin-bottom: 12px;"><strong>5. Take measurements</strong> — Use the Measure tool to click two points and get the distance. Press Escape to clear.</p>
+                        <p style="margin-bottom: 12px;"><strong>5. Take measurements</strong> — Use the Measure tool to click two points and get the distance. Hold <strong>Ctrl</strong> while clicking to measure paths through multiple points. Press Escape to clear.</p>
                         <p style="margin-bottom: 0;"><strong>6. Export your work</strong> — Click <strong>JSON</strong> to save annotations for backup or team sharing. Click <strong>PDF</strong> to generate a documentation report with screenshots.</p>
                     </div>
                 </section>
@@ -223,7 +223,9 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Measure</strong> to activate the measurement tool. Click two points on the model to measure the distance between them. Multiple measurements can be taken and all stay visible with their distance labels. Take a screenshot to document your measurements, then press <code>Esc</code> to clear all. Distances are displayed in "units" — the actual unit (meters, millimeters, etc.) depends on how your 3D model was created or exported.</p>
+                            <p>Click <strong>Measure</strong> to activate the measurement tool. Click two points on the model to measure the straight-line distance between them. Multiple measurements can be taken and all stay visible with their distance labels.</p>
+                            <p style="margin-top: 10px;"><strong>Multi-point measurement:</strong> Hold <code>Ctrl</code> (or <code>Cmd</code> on Mac) while clicking to measure a path through multiple points — useful for measuring around corners, along curved edges, or following a non-straight route. Keep holding Ctrl and clicking to add more points. The total path distance is shown as you go. Release Ctrl and click once more to finalize, or simply click without Ctrl when you have two or more points. Multi-point measurements display the total distance and the number of segments.</p>
+                            <p style="margin-top: 10px;">Take a screenshot to document your measurements, then press <code>Esc</code> to clear all. Distances are displayed in "units" — the actual unit (meters, millimeters, etc.) depends on how your 3D model was created or exported.</p>
                         </div>
                     </div>
 
@@ -621,6 +623,7 @@
                 <div class="measure-help">
                     <div class="measure-help-row"><span class="help-key">Click</span><span class="measure-help-desc">Place point</span></div>
                     <div class="measure-help-row"><span class="help-key">2nd click</span><span class="measure-help-desc">Complete</span></div>
+                    <div class="measure-help-row"><span class="help-key">Ctrl</span><span class="help-key">+click</span><span class="measure-help-desc">Add more points</span></div>
                     <div class="measure-help-row"><span class="help-key">Esc</span><span class="measure-help-desc">Clear all</span></div>
                 </div>
             </div>

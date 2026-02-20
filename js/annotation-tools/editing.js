@@ -596,6 +596,16 @@ export function clearTempDrawing() {
         state.annotationObjects.remove(state.measureLine);
         state.measureLine = null;
     }
+    // Clear live measurement label
+    if (state.measureLabel) {
+        if (state.measureLabel.material && state.measureLabel.material.map) {
+            state.measureLabel.material.map.dispose();
+        }
+        if (state.measureLabel.material) state.measureLabel.material.dispose();
+        state.annotationObjects.remove(state.measureLabel);
+        state.measureLabel = null;
+    }
+    state.isMultiPointMeasure = false;
     clearTempSurface();
 }
 
@@ -677,38 +687,41 @@ export function onCanvasClick(event) {
         state.tempPoints.push(point);
         updateTempLine();
     } else if (state.currentTool === 'measure') {
-        state.measurePoints.push(point);
-        addMeasureMarker(point);
-
-        if (state.measurePoints.length === 2) {
-            const dist = state.measurePoints[0].distanceTo(state.measurePoints[1]);
-
-            updateMeasureLine();
-
-            const midpoint = new THREE.Vector3().addVectors(state.measurePoints[0], state.measurePoints[1]).multiplyScalar(0.5);
-            const labelText = `${dist.toFixed(3)} units`;
-            const label = createScaledTextSprite(labelText, '#AA8101', midpoint, 0.5);
-            state.annotationObjects.add(label);
-
-            const measurementId = state.measurements.length + 1;
-            state.measurements.push({
-                id: measurementId,
-                distance: dist,
-                // Store original point coordinates for re-rendering after annotation refresh
-                points: [
-                    { x: state.measurePoints[0].x, y: state.measurePoints[0].y, z: state.measurePoints[0].z },
-                    { x: state.measurePoints[1].x, y: state.measurePoints[1].y, z: state.measurePoints[1].z }
-                ],
-                markers: [...state.measureMarkers],
-                line: state.measureLine,
-                label: label
-            });
-
-            updateMeasurementsDisplay();
-
-            state.measurePoints = [];
-            state.measureMarkers = [];
-            state.measureLine = null;
+        const isCtrlHeld = event.ctrlKey || event.metaKey;
+        
+        // Multi-point measurement logic:
+        // - Ctrl+click: add point and continue (multi-point mode)
+        // - Click without Ctrl when 2+ points exist: finalize measurement
+        // - Click without Ctrl when 0-1 points: normal add point behavior
+        
+        if (state.measurePoints.length >= 2 && !isCtrlHeld && !state.isMultiPointMeasure) {
+            // Normal two-point measurement completed on second click
+            state.measurePoints.push(point);
+            addMeasureMarker(point);
+            finalizeMeasurement();
+        } else if (state.measurePoints.length >= 2 && !isCtrlHeld && state.isMultiPointMeasure) {
+            // Finalizing multi-point measurement (Ctrl released)
+            finalizeMeasurement();
+        } else {
+            // Add point to current measurement
+            state.measurePoints.push(point);
+            addMeasureMarker(point);
+            
+            // If Ctrl is held, we're in multi-point mode
+            if (isCtrlHeld) {
+                state.isMultiPointMeasure = true;
+            }
+            
+            // Update visual with running distance if we have 2+ points
+            if (state.measurePoints.length >= 2) {
+                updateMeasureLine();
+                updateLiveMeasurementLabel();
+                
+                // If not in multi-point mode (normal two-point), finalize
+                if (!state.isMultiPointMeasure && !isCtrlHeld) {
+                    finalizeMeasurement();
+                }
+            }
         }
     } else if (state.currentTool === 'surface') {
         state.isErasingMode = event.shiftKey;
@@ -1119,17 +1132,51 @@ function addMeasureMarker(point) {
     state.measureMarkers.push(marker);
 }
 
+/**
+ * Calculate total distance along a path of points.
+ * @param {THREE.Vector3[]} points - Array of points
+ * @returns {number} Total distance
+ */
+function calculateTotalDistance(points) {
+    let total = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+        total += points[i].distanceTo(points[i + 1]);
+    }
+    return total;
+}
+
+/**
+ * Calculate individual segment distances for a path.
+ * @param {THREE.Vector3[]} points - Array of points
+ * @returns {number[]} Array of segment distances
+ */
+function calculateSegmentDistances(points) {
+    const segments = [];
+    for (let i = 0; i < points.length - 1; i++) {
+        segments.push(points[i].distanceTo(points[i + 1]));
+    }
+    return segments;
+}
+
+/**
+ * Updates the measurement line to connect all current measurement points.
+ * Supports both two-point and multi-point measurements.
+ */
 function updateMeasureLine() {
     if (state.measureLine) {
+        if (state.measureLine.geometry) state.measureLine.geometry.dispose();
+        if (state.measureLine.material) state.measureLine.material.dispose();
         state.annotationObjects.remove(state.measureLine);
+        state.measureLine = null;
     }
 
-    if (state.measurePoints.length !== 2) return;
+    if (state.measurePoints.length < 2) return;
 
-    const positions = [
-        state.measurePoints[0].x, state.measurePoints[0].y, state.measurePoints[0].z,
-        state.measurePoints[1].x, state.measurePoints[1].y, state.measurePoints[1].z
-    ];
+    // Build positions array from all measurement points
+    const positions = [];
+    state.measurePoints.forEach(p => {
+        positions.push(p.x, p.y, p.z);
+    });
 
     const geometry = new LineGeometry();
     geometry.setPositions(positions);
@@ -1147,16 +1194,125 @@ function updateMeasureLine() {
     state.annotationObjects.add(state.measureLine);
 }
 
+/**
+ * Updates or creates the live measurement label showing current total distance.
+ * Positioned at the midpoint of the last segment for visibility.
+ */
+function updateLiveMeasurementLabel() {
+    // Remove existing live label
+    if (state.measureLabel) {
+        if (state.measureLabel.material && state.measureLabel.material.map) {
+            state.measureLabel.material.map.dispose();
+        }
+        if (state.measureLabel.material) state.measureLabel.material.dispose();
+        state.annotationObjects.remove(state.measureLabel);
+        state.measureLabel = null;
+    }
+
+    if (state.measurePoints.length < 2) return;
+
+    const totalDist = calculateTotalDistance(state.measurePoints);
+    const numSegments = state.measurePoints.length - 1;
+    
+    // Position label at the last point (endpoint of measurement)
+    const lastPoint = state.measurePoints[state.measurePoints.length - 1];
+    
+    // Create label text showing total and segment count for multi-point
+    let labelText;
+    if (numSegments > 1) {
+        labelText = `${totalDist.toFixed(3)} (${numSegments} seg)`;
+    } else {
+        labelText = `${totalDist.toFixed(3)} units`;
+    }
+    
+    state.measureLabel = createScaledTextSprite(labelText, '#AA8101', lastPoint, 0.5);
+    state.annotationObjects.add(state.measureLabel);
+}
+
+/**
+ * Finalizes the current measurement, storing it and resetting state for next measurement.
+ */
+function finalizeMeasurement() {
+    if (state.measurePoints.length < 2) return;
+
+    const totalDist = calculateTotalDistance(state.measurePoints);
+    const numSegments = state.measurePoints.length - 1;
+
+    // Remove live label (will be replaced by final label)
+    if (state.measureLabel) {
+        if (state.measureLabel.material && state.measureLabel.material.map) {
+            state.measureLabel.material.map.dispose();
+        }
+        if (state.measureLabel.material) state.measureLabel.material.dispose();
+        state.annotationObjects.remove(state.measureLabel);
+        state.measureLabel = null;
+    }
+
+    // Create final label at the midpoint of the entire path
+    const midIndex = Math.floor(state.measurePoints.length / 2);
+    let labelPosition;
+    if (state.measurePoints.length === 2) {
+        // Two points: midpoint between them
+        labelPosition = new THREE.Vector3()
+            .addVectors(state.measurePoints[0], state.measurePoints[1])
+            .multiplyScalar(0.5);
+    } else {
+        // Multi-point: use middle point or midpoint between two middle points
+        if (state.measurePoints.length % 2 === 1) {
+            labelPosition = state.measurePoints[midIndex].clone();
+        } else {
+            labelPosition = new THREE.Vector3()
+                .addVectors(state.measurePoints[midIndex - 1], state.measurePoints[midIndex])
+                .multiplyScalar(0.5);
+        }
+    }
+
+    // Create label text
+    let labelText;
+    if (numSegments > 1) {
+        labelText = `${totalDist.toFixed(3)} (${numSegments} seg)`;
+    } else {
+        labelText = `${totalDist.toFixed(3)} units`;
+    }
+
+    const label = createScaledTextSprite(labelText, '#AA8101', labelPosition, 0.5);
+    state.annotationObjects.add(label);
+
+    // Store measurement with all points
+    const measurementId = state.measurements.length + 1;
+    state.measurements.push({
+        id: measurementId,
+        distance: totalDist,
+        segments: numSegments,
+        // Store all point coordinates for re-rendering
+        points: state.measurePoints.map(p => ({ x: p.x, y: p.y, z: p.z })),
+        markers: [...state.measureMarkers],
+        line: state.measureLine,
+        label: label
+    });
+
+    updateMeasurementsDisplay();
+
+    // Reset for next measurement
+    state.measurePoints = [];
+    state.measureMarkers = [];
+    state.measureLine = null;
+    state.isMultiPointMeasure = false;
+}
+
 export function updateMeasurementsDisplay() {
     if (state.measurements.length === 0) {
         dom.measurementsList.innerHTML = '<div style="color: #888;">No measurements yet</div>';
     } else {
-        dom.measurementsList.innerHTML = state.measurements.map(m => `
+        dom.measurementsList.innerHTML = state.measurements.map(m => {
+            const segInfo = m.segments > 1 ? ` (${m.segments} segments)` : '';
+            return `
             <div class="measurement-item">
                 <span class="label">Distance ${m.id}:</span>
-                <span class="value">${m.distance.toFixed(3)} units</span>
+                <span class="value">${m.distance.toFixed(3)} units${segInfo}</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
     }
 }
 
@@ -1174,6 +1330,16 @@ export function clearAllMeasurements() {
         state.annotationObjects.remove(state.measureLine);
         state.measureLine = null;
     }
+    // Clear live measurement label
+    if (state.measureLabel) {
+        if (state.measureLabel.material && state.measureLabel.material.map) {
+            state.measureLabel.material.map.dispose();
+        }
+        if (state.measureLabel.material) state.measureLabel.material.dispose();
+        state.annotationObjects.remove(state.measureLabel);
+        state.measureLabel = null;
+    }
+    state.isMultiPointMeasure = false;
 
     state.measurements.forEach(m => {
         m.markers.forEach(marker => {
@@ -1200,6 +1366,7 @@ export function clearAllMeasurements() {
 /**
  * Re-creates the 3D objects for all stored measurements.
  * Called after renderAnnotations() clears annotationObjects to preserve measurements.
+ * Supports both two-point and multi-point measurements.
  */
 export function renderMeasurements() {
     if (state.measurements.length === 0) return;
@@ -1213,69 +1380,88 @@ export function renderMeasurements() {
     }
     
     state.measurements.forEach(m => {
-        // Re-create markers
+        if (!m.points || m.points.length < 2) return;
+        
+        // Re-create markers for all measurement points
         const newMarkers = [];
-        
-        // We need to derive the original points from the stored distance and midpoint
-        // Since we stored the line, we can get the positions from the measurement data
-        // But the line object has been disposed. We need to store the points instead.
-        // For now, use the label position as midpoint and recreate from stored data.
-        
-        // Actually, let's store the original points in the measurement object.
-        // For existing measurements, we'll need to extract from the line if available.
-        
-        if (m.points && m.points.length === 2) {
-            // Create markers for the two measurement points
-            m.points.forEach(point => {
-                const geometry = new THREE.SphereGeometry(0.01, 16, 16);
-                const material = new THREE.MeshBasicMaterial({
-                    color: 0xFFFFFF,
-                    depthTest: true,
-                    polygonOffset: true,
-                    polygonOffsetFactor: -5,
-                    polygonOffsetUnits: -5
-                });
-                const marker = new THREE.Mesh(geometry, material);
-                marker.position.set(point.x, point.y, point.z);
-                marker.renderOrder = 1000;
-                marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * state.pointSizeMultiplier);
-                state.annotationObjects.add(marker);
-                newMarkers.push(marker);
-            });
-            m.markers = newMarkers;
-            
-            // Re-create line
-            const positions = [
-                m.points[0].x, m.points[0].y, m.points[0].z,
-                m.points[1].x, m.points[1].y, m.points[1].z
-            ];
-            
-            const lineGeometry = new LineGeometry();
-            lineGeometry.setPositions(positions);
-            
-            const lineMaterial = new LineMaterial({
-                color: 0xAA8101,
-                linewidth: 3,
-                resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
+        m.points.forEach(point => {
+            const geometry = new THREE.SphereGeometry(0.01, 16, 16);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                depthTest: true,
                 polygonOffset: true,
-                polygonOffsetFactor: -4,
-                polygonOffsetUnits: -4
+                polygonOffsetFactor: -5,
+                polygonOffsetUnits: -5
             });
-            
-            const line = new Line2(lineGeometry, lineMaterial);
-            state.annotationObjects.add(line);
-            m.line = line;
-            
-            // Re-create label
-            const midpoint = new THREE.Vector3(
+            const marker = new THREE.Mesh(geometry, material);
+            marker.position.set(point.x, point.y, point.z);
+            marker.renderOrder = 1000;
+            marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * state.pointSizeMultiplier);
+            state.annotationObjects.add(marker);
+            newMarkers.push(marker);
+        });
+        m.markers = newMarkers;
+        
+        // Re-create line connecting all points
+        const positions = [];
+        m.points.forEach(p => {
+            positions.push(p.x, p.y, p.z);
+        });
+        
+        const lineGeometry = new LineGeometry();
+        lineGeometry.setPositions(positions);
+        
+        const lineMaterial = new LineMaterial({
+            color: 0xAA8101,
+            linewidth: 3,
+            resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
+            polygonOffset: true,
+            polygonOffsetFactor: -4,
+            polygonOffsetUnits: -4
+        });
+        
+        const line = new Line2(lineGeometry, lineMaterial);
+        state.annotationObjects.add(line);
+        m.line = line;
+        
+        // Re-create label at appropriate position
+        const numSegments = m.segments || (m.points.length - 1);
+        const midIndex = Math.floor(m.points.length / 2);
+        let labelPosition;
+        
+        if (m.points.length === 2) {
+            // Two points: midpoint between them
+            labelPosition = new THREE.Vector3(
                 (m.points[0].x + m.points[1].x) / 2,
                 (m.points[0].y + m.points[1].y) / 2,
                 (m.points[0].z + m.points[1].z) / 2
             );
-            const labelText = `${m.distance.toFixed(3)} units`;
-            const label = createScaledTextSprite(labelText, '#AA8101', midpoint, 0.5);
-            state.annotationObjects.add(label);
-            m.label = label;
+        } else {
+            // Multi-point: use middle point or midpoint between two middle points
+            if (m.points.length % 2 === 1) {
+                const mp = m.points[midIndex];
+                labelPosition = new THREE.Vector3(mp.x, mp.y, mp.z);
+            } else {
+                const p1 = m.points[midIndex - 1];
+                const p2 = m.points[midIndex];
+                labelPosition = new THREE.Vector3(
+                    (p1.x + p2.x) / 2,
+                    (p1.y + p2.y) / 2,
+                    (p1.z + p2.z) / 2
+                );
+            }
         }
+        
+        // Create label text
+        let labelText;
+        if (numSegments > 1) {
+            labelText = `${m.distance.toFixed(3)} (${numSegments} seg)`;
+        } else {
+            labelText = `${m.distance.toFixed(3)} units`;
+        }
+        
+        const label = createScaledTextSprite(labelText, '#AA8101', labelPosition, 0.5);
+        state.annotationObjects.add(label);
+        m.label = label;
     });
 }
