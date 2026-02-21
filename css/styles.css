@@ -1269,27 +1269,21 @@
             white-space: nowrap;
         }
 
-        /* Camera toggle button */
-        #camera-toggle {
+        /* Settings button in toolbar */
+        #btn-settings {
             margin-left: auto;
-            width: 128px;
-            text-align: center;
             padding: 6px 12px;
             border: none;
             border-radius: 6px;
             background: var(--color-blue);
             color: var(--color-text-light);
             cursor: pointer;
-            font-size: 12px;
+            font-size: 13px;
             transition: background 0.2s;
         }
 
-        #camera-toggle:hover {
-            background: var(--color-blue);
-        }
-
-        #camera-toggle.active {
-            background: var(--color-gold-dark);
+        #btn-settings:hover {
+            background: var(--color-blue-hover);
         }
 
         /* Instructions */
@@ -2056,4 +2050,200 @@
 
         #background-color-picker:hover {
             border-color: var(--color-gold);
+        }
+
+        /* Sliders Panel Header */
+        #sliders-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--color-white-hover);
+        }
+
+        /* Camera toggle in panel header */
+        #camera-toggle {
+            padding: 5px 14px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            background: var(--color-blue-darkest);
+            color: var(--color-text-light);
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        #camera-toggle:hover {
+            border-color: var(--color-gold);
+        }
+
+        #camera-toggle.active {
+            background: var(--color-gold-dark);
+            border-color: var(--color-gold-dark);
+        }
+
+        /* Collapsed state keeps header visible */
+        #sliders-panel.collapsed #sliders-panel-header {
+            border-bottom: none;
+        }
+
+        /* Settings Modal */
+        #settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #settings-overlay.visible {
+            display: flex;
+        }
+
+        #settings-modal {
+            position: absolute;
+            background: var(--color-blue-dark);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px var(--color-overlay-light);
+        }
+
+        #settings-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-blue);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: move;
+            user-select: none;
+        }
+
+        #settings-modal-header:hover {
+            background: var(--color-white-hover);
+        }
+
+        #settings-modal-header h2 {
+            font-size: 16px;
+            color: var(--color-text-light);
+        }
+
+        #settings-modal-close {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        #settings-modal-close:hover {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
+        #settings-modal-content {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        #settings-modal-content section {
+            margin-bottom: 24px;
+        }
+
+        #settings-modal-content section:last-child {
+            margin-bottom: 0;
+        }
+
+        #settings-modal-content h3 {
+            font-size: 14px;
+            color: var(--color-gold);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--color-blue);
+        }
+
+        .settings-row {
+            margin-bottom: 12px;
+        }
+
+        .settings-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .settings-row label {
+            display: flex;
+            justify-content: space-between;
+            color: var(--color-text-medium);
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .settings-row label span:last-child {
+            color: var(--color-gold);
+            font-weight: 500;
+        }
+
+        .settings-row input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--color-blue-darkest);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .settings-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--color-gold);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .settings-row input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--color-gold);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .settings-row.background-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .settings-row.background-row .background-presets {
+            display: flex;
+            gap: 6px;
+        }
+
+        .settings-row.background-row .bg-preset {
+            width: 28px;
+            height: 28px;
+            font-size: 18px;
+        }
+
+        .settings-row.background-row #background-color-picker {
+            width: 28px;
+            height: 28px;
         }

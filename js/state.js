@@ -98,6 +98,12 @@ export const state = {
     boxDragStartData: null,
     activeBoxHandle: null,
     boxHandleObjects: [],
+    
+    // Box placement mode (new box creation workflow)
+    pendingBoxData: null,        // Temporary box data during placement
+    isBoxPlacementMode: false,   // True while placing a new box
+    pendingBoxClickPosition: null, // Original click position for popup
+    boxEditUnlocked: null,       // ID of box currently unlocked for editing
 
     // Three.js annotation objects
     annotationObjects: new THREE.Group(),
@@ -267,5 +273,12 @@ export function initDomReferences() {
     dom.legalOverlay = document.getElementById('legal-overlay');
     dom.btnLegal = document.getElementById('btn-legal');
     dom.legalModalClose = document.getElementById('legal-modal-close');
+    
+    // Settings modal
+    dom.btnSettings = document.getElementById('btn-settings');
+    dom.settingsOverlay = document.getElementById('settings-overlay');
+    dom.settingsModalClose = document.getElementById('settings-modal-close');
+    
+    // Camera toggle (now in sliders panel)
     dom.cameraToggle = document.getElementById('camera-toggle');
 }

@@ -9,6 +9,7 @@ import { getIntersection, getIntersectionFull, createScaledTextSprite } from '..
 import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, recomputeAdjacentEdges } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
+import { showBoxEditHelp, hideToolHelp } from '../ui/tool-help.js';
 
 // ============ Surface Painting Optimization Constants ============
 // Encode meshIndex + faceIndex as a single number to avoid string allocation.
@@ -607,6 +608,140 @@ export function clearTempDrawing() {
     }
     state.isMultiPointMeasure = false;
     clearTempSurface();
+    clearPendingBox();
+}
+
+/**
+ * Renders the pending box during placement mode.
+ * Creates a temporary box visualization that can be manipulated before confirmation.
+ */
+export function renderPendingBox() {
+    // First clear any existing pending box objects
+    const existingObjects = state.annotationObjects.children.filter(obj =>
+        obj.userData.isPendingBoxBody || obj.userData.isPendingBoxHandle || obj.userData.isPendingBoxWireframe
+    );
+    existingObjects.forEach(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach(m => m.dispose());
+        }
+        state.annotationObjects.remove(obj);
+    });
+
+    if (!state.pendingBoxData) return;
+
+    const { center, size, rotation } = state.pendingBoxData;
+    const color = state.groups.length > 0 ? new THREE.Color(state.groups[0].color) : new THREE.Color(0xEDC040);
+
+    // Calculate model size for scaling handles
+    const modelSize = state.currentModel ?
+        new THREE.Box3().setFromObject(state.currentModel).getSize(new THREE.Vector3()) :
+        new THREE.Vector3(1, 1, 1);
+    const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+
+    // Create box body (semi-transparent fill)
+    const boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+    const fillMaterial = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.DoubleSide,
+        depthTest: true,
+        depthWrite: false
+    });
+
+    const boxMesh = new THREE.Mesh(boxGeometry.clone(), fillMaterial);
+    boxMesh.position.set(center.x, center.y, center.z);
+    if (rotation) {
+        boxMesh.rotation.set(rotation.x, rotation.y, rotation.z);
+    }
+    boxMesh.userData.isPendingBoxBody = true;
+    boxMesh.renderOrder = 1;
+    state.annotationObjects.add(boxMesh);
+
+    // Create wireframe edges
+    const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
+    const edgesMaterial = new THREE.LineBasicMaterial({
+        color: color,
+        linewidth: 2,
+        transparent: true,
+        opacity: 1.0,
+        depthTest: true,
+        depthWrite: false
+    });
+    const wireframe = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+    wireframe.position.copy(boxMesh.position);
+    wireframe.rotation.copy(boxMesh.rotation);
+    wireframe.userData.isPendingBoxWireframe = true;
+    wireframe.renderOrder = 2;
+    state.annotationObjects.add(wireframe);
+
+    // Create corner handles
+    const corners = [
+        [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
+        [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
+        [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
+        [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+    ];
+
+    const handleGeometry = new THREE.SphereGeometry(0.02, 12, 12);
+
+    corners.forEach((corner, index) => {
+        const handleMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 1.0,
+            depthTest: true,
+            depthWrite: false
+        });
+        const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+
+        const localPos = new THREE.Vector3(
+            corner[0] * size.x,
+            corner[1] * size.y,
+            corner[2] * size.z
+        );
+
+        if (rotation) {
+            const euler = new THREE.Euler(rotation.x, rotation.y, rotation.z);
+            localPos.applyEuler(euler);
+        }
+        handle.position.set(
+            center.x + localPos.x,
+            center.y + localPos.y,
+            center.z + localPos.z
+        );
+
+        handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier);
+        handle.userData.isPendingBoxHandle = true;
+        handle.userData.handleIndex = index;
+        handle.renderOrder = 3;
+        state.annotationObjects.add(handle);
+    });
+}
+
+/**
+ * Clears the pending box and resets placement state.
+ */
+export function clearPendingBox() {
+    // Remove pending box objects from scene
+    const pendingObjects = state.annotationObjects.children.filter(obj =>
+        obj.userData.isPendingBoxBody || obj.userData.isPendingBoxHandle || obj.userData.isPendingBoxWireframe
+    );
+    pendingObjects.forEach(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach(m => m.dispose());
+        }
+        state.annotationObjects.remove(obj);
+    });
+
+    // Reset state
+    state.pendingBoxData = null;
+    state.isBoxPlacementMode = false;
+    state.pendingBoxClickPosition = null;
 }
 
 export function updateTempLine() {
@@ -667,6 +802,35 @@ export function onCanvasClick(event) {
     if (state.wasDragging) {
         state.wasDragging = false;
         return;
+    }
+
+    // If a box is unlocked for editing and user clicks elsewhere (not on that box),
+    // lock the box and clear the edit state
+    if (state.boxEditUnlocked !== null && !state.currentTool && state.currentModel) {
+        const rect = dom.canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, state.camera);
+
+        // Check if clicking on any box body or handle of the unlocked box
+        const boxObjects = state.annotationObjects.children.filter(obj =>
+            (obj.userData.isBoxBody || obj.userData.isBoxHandle) &&
+            obj.userData.annotationId === state.boxEditUnlocked
+        );
+        const intersects = raycaster.intersectObjects(boxObjects);
+
+        // If not clicking on the unlocked box, lock it
+        if (intersects.length === 0) {
+            state.boxEditUnlocked = null;
+            hideToolHelp();
+            renderAnnotations();
+            showStatus('Box locked');
+            return;
+        }
     }
 
     if (!state.currentTool || !state.currentModel) return;
@@ -731,13 +895,15 @@ export function onCanvasClick(event) {
         }
     } else if (state.currentTool === 'box') {
         const defaultSize = state.modelBoundingSize * 0.15;
-        const boxData = {
+        state.pendingBoxData = {
             center: { x: point.x, y: point.y, z: point.z },
             size: { x: defaultSize, y: defaultSize, z: defaultSize },
             rotation: { x: 0, y: 0, z: 0 }
         };
-        _openAnnotationPopup(event, 'box', [point], boxData);
-        _setTool(null);
+        state.isBoxPlacementMode = true;
+        state.pendingBoxClickPosition = { x: event.clientX, y: event.clientY };
+        renderPendingBox();
+        showStatus('Adjust box: drag to move, right-drag to rotate, drag corners to resize. Double-click to confirm.');
     }
 }
 
@@ -753,6 +919,59 @@ export function onCanvasDblClick(event) {
     } else if (state.currentTool === 'surface' && state.paintedFaces.size > 0) {
         finishSurfacePainting(event);
         _setTool(null);
+    } else if (state.isBoxPlacementMode && state.pendingBoxData) {
+        // Confirm box placement and open popup
+        const point = { 
+            x: state.pendingBoxData.center.x, 
+            y: state.pendingBoxData.center.y, 
+            z: state.pendingBoxData.center.z 
+        };
+        const boxData = { ...state.pendingBoxData };
+        
+        // Clear pending box visuals
+        clearPendingBox();
+        
+        // Open popup with the finalized box data
+        _openAnnotationPopup(event, 'box', [point], boxData);
+        _setTool(null);
+    } else if (!state.currentTool) {
+        // Check if double-clicking on an existing box to unlock it for editing
+        const rect = dom.canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, state.camera);
+
+        const boxObjects = state.annotationObjects.children.filter(obj =>
+            obj.userData.isBoxBody && obj.isMesh
+        );
+        const boxIntersects = raycaster.intersectObjects(boxObjects);
+
+        if (boxIntersects.length > 0) {
+            const boxMesh = boxIntersects[0].object;
+            const annId = boxMesh.userData.annotationId;
+            const ann = state.annotations.find(a => a.id === annId);
+
+            if (ann && ann.type === 'box') {
+                // Toggle unlock state
+                if (state.boxEditUnlocked === annId) {
+                    // Already unlocked, lock it again
+                    state.boxEditUnlocked = null;
+                    hideToolHelp();
+                    renderAnnotations(); // Update visual feedback (opacity/color change)
+                    showStatus('Box locked');
+                } else {
+                    // Unlock for editing
+                    state.boxEditUnlocked = annId;
+                    showBoxEditHelp();
+                    renderAnnotations(); // Update visual feedback (opacity/color change)
+                    showStatus('Box unlocked for editing. Drag to move, right-drag to rotate, drag corners to resize.');
+                }
+            }
+        }
     }
 }
 
@@ -775,6 +994,58 @@ export function onCanvasMouseDown(event) {
         _hasPendingPaint = true;
         _startPaintLoop();
         return;
+    }
+
+    // Handle pending box manipulation during placement mode
+    if (state.isBoxPlacementMode && state.pendingBoxData && state.currentModel) {
+        const rect = dom.canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, state.camera);
+
+        // Check for handle hit on pending box
+        const handleObjects = state.annotationObjects.children.filter(obj =>
+            obj.userData.isPendingBoxHandle && obj.isMesh
+        );
+        const handleIntersects = raycaster.intersectObjects(handleObjects);
+
+        if (handleIntersects.length > 0) {
+            const handle = handleIntersects[0].object;
+            state.isManipulatingBox = true;
+            state.boxManipulationMode = 'resize';
+            state.activeBoxHandle = handle.userData.handleIndex;
+            state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
+            state.boxDragStartData = JSON.parse(JSON.stringify(state.pendingBoxData));
+            state.controls.enabled = false;
+            dom.canvas.style.cursor = 'nwse-resize';
+            return;
+        }
+
+        // Check for body hit on pending box
+        const bodyObjects = state.annotationObjects.children.filter(obj =>
+            obj.userData.isPendingBoxBody && obj.isMesh
+        );
+        const bodyIntersects = raycaster.intersectObjects(bodyObjects);
+
+        if (bodyIntersects.length > 0) {
+            state.isManipulatingBox = true;
+            state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
+            state.boxDragStartData = JSON.parse(JSON.stringify(state.pendingBoxData));
+            state.controls.enabled = false;
+
+            if (event.button === 2) {
+                state.boxManipulationMode = 'rotate';
+                dom.canvas.style.cursor = 'ew-resize';
+            } else {
+                state.boxManipulationMode = 'move';
+                dom.canvas.style.cursor = 'move';
+            }
+            return;
+        }
     }
 
     if (!state.currentModel || state.currentTool) return;
@@ -802,6 +1073,12 @@ export function onCanvasMouseDown(event) {
         if (marker.userData.isBoxHandle) {
             const ann = state.annotations.find(a => a.id === annId);
             if (ann && ann.type === 'box') {
+                // Only allow manipulation if box is unlocked
+                if (state.boxEditUnlocked !== annId) {
+                    showStatus('Double-click box to unlock for editing');
+                    return;
+                }
+                
                 state.selectedBoxAnnotation = ann;
                 state.isManipulatingBox = true;
                 state.boxManipulationMode = 'resize';
@@ -836,6 +1113,13 @@ export function onCanvasMouseDown(event) {
             const ann = state.annotations.find(a => a.id === annId);
 
             if (ann && ann.type === 'box') {
+                // Only allow manipulation if box is unlocked
+                if (state.boxEditUnlocked !== annId) {
+                    // Box is locked, show hint
+                    showStatus('Double-click box to unlock for editing');
+                    return;
+                }
+                
                 state.selectedBoxAnnotation = ann;
                 state.isManipulatingBox = true;
                 state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
@@ -903,6 +1187,121 @@ export function onCanvasMouseMove(event) {
                     state.draggedMarker = markers[0];
                 }
             }
+        }
+        return;
+    }
+
+    // Handle pending box manipulation during placement
+    if (state.isManipulatingBox && state.isBoxPlacementMode && state.pendingBoxData && state.boxDragStartData) {
+        const deltaX = event.clientX - state.boxDragStartMouse.x;
+        const deltaY = event.clientY - state.boxDragStartMouse.y;
+
+        if (state.boxManipulationMode === 'move') {
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, state.camera);
+
+            const startCenter = new THREE.Vector3(
+                state.boxDragStartData.center.x,
+                state.boxDragStartData.center.y,
+                state.boxDragStartData.center.z
+            );
+            const cameraDir = new THREE.Vector3();
+            state.camera.getWorldDirection(cameraDir);
+            const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
+
+            const intersection = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(movePlane, intersection)) {
+                state.pendingBoxData.center = {
+                    x: intersection.x,
+                    y: intersection.y,
+                    z: intersection.z
+                };
+                renderPendingBox();
+            }
+        } else if (state.boxManipulationMode === 'resize') {
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, state.camera);
+
+            const corners = [
+                [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
+                [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
+                [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
+                [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+            ];
+
+            const draggedCornerFactors = corners[state.activeBoxHandle];
+            const oppositeIndex = 7 - state.activeBoxHandle;
+            const oppositeCornerFactors = corners[oppositeIndex];
+
+            const startCenter = new THREE.Vector3(
+                state.boxDragStartData.center.x,
+                state.boxDragStartData.center.y,
+                state.boxDragStartData.center.z
+            );
+            const startSize = state.boxDragStartData.size;
+            const startRotation = state.boxDragStartData.rotation || { x: 0, y: 0, z: 0 };
+            const euler = new THREE.Euler(startRotation.x, startRotation.y, startRotation.z);
+
+            const oppositeCornerLocal = new THREE.Vector3(
+                oppositeCornerFactors[0] * startSize.x,
+                oppositeCornerFactors[1] * startSize.y,
+                oppositeCornerFactors[2] * startSize.z
+            );
+            oppositeCornerLocal.applyEuler(euler);
+            const fixedCorner = oppositeCornerLocal.add(startCenter);
+
+            const draggedCornerLocal = new THREE.Vector3(
+                draggedCornerFactors[0] * startSize.x,
+                draggedCornerFactors[1] * startSize.y,
+                draggedCornerFactors[2] * startSize.z
+            );
+            draggedCornerLocal.applyEuler(euler);
+            const draggedCornerWorld = draggedCornerLocal.clone().add(startCenter);
+
+            const cameraDir = new THREE.Vector3();
+            state.camera.getWorldDirection(cameraDir);
+            const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, draggedCornerWorld);
+
+            const newCornerPos = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(dragPlane, newCornerPos)) {
+                const newCenter = new THREE.Vector3().addVectors(fixedCorner, newCornerPos).multiplyScalar(0.5);
+
+                const diagonal = new THREE.Vector3().subVectors(newCornerPos, fixedCorner);
+                const inverseEuler = new THREE.Euler(-startRotation.x, -startRotation.y, -startRotation.z, 'ZYX');
+                diagonal.applyEuler(inverseEuler);
+
+                const newSize = {
+                    x: Math.max(0.01, Math.abs(diagonal.x)),
+                    y: Math.max(0.01, Math.abs(diagonal.y)),
+                    z: Math.max(0.01, Math.abs(diagonal.z))
+                };
+
+                state.pendingBoxData.center = {
+                    x: newCenter.x,
+                    y: newCenter.y,
+                    z: newCenter.z
+                };
+                state.pendingBoxData.size = newSize;
+                renderPendingBox();
+            }
+        } else if (state.boxManipulationMode === 'rotate') {
+            const rotationSpeed = 0.01;
+            let rotX = (state.boxDragStartData.rotation?.x || 0) + deltaY * rotationSpeed;
+            let rotY = (state.boxDragStartData.rotation?.y || 0) + deltaX * rotationSpeed;
+            let rotZ = state.boxDragStartData.rotation?.z || 0;
+
+            if (event.shiftKey) {
+                const snapAngle = Math.PI / 12;
+                rotX = Math.round(rotX / snapAngle) * snapAngle;
+                rotY = Math.round(rotY / snapAngle) * snapAngle;
+            }
+
+            state.pendingBoxData.rotation = {
+                x: rotX,
+                y: rotY,
+                z: rotZ
+            };
+            renderPendingBox();
         }
         return;
     }
@@ -1061,6 +1460,20 @@ export function onCanvasMouseUp(event) {
         state.isPaintingSurface = false;
         state.controls.enabled = true;
         _stopPaintLoop();
+    }
+
+    // Handle pending box manipulation end
+    if (state.isManipulatingBox && state.isBoxPlacementMode && state.pendingBoxData) {
+        state.wasDragging = true;
+        state.isManipulatingBox = false;
+        state.boxManipulationMode = null;
+        state.boxDragStartMouse = null;
+        state.boxDragStartData = null;
+        state.activeBoxHandle = null;
+        state.controls.enabled = true;
+        dom.canvas.style.cursor = 'default';
+        // Don't call renderAnnotations - the pending box is rendered separately
+        return;
     }
 
     if (state.isDraggingPoint) {

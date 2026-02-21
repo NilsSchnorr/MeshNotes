@@ -240,13 +240,20 @@ export function renderBoxAnnotation(ann, color, maxDim) {
 
     const { center, size, rotation } = ann.boxData;
     const objects = [];
+    
+    // Check if this box is unlocked for editing
+    const isUnlocked = state.boxEditUnlocked === ann.id;
+    // Use white handles/edges when unlocked to indicate edit mode
+    const edgeColor = isUnlocked ? new THREE.Color(0xffffff) : color;
+    const handleColor = isUnlocked ? new THREE.Color(0xffffff) : color;
 
     const boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
 
+    // Fill uses group color regardless of unlock state
     const fillMaterial = new THREE.MeshBasicMaterial({
         color: color,
         transparent: true,
-        opacity: 0.25,
+        opacity: isUnlocked ? 0.35 : 0.25,
         side: THREE.DoubleSide,
         depthTest: true,
         depthWrite: false
@@ -263,7 +270,7 @@ export function renderBoxAnnotation(ann, color, maxDim) {
 
     const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
     const edgesMaterial = new THREE.LineBasicMaterial({
-        color: color,
+        color: edgeColor,
         linewidth: 2,
         transparent: true,
         opacity: 1.0,
@@ -287,7 +294,7 @@ export function renderBoxAnnotation(ann, color, maxDim) {
 
     corners.forEach((corner, index) => {
         const handleMaterial = new THREE.MeshBasicMaterial({
-            color: color,
+            color: handleColor,
             transparent: true,
             opacity: 1.0,
             depthTest: true,
@@ -311,7 +318,9 @@ export function renderBoxAnnotation(ann, color, maxDim) {
             center.z + localPos.z
         );
 
-        handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier);
+        // Slightly larger handles when unlocked for better visibility
+        const handleScale = isUnlocked ? 1.3 : 1.0;
+        handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier * handleScale);
         handle.userData.isBoxHandle = true;
         handle.userData.handleIndex = index;
         handle.userData.isAnnotationMarker = true;

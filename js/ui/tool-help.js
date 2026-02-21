@@ -5,6 +5,30 @@ import { state, dom } from '../state.js';
 // ============ Tool Help Content (compact format matching surface/measure style) ============
 
 const toolHelpContent = {
+    boxEdit: {
+        icon: '🔓',
+        name: 'Edit Box',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">Manipulation</div>
+                <div class="help-row"><span class="help-key">Drag box</span><span class="help-desc">Move</span></div>
+                <div class="help-row"><span class="help-key">Drag corner</span><span class="help-desc">Resize</span></div>
+                <div class="help-row"><span class="help-key">Right-drag</span><span class="help-desc">Rotate</span></div>
+                <div class="help-row"><span class="help-key">Shift</span><span class="help-key">Right-drag</span><span class="help-desc">Snap 15°</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title" style="color: #EDC040;">Finish Editing</div>
+                <div class="help-row"><span class="help-key" style="background: #EDC040; color: #1a1a2e;">Double-click</span><span class="help-desc">Lock box</span></div>
+                <div class="help-row"><span class="help-key">Esc</span><span class="help-desc">Lock &amp; exit</span></div>
+                <div class="help-row"><span class="help-key">Click elsewhere</span><span class="help-desc">Lock box</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation</div>
+                <div class="help-row"><span class="help-key">Left-drag</span><span class="help-desc">Rotate view</span></div>
+                <div class="help-row"><span class="help-key">Scroll</span><span class="help-desc">Zoom</span></div>
+            </div>
+        `
+    },
     point: {
         icon: '📍',
         name: 'Point Annotation',
@@ -65,12 +89,16 @@ const toolHelpContent = {
         name: 'Box Annotation',
         content: `
             <div class="help-section">
-                <div class="help-section-title">Controls</div>
-                <div class="help-row"><span class="help-key">Click</span><span class="help-desc">Place box</span></div>
+                <div class="help-section-title">1. Place &amp; Adjust</div>
+                <div class="help-row"><span class="help-key">Click</span><span class="help-desc">Place box on model</span></div>
                 <div class="help-row"><span class="help-key">Drag box</span><span class="help-desc">Move</span></div>
                 <div class="help-row"><span class="help-key">Drag corner</span><span class="help-desc">Resize</span></div>
                 <div class="help-row"><span class="help-key">Right-drag</span><span class="help-desc">Rotate</span></div>
                 <div class="help-row"><span class="help-key">Shift</span><span class="help-key">Right-drag</span><span class="help-desc">Snap 15°</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title" style="color: #EDC040;">2. Confirm</div>
+                <div class="help-row"><span class="help-key" style="background: #EDC040; color: #1a1a2e;">Double-click</span><span class="help-desc">Save box &amp; add details</span></div>
                 <div class="help-row"><span class="help-key">Esc</span><span class="help-desc">Cancel</span></div>
             </div>
             <div class="help-section">
@@ -141,5 +169,26 @@ export function hideToolHelp() {
 export function restoreToolHelp() {
     if (state.currentTool) {
         showToolHelp(state.currentTool);
+    }
+}
+
+/**
+ * Shows the box edit help panel when a box is unlocked for editing.
+ */
+export function showBoxEditHelp() {
+    showToolHelp('boxEdit');
+}
+
+/**
+ * Clears the box edit state (unlocks any locked box) and hides the edit help.
+ * Call this when ESC is pressed, a tool is selected, or clicking elsewhere.
+ * @param {boolean} [skipRender=false] - If true, skip calling renderAnnotations (for cases where it's called separately)
+ */
+export function clearBoxEditState(skipRender = false) {
+    if (state.boxEditUnlocked !== null) {
+        state.boxEditUnlocked = null;
+        hideToolHelp();
+        // Note: renderAnnotations is intentionally not called here to avoid circular dependencies.
+        // The caller should handle re-rendering if visual feedback update is needed.
     }
 }

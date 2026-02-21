@@ -13,13 +13,24 @@ import { exportPdfReport } from '../export/pdf-report.js';
 import { importAnnotations } from '../export/import-json.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
-import { showToolHelp, restoreToolHelp } from './tool-help.js';
+import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js';
 
 // Re-export for modules that import from here
-export { hideToolHelp, restoreToolHelp, hideAllToolPanels } from './tool-help.js';
+export { hideToolHelp, restoreToolHelp, hideAllToolPanels, showBoxEditHelp, clearBoxEditState } from './tool-help.js';
 
 export function setTool(tool) {
+    // If a box was unlocked, lock it and update visual feedback
+    const hadUnlockedBox = state.boxEditUnlocked !== null;
+    
     state.currentTool = tool;
+
+    // Clear box edit state when selecting any tool
+    clearBoxEditState();
+    
+    // Update visual feedback if we had an unlocked box
+    if (hadUnlockedBox) {
+        renderAnnotations();
+    }
 
     // Update button states
     const toolButtons = [dom.btnPoint, dom.btnLine, dom.btnPolygon, dom.btnSurface, dom.btnBox, dom.btnMeasure];
@@ -409,8 +420,60 @@ export function setupEventListeners() {
         }
     });
 
-    // Camera toggle
+    // Camera toggle (now in sliders panel header)
     dom.cameraToggle.addEventListener('click', toggleCamera);
+    
+    // Settings modal
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsHeader = document.getElementById('settings-modal-header');
+    let isDraggingSettings = false;
+    let settingsDragOffsetX = 0;
+    let settingsDragOffsetY = 0;
+    
+    dom.btnSettings.addEventListener('click', () => {
+        // Reset position to center when opening
+        settingsModal.style.left = '';
+        settingsModal.style.top = '';
+        settingsModal.style.transform = '';
+        dom.settingsOverlay.classList.add('visible');
+    });
+    dom.settingsModalClose.addEventListener('click', () => {
+        dom.settingsOverlay.classList.remove('visible');
+    });
+    dom.settingsOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.settingsOverlay) {
+            dom.settingsOverlay.classList.remove('visible');
+        }
+    });
+    
+    // Settings modal dragging
+    settingsHeader.addEventListener('mousedown', (e) => {
+        if (e.target === dom.settingsModalClose) return; // Don't drag when clicking close button
+        isDraggingSettings = true;
+        const rect = settingsModal.getBoundingClientRect();
+        settingsDragOffsetX = e.clientX - rect.left;
+        settingsDragOffsetY = e.clientY - rect.top;
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDraggingSettings) return;
+        
+        const newX = e.clientX - settingsDragOffsetX;
+        const newY = e.clientY - settingsDragOffsetY;
+        
+        // Constrain to viewport
+        const maxX = window.innerWidth - settingsModal.offsetWidth;
+        const maxY = window.innerHeight - settingsModal.offsetHeight;
+        
+        settingsModal.style.left = Math.max(0, Math.min(newX, maxX)) + 'px';
+        settingsModal.style.top = Math.max(0, Math.min(newY, maxY)) + 'px';
+        settingsModal.style.transform = 'none';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        isDraggingSettings = false;
+    });
 
     // Manual items - event delegation for dynamically generated content
     document.addEventListener('click', (e) => {
@@ -453,6 +516,11 @@ export function setupEventListeners() {
 
             if (dom.legalOverlay.classList.contains('visible')) {
                 dom.legalOverlay.classList.remove('visible');
+                return;
+            }
+
+            if (dom.settingsOverlay.classList.contains('visible')) {
+                dom.settingsOverlay.classList.remove('visible');
                 return;
             }
 

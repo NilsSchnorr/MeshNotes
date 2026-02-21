@@ -455,6 +455,49 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-overlay">
+        <div id="settings-modal">
+            <div id="settings-modal-header">
+                <h2>⚙️ Settings</h2>
+                <button id="settings-modal-close">✕</button>
+            </div>
+            <div id="settings-modal-content">
+                <section>
+                    <h3>Annotation Display</h3>
+                    <div class="settings-row">
+                        <label>
+                            <span>Point Size</span>
+                            <span id="point-size-value">×1.0</span>
+                        </label>
+                        <input type="range" id="point-size-slider" min="25" max="600" value="100">
+                    </div>
+                    <div class="settings-row">
+                        <label>
+                            <span>Text Size</span>
+                            <span id="text-size-value">×1.0</span>
+                        </label>
+                        <input type="range" id="text-size-slider" min="25" max="600" value="100">
+                    </div>
+                </section>
+                
+                <section>
+                    <h3>Background Color</h3>
+                    <div class="settings-row background-row">
+                        <div class="background-presets">
+                            <button class="bg-preset active" data-color="#041D31" title="Default (Dark Blue)">●</button>
+                            <button class="bg-preset" data-color="#000000" title="Black">●</button>
+                            <button class="bg-preset" data-color="#1a1a1a" title="Dark Gray">●</button>
+                            <button class="bg-preset" data-color="#808080" title="Gray">●</button>
+                            <button class="bg-preset" data-color="#ffffff" title="White">●</button>
+                        </div>
+                        <input type="color" id="background-color-picker" value="#041D31" title="Custom Color">
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
     <!-- Legal Modal -->
     <div id="legal-overlay">
         <div id="legal-modal">
@@ -608,7 +651,7 @@
         <button class="tool-btn" id="btn-export-pdf" disabled title="Export as PDF Report">📄 PDF</button>
         <button class="tool-btn" id="btn-import" title="Import Annotations">📥 Import</button>
         
-        <button id="camera-toggle" title="Toggle Orthographic/Perspective View">Perspective</button>
+        <button id="btn-settings" title="Settings">⚙️ Settings</button>
     </div>
 
     <div id="container">
@@ -681,72 +724,46 @@
             </div>
 
             <div id="sliders-panel">
+                <div id="sliders-panel-header">
+                    <button id="camera-toggle" title="Toggle Orthographic/Perspective View">Perspective</button>
+                </div>
                 <div id="sliders-panel-content">
                     <div class="light-mode-row">
-                    <label>Light Source</label>
-                    <button class="light-toggle-btn active" id="light-toggle" title="Toggle between camera-linked and fixed light">Follows Camera</button>
-                </div>
-                <div id="light-direction-row">
-                    <div class="light-sliders-group">
-                        <div class="slider-row">
-                            <label>
-                                <span>Horizontal</span>
-                                <span id="light-azimuth-value">0°</span>
-                            </label>
-                            <input type="range" id="light-azimuth-slider" min="0" max="360" value="0">
-                        </div>
-                        <div class="slider-row">
-                            <label>
-                                <span>Vertical</span>
-                                <span id="light-elevation-value">45°</span>
-                            </label>
-                            <input type="range" id="light-elevation-slider" min="-90" max="90" value="45">
+                        <label>Light Source</label>
+                        <button class="light-toggle-btn active" id="light-toggle" title="Toggle between camera-linked and fixed light">Follows Camera</button>
+                    </div>
+                    <div id="light-direction-row">
+                        <div class="light-sliders-group">
+                            <div class="slider-row">
+                                <label>
+                                    <span>Horizontal</span>
+                                    <span id="light-azimuth-value">0°</span>
+                                </label>
+                                <input type="range" id="light-azimuth-slider" min="0" max="360" value="0">
+                            </div>
+                            <div class="slider-row">
+                                <label>
+                                    <span>Vertical</span>
+                                    <span id="light-elevation-value">45°</span>
+                                </label>
+                                <input type="range" id="light-elevation-slider" min="-90" max="90" value="45">
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="slider-row">
-                    <label>
-                        <span>Brightness</span>
-                        <span id="brightness-value">100%</span>
-                    </label>
-                    <input type="range" id="brightness-slider" min="0" max="300" value="100">
-                </div>
-                <div class="slider-row slider-divider">
-                    <label>
-                        <span>Model Opacity</span>
-                        <span id="opacity-value">100%</span>
-                    </label>
-                    <input type="range" id="opacity-slider" min="10" max="100" value="100">
-                </div>
-                <div class="slider-row">
-                    <label>
-                        <span>Point Size</span>
-                        <span id="point-size-value">100%</span>
-                    </label>
-                    <input type="range" id="point-size-slider" min="25" max="600" value="100">
-                </div>
-                <div class="slider-row slider-divider">
-                    <label>
-                        <span>Text Size</span>
-                        <span id="text-size-value">100%</span>
-                    </label>
-                    <input type="range" id="text-size-slider" min="25" max="600" value="100">
-                </div>
-                <div class="slider-row">
-                    <label>
-                        <span>Background</span>
-                    </label>
-                    <div class="background-controls">
-                        <div class="background-presets">
-                            <button class="bg-preset active" data-color="#041D31" title="Default (Dark Blue)">●</button>
-                            <button class="bg-preset" data-color="#000000" title="Black">●</button>
-                            <button class="bg-preset" data-color="#1a1a1a" title="Dark Gray">●</button>
-                            <button class="bg-preset" data-color="#808080" title="Gray">●</button>
-                            <button class="bg-preset" data-color="#ffffff" title="White">●</button>
-                        </div>
-                        <input type="color" id="background-color-picker" value="#041D31" title="Custom Color">
+                    <div class="slider-row">
+                        <label>
+                            <span>Brightness</span>
+                            <span id="brightness-value">100%</span>
+                        </label>
+                        <input type="range" id="brightness-slider" min="0" max="300" value="100">
                     </div>
-                </div>
+                    <div class="slider-row">
+                        <label>
+                            <span>Model Opacity</span>
+                            <span id="opacity-value">100%</span>
+                        </label>
+                        <input type="range" id="opacity-slider" min="10" max="100" value="100">
+                    </div>
                 </div>
                 <div id="sliders-panel-footer">
                     <div id="sliders-panel-toggle" title="Minimize panel">▼</div>
