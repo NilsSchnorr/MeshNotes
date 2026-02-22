@@ -300,7 +300,7 @@ async function pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, v
  * @param {boolean} includeScalebar - Whether to include scalebar on screenshots
  */
 async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
-    const { margin } = layout;
+    const { margin, pageWidth, pageHeight } = layout;
     const accent = getAccentColor();
 
     pdf.addPage();
@@ -325,10 +325,29 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
     // Note: Internally Three.js uses Y-up, but MeshNotes displays Z-up.
     // Mapping: display Z = internal Y, display Y = internal -Z.
     // "Front" = camera at display +Y (internal -Z) looking toward model.
-    const cellSize = 42;
+    
+    // Calculate cell size dynamically based on available page space
+    // Layout: 4 columns × 3 rows
+    const gridStartY = 35;
     const cellGap = 3;
     const labelSpace = 8; // extra vertical space for labels between rows
-    const gridStartY = 35;
+    
+    const availableWidth = pageWidth - 2 * margin;  // Total width minus margins
+    const availableHeight = pageHeight - gridStartY - margin - 10;  // Height minus header and bottom margin
+    
+    // Calculate max cell size that fits both constraints
+    const maxCellWidth = (availableWidth - 3 * cellGap) / 4;  // 4 columns, 3 gaps
+    const maxCellHeight = (availableHeight - 2 * labelSpace) / 3;  // 3 rows, 2 label spaces
+    
+    // Use the smaller of the two to maintain square cells
+    const cellSize = Math.floor(Math.min(maxCellWidth, maxCellHeight));
+    
+    // Center the grid horizontally
+    const gridWidth = 4 * cellSize + 3 * cellGap;
+    const gridStartX = margin + (availableWidth - gridWidth) / 2;
+    
+    // Scale label font size based on cell size (base: 8pt at 42mm)
+    const labelFontSize = Math.max(8, Math.min(12, Math.floor(cellSize / 5)));
 
     const axisViews = [
         { name: 'Top',    col: 1, row: 0, dir: new THREE.Vector3(0, 1, 0),  up: new THREE.Vector3(0, 0, -1) },
@@ -381,7 +400,7 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
         }
 
         const axImg = cropCanvas.toDataURL('image/jpeg', 0.92);
-        const cellX = margin + axView.col * (cellSize + cellGap);
+        const cellX = gridStartX + axView.col * (cellSize + cellGap);
         const cellY = gridStartY + axView.row * (cellSize + cellGap + labelSpace);
 
         pdf.setDrawColor(180, 180, 180);
@@ -389,9 +408,9 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
         pdf.rect(cellX, cellY, cellSize, cellSize);
         pdf.addImage(axImg, 'JPEG', cellX, cellY, cellSize, cellSize);
 
-        pdf.setFontSize(8);
+        pdf.setFontSize(labelFontSize);
         pdf.setTextColor(120, 120, 120);
-        pdf.text(axView.name, cellX + cellSize / 2, cellY + cellSize + 6, { align: 'center' });
+        pdf.text(axView.name, cellX + cellSize / 2, cellY + cellSize + labelFontSize - 2, { align: 'center' });
     }
 }
 
