@@ -1,2 +1,8 @@
+# macOS system files
 .DS_Store
+
+# Claude Code working directory
+.claude/
+
+# Development notes (not for public repo)
 mn-jsonld-structure.md
