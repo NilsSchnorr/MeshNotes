@@ -2247,3 +2247,115 @@
             width: 28px;
             height: 28px;
         }
+
+        /* Settings text input */
+        .settings-row input[type="text"] {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--color-blue-darkest);
+            border: 1px solid var(--color-blue);
+            border-radius: 6px;
+            color: var(--color-text-light);
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .settings-row input[type="text"]:focus {
+            border-color: var(--color-gold);
+        }
+
+        .settings-row input[type="text"]::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        /* Settings select dropdown */
+        .settings-row select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--color-blue-darkest);
+            border: 1px solid var(--color-blue);
+            border-radius: 6px;
+            color: var(--color-text-light);
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .settings-row select:hover,
+        .settings-row select:focus {
+            border-color: var(--color-gold);
+        }
+
+        /* Measurement unit row */
+        .measurement-unit-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .measurement-unit-row input[type="text"] {
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Settings reset section */
+        .settings-reset-section {
+            padding-top: 8px;
+            border-top: 1px solid var(--color-blue);
+            margin-top: 8px;
+        }
+
+        .btn-reset {
+            width: 100%;
+            padding: 10px 16px;
+            background: transparent;
+            border: 1px solid var(--color-text-muted);
+            border-radius: 6px;
+            color: var(--color-text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-reset:hover {
+            background: rgba(220, 80, 80, 0.15);
+            border-color: #dc5050;
+            color: #dc5050;
+        }
+
+        /* Settings color picker row */
+        .settings-row.color-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .settings-row.color-row label {
+            margin-bottom: 0;
+        }
+
+        .settings-row.color-row input[type="color"] {
+            width: 40px;
+            height: 28px;
+            padding: 0;
+            border: 2px solid var(--color-blue);
+            border-radius: 4px;
+            cursor: pointer;
+            background: none;
+        }
+
+        .settings-row.color-row input[type="color"]:hover {
+            border-color: var(--color-gold);
+        }

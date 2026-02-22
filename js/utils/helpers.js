@@ -5,11 +5,16 @@ import { state, dom } from '../state.js';
 export const AUTHOR_STORAGE_KEY = 'meshnotes_author';
 
 export function getLastAuthor() {
-    return localStorage.getItem(AUTHOR_STORAGE_KEY) || '';
+    // Settings default author has highest priority, then fall back to session author
+    return state.defaultAuthor || localStorage.getItem(AUTHOR_STORAGE_KEY) || '';
 }
 
 export function saveLastAuthor(author) {
-    if (author) localStorage.setItem(AUTHOR_STORAGE_KEY, author);
+    // Only save session author if no default author is set in settings
+    // This ensures manual changes in annotations are one-time overrides
+    if (author && !state.defaultAuthor) {
+        localStorage.setItem(AUTHOR_STORAGE_KEY, author);
+    }
 }
 
 // ============ Utility Functions ============

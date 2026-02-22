@@ -764,5 +764,6 @@ export function drawScalebarOnCanvas(targetCanvas) {
     ctx.font = `${10 * dpr}px Arial`;
     ctx.fillStyle = '#aaaaaa';
     ctx.textAlign = 'left';
-    ctx.fillText('units (scale depends on model source)', x, y + barHeight + 30 * dpr);
+    const unitLabel = state.measurementUnit || 'units';
+    ctx.fillText(`${unitLabel} (scale depends on model source)`, x, y + barHeight + 30 * dpr);
 }

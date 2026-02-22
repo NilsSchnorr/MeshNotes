@@ -2,7 +2,7 @@
 import { state, dom, initDomReferences } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
-import { initLighting, updateLightFromCamera, setBackgroundColor } from './core/lighting.js';
+import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit } from './core/lighting.js';
 import { setUpdateModelInfoDisplay } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
@@ -107,8 +107,9 @@ function formatMultiplier(multiplier) {
     }
 }
 
-// Load saved slider settings
+// Load saved settings
 function loadSavedSettings() {
+    // Point size
     const savedPointSize = localStorage.getItem('meshnotes_pointSize');
     if (savedPointSize) {
         const sliderValue = parseInt(savedPointSize);
@@ -117,6 +118,7 @@ function loadSavedSettings() {
         dom.pointSizeValue.textContent = formatMultiplier(state.pointSizeMultiplier);
     }
 
+    // Text size
     const savedTextSize = localStorage.getItem('meshnotes_textSize');
     if (savedTextSize) {
         const sliderValue = parseInt(savedTextSize);
@@ -125,10 +127,38 @@ function loadSavedSettings() {
         dom.textSizeValue.textContent = formatMultiplier(state.textSizeMultiplier);
     }
     
-    // Restore background color
+    // Background color
     const savedBackgroundColor = localStorage.getItem('meshnotes_backgroundColor');
     if (savedBackgroundColor) {
         setBackgroundColor(savedBackgroundColor);
+    }
+    
+    // Default author
+    const savedDefaultAuthor = localStorage.getItem('meshnotes_defaultAuthor');
+    if (savedDefaultAuthor) {
+        state.defaultAuthor = savedDefaultAuthor;
+        dom.settingsDefaultAuthor.value = savedDefaultAuthor;
+    }
+    
+    // Measurement unit
+    const savedMeasurementUnit = localStorage.getItem('meshnotes_measurementUnit');
+    if (savedMeasurementUnit) {
+        state.measurementUnit = savedMeasurementUnit;
+        // Use setMeasurementUnit to properly update the UI (handles custom values)
+        setMeasurementUnit(savedMeasurementUnit);
+    }
+    
+    // Measurement colors
+    const savedMeasurementLineColor = localStorage.getItem('meshnotes_measurementLineColor');
+    if (savedMeasurementLineColor) {
+        state.measurementLineColor = savedMeasurementLineColor;
+        dom.settingsMeasurementLineColor.value = savedMeasurementLineColor;
+    }
+    
+    const savedMeasurementPointColor = localStorage.getItem('meshnotes_measurementPointColor');
+    if (savedMeasurementPointColor) {
+        state.measurementPointColor = savedMeasurementPointColor;
+        dom.settingsMeasurementPointColor.value = savedMeasurementPointColor;
     }
 }
 

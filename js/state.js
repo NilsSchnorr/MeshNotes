@@ -40,6 +40,12 @@ export const state = {
     // UI Multipliers
     pointSizeMultiplier: 1.0,
     textSizeMultiplier: 1.0,
+    
+    // User preferences
+    defaultAuthor: '',
+    measurementUnit: 'units',
+    measurementLineColor: '#AA8101',
+    measurementPointColor: '#FFFFFF',
 
     // Tools
     currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure'
@@ -278,6 +284,12 @@ export function initDomReferences() {
     dom.btnSettings = document.getElementById('btn-settings');
     dom.settingsOverlay = document.getElementById('settings-overlay');
     dom.settingsModalClose = document.getElementById('settings-modal-close');
+    dom.settingsDefaultAuthor = document.getElementById('settings-default-author');
+    dom.settingsMeasurementUnit = document.getElementById('settings-measurement-unit');
+    dom.settingsMeasurementUnitCustom = document.getElementById('settings-measurement-unit-custom');
+    dom.settingsMeasurementLineColor = document.getElementById('settings-measurement-line-color');
+    dom.settingsMeasurementPointColor = document.getElementById('settings-measurement-point-color');
+    dom.settingsResetAll = document.getElementById('settings-reset-all');
     
     // Camera toggle (now in sliders panel)
     dom.cameraToggle = document.getElementById('camera-toggle');

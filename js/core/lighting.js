@@ -198,3 +198,84 @@ export function setBackgroundColor(color) {
     // Save to localStorage
     localStorage.setItem('meshnotes_backgroundColor', color);
 }
+
+// ============ User Preferences ============
+
+export function setDefaultAuthor(name) {
+    state.defaultAuthor = name;
+    localStorage.setItem('meshnotes_defaultAuthor', name);
+}
+
+export function setMeasurementUnit(unit, isCustom = false) {
+    state.measurementUnit = unit;
+    localStorage.setItem('meshnotes_measurementUnit', unit);
+    
+    // Update the UI
+    if (dom.settingsMeasurementUnit && dom.settingsMeasurementUnitCustom) {
+        if (isCustom || !['units', 'mm', 'cm', 'm'].includes(unit)) {
+            // It's a custom unit
+            dom.settingsMeasurementUnit.value = 'custom';
+            dom.settingsMeasurementUnitCustom.value = unit;
+            dom.settingsMeasurementUnitCustom.style.display = 'block';
+        } else {
+            dom.settingsMeasurementUnit.value = unit;
+            dom.settingsMeasurementUnitCustom.style.display = 'none';
+        }
+    }
+}
+
+// ============ Reset All Settings ============
+
+export function resetAllSettings() {
+    // Clear all MeshNotes localStorage items
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('meshnotes_')) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // Reset state to defaults
+    state.pointSizeMultiplier = 1.0;
+    state.textSizeMultiplier = 1.0;
+    state.defaultAuthor = '';
+    state.measurementUnit = 'units';
+    state.measurementLineColor = '#AA8101';
+    state.measurementPointColor = '#FFFFFF';
+    state.backgroundColor = '#041D31';
+    
+    // Reset UI elements
+    dom.pointSizeSlider.value = 100;
+    dom.pointSizeValue.textContent = '×1.0';
+    dom.textSizeSlider.value = 100;
+    dom.textSizeValue.textContent = '×1.0';
+    dom.settingsDefaultAuthor.value = '';
+    dom.settingsMeasurementUnit.value = 'units';
+    dom.settingsMeasurementUnitCustom.value = '';
+    dom.settingsMeasurementUnitCustom.style.display = 'none';
+    dom.settingsMeasurementLineColor.value = '#AA8101';
+    dom.settingsMeasurementPointColor.value = '#FFFFFF';
+    
+    // Reset background color
+    setBackgroundColor('#041D31');
+}
+
+// ============ Measurement Settings ============
+
+export function getMeasurementUnit() {
+    return state.measurementUnit || 'units';
+}
+
+export function setMeasurementLineColor(color) {
+    state.measurementLineColor = color;
+    localStorage.setItem('meshnotes_measurementLineColor', color);
+    dom.settingsMeasurementLineColor.value = color;
+}
+
+export function setMeasurementPointColor(color) {
+    state.measurementPointColor = color;
+    localStorage.setItem('meshnotes_measurementPointColor', color);
+    dom.settingsMeasurementPointColor.value = color;
+}

@@ -1524,7 +1524,7 @@ export function onCanvasMouseUp(event) {
 function addMeasureMarker(point) {
     const geometry = new THREE.SphereGeometry(0.01, 16, 16);
     const material = new THREE.MeshBasicMaterial({
-        color: 0xFFFFFF,
+        color: state.measurementPointColor,
         depthTest: true,
         polygonOffset: true,
         polygonOffsetFactor: -5,
@@ -1595,7 +1595,7 @@ function updateMeasureLine() {
     geometry.setPositions(positions);
 
     const material = new LineMaterial({
-        color: 0xAA8101,
+        color: state.measurementLineColor,
         linewidth: 3,
         resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
         polygonOffset: true,
@@ -1631,14 +1631,15 @@ function updateLiveMeasurementLabel() {
     const lastPoint = state.measurePoints[state.measurePoints.length - 1];
     
     // Create label text showing total and segment count for multi-point
+    const unit = state.measurementUnit || 'units';
     let labelText;
     if (numSegments > 1) {
-        labelText = `${totalDist.toFixed(3)} (${numSegments} seg)`;
+        labelText = `${totalDist.toFixed(3)} ${unit} (${numSegments} seg)`;
     } else {
-        labelText = `${totalDist.toFixed(3)} units`;
+        labelText = `${totalDist.toFixed(3)} ${unit}`;
     }
     
-    state.measureLabel = createScaledTextSprite(labelText, '#AA8101', lastPoint, 0.5);
+    state.measureLabel = createScaledTextSprite(labelText, state.measurementLineColor, lastPoint, 0.5);
     state.annotationObjects.add(state.measureLabel);
 }
 
@@ -1681,14 +1682,15 @@ function finalizeMeasurement() {
     }
 
     // Create label text
+    const unit = state.measurementUnit || 'units';
     let labelText;
     if (numSegments > 1) {
-        labelText = `${totalDist.toFixed(3)} (${numSegments} seg)`;
+        labelText = `${totalDist.toFixed(3)} ${unit} (${numSegments} seg)`;
     } else {
-        labelText = `${totalDist.toFixed(3)} units`;
+        labelText = `${totalDist.toFixed(3)} ${unit}`;
     }
 
-    const label = createScaledTextSprite(labelText, '#AA8101', labelPosition, 0.5);
+    const label = createScaledTextSprite(labelText, state.measurementLineColor, labelPosition, 0.5);
     state.annotationObjects.add(label);
 
     // Store measurement with all points
@@ -1714,6 +1716,7 @@ function finalizeMeasurement() {
 }
 
 export function updateMeasurementsDisplay() {
+    const unit = state.measurementUnit || 'units';
     if (state.measurements.length === 0) {
         dom.measurementsList.innerHTML = '<div style="color: #888;">No measurements yet</div>';
     } else {
@@ -1723,7 +1726,7 @@ export function updateMeasurementsDisplay() {
             <div class="measurement-item" data-measurement-id="${m.id}">
                 <div class="measurement-main">
                     <span class="label">Distance ${m.id}:</span>
-                    <span class="value" data-copy-value="${m.distance.toFixed(3)}">${m.distance.toFixed(3)} units</span>
+                    <span class="value" data-copy-value="${m.distance.toFixed(3)}">${m.distance.toFixed(3)} ${unit}</span>
                     <button class="measurement-delete" data-delete-id="${m.id}" title="Delete this measurement">×</button>
                 </div>
                 ${segmentBreakdown}
@@ -1744,7 +1747,7 @@ export function updateMeasurementsDisplay() {
         dom.measurementsList.querySelectorAll('.value').forEach(valueEl => {
             valueEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                const copyValue = valueEl.dataset.copyValue + ' units';
+                const copyValue = valueEl.dataset.copyValue + ' ' + unit;
                 copyToClipboard(copyValue, valueEl);
             });
         });
@@ -1900,7 +1903,7 @@ export function renderMeasurements() {
         m.points.forEach(point => {
             const geometry = new THREE.SphereGeometry(0.01, 16, 16);
             const material = new THREE.MeshBasicMaterial({
-                color: 0xFFFFFF,
+                color: state.measurementPointColor,
                 depthTest: true,
                 polygonOffset: true,
                 polygonOffsetFactor: -5,
@@ -1925,7 +1928,7 @@ export function renderMeasurements() {
         lineGeometry.setPositions(positions);
         
         const lineMaterial = new LineMaterial({
-            color: 0xAA8101,
+            color: state.measurementLineColor,
             linewidth: 3,
             resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
             polygonOffset: true,
@@ -1966,14 +1969,15 @@ export function renderMeasurements() {
         }
         
         // Create label text
+        const unit = state.measurementUnit || 'units';
         let labelText;
         if (numSegments > 1) {
-            labelText = `${m.distance.toFixed(3)} (${numSegments} seg)`;
+            labelText = `${m.distance.toFixed(3)} ${unit} (${numSegments} seg)`;
         } else {
-            labelText = `${m.distance.toFixed(3)} units`;
+            labelText = `${m.distance.toFixed(3)} ${unit}`;
         }
         
-        const label = createScaledTextSprite(labelText, '#AA8101', labelPosition, 0.5);
+        const label = createScaledTextSprite(labelText, state.measurementLineColor, labelPosition, 0.5);
         state.annotationObjects.add(label);
         m.label = label;
     });

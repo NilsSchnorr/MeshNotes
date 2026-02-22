@@ -3,7 +3,7 @@ import { state, dom } from '../state.js';
 import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
 import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, resetAllSettings } from '../core/lighting.js';
 import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
@@ -473,6 +473,50 @@ export function setupEventListeners() {
     
     document.addEventListener('mouseup', () => {
         isDraggingSettings = false;
+    });
+    
+    // Settings: Default Author
+    dom.settingsDefaultAuthor.addEventListener('input', (e) => {
+        setDefaultAuthor(e.target.value);
+    });
+    
+    // Settings: Measurement Unit
+    dom.settingsMeasurementUnit.addEventListener('change', (e) => {
+        if (e.target.value === 'custom') {
+            dom.settingsMeasurementUnitCustom.style.display = 'block';
+            dom.settingsMeasurementUnitCustom.focus();
+            // If there's already a custom value, use it; otherwise wait for input
+            if (dom.settingsMeasurementUnitCustom.value) {
+                setMeasurementUnit(dom.settingsMeasurementUnitCustom.value, true);
+            }
+        } else {
+            dom.settingsMeasurementUnitCustom.style.display = 'none';
+            setMeasurementUnit(e.target.value);
+        }
+    });
+    
+    dom.settingsMeasurementUnitCustom.addEventListener('input', (e) => {
+        const value = e.target.value.trim();
+        if (value) {
+            setMeasurementUnit(value, true);
+        }
+    });
+    
+    // Settings: Measurement Colors
+    dom.settingsMeasurementLineColor.addEventListener('input', (e) => {
+        setMeasurementLineColor(e.target.value);
+    });
+    
+    dom.settingsMeasurementPointColor.addEventListener('input', (e) => {
+        setMeasurementPointColor(e.target.value);
+    });
+    
+    // Settings: Reset All
+    dom.settingsResetAll.addEventListener('click', () => {
+        if (confirm('Reset all settings to their default values?\n\nThis will clear your saved preferences for point size, text size, background color, default author, and measurement unit.')) {
+            resetAllSettings();
+            showStatus('Settings reset to defaults');
+        }
     });
 
     // Manual items - event delegation for dynamically generated content

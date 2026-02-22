@@ -464,6 +464,39 @@
             </div>
             <div id="settings-modal-content">
                 <section>
+                    <h3>User</h3>
+                    <div class="settings-row">
+                        <label for="settings-default-author">Default Author Name</label>
+                        <input type="text" id="settings-default-author" placeholder="Your name (used for new annotations)">
+                    </div>
+                </section>
+                
+                <section>
+                    <h3>Measurements</h3>
+                    <div class="settings-row">
+                        <label for="settings-measurement-unit">Display unit</label>
+                        <div class="measurement-unit-row">
+                            <select id="settings-measurement-unit">
+                                <option value="units">units (no specific unit)</option>
+                                <option value="mm">mm (millimeters)</option>
+                                <option value="cm">cm (centimeters)</option>
+                                <option value="m">m (meters)</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                            <input type="text" id="settings-measurement-unit-custom" placeholder="e.g., ft, in" style="display: none;">
+                        </div>
+                    </div>
+                    <div class="settings-row color-row">
+                        <label>Line & Label Color</label>
+                        <input type="color" id="settings-measurement-line-color" value="#AA8101" title="Measurement line color">
+                    </div>
+                    <div class="settings-row color-row">
+                        <label>Point Color</label>
+                        <input type="color" id="settings-measurement-point-color" value="#FFFFFF" title="Measurement point color">
+                    </div>
+                </section>
+                
+                <section>
                     <h3>Annotation Display</h3>
                     <div class="settings-row">
                         <label>
@@ -493,6 +526,10 @@
                         </div>
                         <input type="color" id="background-color-picker" value="#041D31" title="Custom Color">
                     </div>
+                </section>
+                
+                <section class="settings-reset-section">
+                    <button id="settings-reset-all" class="btn-reset">Reset All Settings to Default</button>
                 </section>
             </div>
         </div>
