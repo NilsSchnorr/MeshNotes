@@ -3,9 +3,53 @@ import * as THREE from 'three';
 import { state, dom } from '../state.js';
 import { showStatus, hexToRgb, delay } from '../utils/helpers.js';
 import { toggleCamera } from '../core/camera.js';
-import { updateFixedLightDirection } from '../core/lighting.js';
+import { updateFixedLightDirection, getDpiMultiplier } from '../core/lighting.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showScalebarConfirm, drawScalebarOnCanvas } from '../annotation-tools/data.js';
+
+// ============ PDF Settings Helpers ============
+
+/**
+ * Returns page dimensions based on settings.
+ * @returns {Object} {format, orientation, pageWidth, pageHeight}
+ */
+function getPdfPageConfig() {
+    const orientation = state.pdfOrientation || 'portrait';
+    const pageSize = state.pdfPageSize || 'a4';
+    
+    // Page dimensions in mm (portrait)
+    const sizes = {
+        'a4': { width: 210, height: 297 },
+        'letter': { width: 215.9, height: 279.4 },
+        'a3': { width: 297, height: 420 }
+    };
+    
+    const base = sizes[pageSize] || sizes['a4'];
+    
+    if (orientation === 'landscape') {
+        return {
+            format: pageSize,
+            orientation: 'l',
+            pageWidth: base.height,
+            pageHeight: base.width
+        };
+    }
+    
+    return {
+        format: pageSize,
+        orientation: 'p',
+        pageWidth: base.width,
+        pageHeight: base.height
+    };
+}
+
+/**
+ * Returns accent color as RGB object.
+ * @returns {Object} {r, g, b}
+ */
+function getAccentColor() {
+    return hexToRgb(state.pdfAccentColor || '#AA8101');
+}
 
 // ============ PDF Export Entry Point ============
 
@@ -39,22 +83,33 @@ export async function exportPdfReport() {
 
 /**
  * Captures a screenshot from the renderer, optionally with a scalebar overlay.
+ * Uses canvas upscaling for higher quality output based on DPI setting.
  * @param {boolean} includeScalebar - Whether to draw scalebar on screenshot
- * @param {HTMLCanvasElement} [sourceCanvas] - Source canvas to capture from
  * @returns {string} Data URL of the captured image (JPEG)
  */
-function pdfCaptureScreenshot(includeScalebar, sourceCanvas) {
-    const src = sourceCanvas || dom.canvas;
+function pdfCaptureScreenshot(includeScalebar) {
+    const src = dom.canvas;
+    const multiplier = getDpiMultiplier();
+    
+    // Create output canvas at scaled resolution
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = Math.floor(src.width * multiplier);
+    outputCanvas.height = Math.floor(src.height * multiplier);
+    const ctx = outputCanvas.getContext('2d');
+    
+    // Enable image smoothing for better upscaling
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    // Draw the source canvas scaled up
+    ctx.drawImage(src, 0, 0, outputCanvas.width, outputCanvas.height);
+    
+    // Add scalebar if requested
     if (includeScalebar && state.isOrthographic) {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = src.width;
-        tempCanvas.height = src.height;
-        const ctx = tempCanvas.getContext('2d');
-        ctx.drawImage(src, 0, 0);
-        drawScalebarOnCanvas(tempCanvas);
-        return tempCanvas.toDataURL('image/jpeg', 0.9);
+        drawScalebarOnCanvas(outputCanvas);
     }
-    return src.toDataURL('image/jpeg', 0.9);
+    
+    return outputCanvas.toDataURL('image/jpeg', 0.92);
 }
 
 /**
@@ -112,8 +167,9 @@ function pdfRenderEntries(pdf, entries, yPos, layout) {
         }
 
         // Author and date
+        const accent = getAccentColor();
         pdf.setFontSize(9);
-        pdf.setTextColor(170, 129, 1);
+        pdf.setTextColor(accent.r, accent.g, accent.b);
         const entryDate = new Date(entry.timestamp);
         const entryDateStr = entryDate.toLocaleDateString() + ' ' + entryDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         pdf.text(`${entry.author || 'Unknown'} \u2022 ${entryDateStr}`, margin, yPos);
@@ -160,35 +216,61 @@ function pdfRenderEntries(pdf, entries, yPos, layout) {
  */
 async function pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, visibleAnnotations) {
     const { margin, contentWidth, pageWidth, pageHeight } = layout;
+    const accent = getAccentColor();
 
-    // Title
+    // Title (use custom title from settings, or default)
+    const reportTitle = state.pdfTitle || 'MeshNotes Report';
     pdf.setFontSize(24);
-    pdf.setTextColor(170, 129, 1);
-    pdf.text('MeshNotes Report', pageWidth / 2, 25, { align: 'center' });
+    pdf.setTextColor(accent.r, accent.g, accent.b);
+    pdf.text(reportTitle, pageWidth / 2, 25, { align: 'center' });
 
     // Model filename
     pdf.setFontSize(14);
     pdf.setTextColor(60, 60, 60);
     pdf.text(state.modelFileName || 'Untitled Model', pageWidth / 2, 35, { align: 'center' });
 
+    // Institution and Project (if set)
+    let metaY = 42;
+    if (state.pdfInstitution) {
+        pdf.setFontSize(11);
+        pdf.setTextColor(80, 80, 80);
+        pdf.text(state.pdfInstitution, pageWidth / 2, metaY, { align: 'center' });
+        metaY += 6;
+    }
+    if (state.pdfProject) {
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Project: ${state.pdfProject}`, pageWidth / 2, metaY, { align: 'center' });
+        metaY += 6;
+    }
+
+    // Author (use default author from settings)
+    if (state.defaultAuthor) {
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        pdf.text(`Prepared by: ${state.defaultAuthor}`, pageWidth / 2, metaY, { align: 'center' });
+        metaY += 6;
+    }
+
     // Date
     pdf.setFontSize(10);
     pdf.setTextColor(120, 120, 120);
     const dateStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
-    pdf.text(`Generated: ${dateStr}`, pageWidth / 2, 42, { align: 'center' });
+    pdf.text(`Generated: ${dateStr}`, pageWidth / 2, metaY, { align: 'center' });
 
-    // Overview screenshot
+    // Overview screenshot (position after metadata)
+    const screenshotY = metaY + 8;
     await delay(100);
     state.renderer.render(state.scene, state.camera);
     const overviewImg = pdfCaptureScreenshot(includeScalebar);
     const canvasAspect = dom.canvas.width / dom.canvas.height;
     const imgHeight = contentWidth / canvasAspect;
-    pdf.addImage(overviewImg, 'JPEG', margin, 50, contentWidth, imgHeight);
+    pdf.addImage(overviewImg, 'JPEG', margin, screenshotY, contentWidth, imgHeight);
 
     // Model Information
-    let yPos = 50 + imgHeight + 10;
+    let yPos = screenshotY + imgHeight + 10;
     pdf.setFontSize(14);
-    pdf.setTextColor(170, 129, 1);
+    pdf.setTextColor(accent.r, accent.g, accent.b);
     pdf.text('Model Information', margin, yPos);
     yPos += 8;
 
@@ -219,10 +301,11 @@ async function pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, v
  */
 async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
     const { margin } = layout;
+    const accent = getAccentColor();
 
     pdf.addPage();
     pdf.setFontSize(18);
-    pdf.setTextColor(170, 129, 1);
+    pdf.setTextColor(accent.r, accent.g, accent.b);
     pdf.text('Axis Views', margin, 20);
     pdf.setFontSize(10);
     pdf.setTextColor(120, 120, 120);
@@ -277,20 +360,27 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
         state.renderer.render(state.scene, state.camera);
 
         // Crop center square from canvas for cube face
-        const cropCanvas = document.createElement('canvas');
         const cropSize = Math.min(dom.canvas.width, dom.canvas.height);
-        cropCanvas.width = cropSize;
-        cropCanvas.height = cropSize;
-        const cropCtx = cropCanvas.getContext('2d');
         const offsetX = (dom.canvas.width - cropSize) / 2;
         const offsetY = (dom.canvas.height - cropSize) / 2;
-        cropCtx.drawImage(dom.canvas, offsetX, offsetY, cropSize, cropSize, 0, 0, cropSize, cropSize);
+        
+        // Scale up based on DPI setting
+        const multiplier = getDpiMultiplier();
+        const outputSize = Math.floor(cropSize * multiplier);
+        
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = outputSize;
+        cropCanvas.height = outputSize;
+        const cropCtx = cropCanvas.getContext('2d');
+        cropCtx.imageSmoothingEnabled = true;
+        cropCtx.imageSmoothingQuality = 'high';
+        cropCtx.drawImage(dom.canvas, offsetX, offsetY, cropSize, cropSize, 0, 0, outputSize, outputSize);
 
         if (includeScalebar && state.isOrthographic) {
             drawScalebarOnCanvas(cropCanvas);
         }
 
-        const axImg = cropCanvas.toDataURL('image/jpeg', 0.9);
+        const axImg = cropCanvas.toDataURL('image/jpeg', 0.92);
         const cellX = margin + axView.col * (cellSize + cellGap);
         const cellY = gridStartY + axView.row * (cellSize + cellGap + labelSpace);
 
@@ -313,10 +403,11 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
  */
 function pdfRenderTOC(pdf, tocData, layout) {
     const { margin, pageWidth, pageHeight } = layout;
+    const accent = getAccentColor();
 
     pdf.addPage();
     pdf.setFontSize(18);
-    pdf.setTextColor(170, 129, 1);
+    pdf.setTextColor(accent.r, accent.g, accent.b);
     pdf.text('Table of Contents', margin, 20);
 
     let yPos = 35;
@@ -329,7 +420,7 @@ function pdfRenderTOC(pdf, tocData, layout) {
         }
 
         if (item.type === 'group') {
-            pdf.setTextColor(170, 129, 1);
+            pdf.setTextColor(accent.r, accent.g, accent.b);
             pdf.setFont(undefined, 'bold');
             pdf.text(item.name, margin, yPos);
             pdf.setTextColor(100, 100, 100);
@@ -529,13 +620,16 @@ async function doExportPdfReport(includeScalebar) {
     const originalLightMode = state.lightFollowsCamera;
     state.lightFollowsCamera = true;
 
+    // Get page configuration from settings
+    const pageConfig = getPdfPageConfig();
+    
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdf = new jsPDF(pageConfig.orientation, 'mm', pageConfig.format);
     const layout = {
-        pageWidth: 210,
-        pageHeight: 297,
+        pageWidth: pageConfig.pageWidth,
+        pageHeight: pageConfig.pageHeight,
         margin: 15,
-        contentWidth: 210 - 30  // pageWidth - 2*margin
+        contentWidth: pageConfig.pageWidth - 30  // pageWidth - 2*margin
     };
 
     // Save camera state

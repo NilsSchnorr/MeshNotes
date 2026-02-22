@@ -245,6 +245,13 @@ export function resetAllSettings() {
     state.measurementLineColor = '#AA8101';
     state.measurementPointColor = '#FFFFFF';
     state.backgroundColor = '#041D31';
+    state.pdfTitle = '';
+    state.pdfInstitution = '';
+    state.pdfProject = '';
+    state.pdfAccentColor = '#AA8101';
+    state.pdfPageSize = 'a4';
+    state.pdfOrientation = 'portrait';
+    state.pdfDpi = 150;
     
     // Reset UI elements
     dom.pointSizeSlider.value = 100;
@@ -257,6 +264,13 @@ export function resetAllSettings() {
     dom.settingsMeasurementUnitCustom.style.display = 'none';
     dom.settingsMeasurementLineColor.value = '#AA8101';
     dom.settingsMeasurementPointColor.value = '#FFFFFF';
+    dom.settingsPdfTitle.value = '';
+    dom.settingsPdfInstitution.value = '';
+    dom.settingsPdfProject.value = '';
+    dom.settingsPdfAccentColor.value = '#AA8101';
+    dom.settingsPdfPageSize.value = 'a4';
+    dom.settingsPdfOrientation.value = 'portrait';
+    dom.settingsPdfDpi.value = '150';
     
     // Reset background color
     setBackgroundColor('#041D31');
@@ -278,4 +292,57 @@ export function setMeasurementPointColor(color) {
     state.measurementPointColor = color;
     localStorage.setItem('meshnotes_measurementPointColor', color);
     dom.settingsMeasurementPointColor.value = color;
+}
+
+// ============ PDF Export Settings ============
+
+export function setPdfTitle(title) {
+    state.pdfTitle = title;
+    localStorage.setItem('meshnotes_pdfTitle', title);
+}
+
+export function setPdfInstitution(institution) {
+    state.pdfInstitution = institution;
+    localStorage.setItem('meshnotes_pdfInstitution', institution);
+}
+
+export function setPdfProject(project) {
+    state.pdfProject = project;
+    localStorage.setItem('meshnotes_pdfProject', project);
+}
+
+export function setPdfAccentColor(color) {
+    state.pdfAccentColor = color;
+    localStorage.setItem('meshnotes_pdfAccentColor', color);
+    dom.settingsPdfAccentColor.value = color;
+}
+
+export function setPdfPageSize(size) {
+    state.pdfPageSize = size;
+    localStorage.setItem('meshnotes_pdfPageSize', size);
+    dom.settingsPdfPageSize.value = size;
+}
+
+export function setPdfOrientation(orientation) {
+    state.pdfOrientation = orientation;
+    localStorage.setItem('meshnotes_pdfOrientation', orientation);
+    dom.settingsPdfOrientation.value = orientation;
+}
+
+export function setPdfDpi(dpi) {
+    state.pdfDpi = parseInt(dpi);
+    localStorage.setItem('meshnotes_pdfDpi', dpi);
+    dom.settingsPdfDpi.value = dpi;
+}
+
+/**
+ * Converts DPI setting to a render multiplier.
+ * Based on assumed ~150mm image width on A4:
+ * - 72 DPI = ~425px = 1× (screen quality)
+ * - 150 DPI = ~886px = 2× (standard print)
+ * - 300 DPI = ~1772px = 4× (high quality print)
+ */
+export function getDpiMultiplier() {
+    const dpi = state.pdfDpi || 150;
+    return dpi / 72; // 72 DPI is baseline (1×)
 }

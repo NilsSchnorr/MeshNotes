@@ -160,6 +160,49 @@ function loadSavedSettings() {
         state.measurementPointColor = savedMeasurementPointColor;
         dom.settingsMeasurementPointColor.value = savedMeasurementPointColor;
     }
+    
+    // PDF export settings
+    const savedPdfTitle = localStorage.getItem('meshnotes_pdfTitle');
+    if (savedPdfTitle) {
+        state.pdfTitle = savedPdfTitle;
+        dom.settingsPdfTitle.value = savedPdfTitle;
+    }
+    
+    const savedPdfInstitution = localStorage.getItem('meshnotes_pdfInstitution');
+    if (savedPdfInstitution) {
+        state.pdfInstitution = savedPdfInstitution;
+        dom.settingsPdfInstitution.value = savedPdfInstitution;
+    }
+    
+    const savedPdfProject = localStorage.getItem('meshnotes_pdfProject');
+    if (savedPdfProject) {
+        state.pdfProject = savedPdfProject;
+        dom.settingsPdfProject.value = savedPdfProject;
+    }
+    
+    const savedPdfAccentColor = localStorage.getItem('meshnotes_pdfAccentColor');
+    if (savedPdfAccentColor) {
+        state.pdfAccentColor = savedPdfAccentColor;
+        dom.settingsPdfAccentColor.value = savedPdfAccentColor;
+    }
+    
+    const savedPdfPageSize = localStorage.getItem('meshnotes_pdfPageSize');
+    if (savedPdfPageSize) {
+        state.pdfPageSize = savedPdfPageSize;
+        dom.settingsPdfPageSize.value = savedPdfPageSize;
+    }
+    
+    const savedPdfOrientation = localStorage.getItem('meshnotes_pdfOrientation');
+    if (savedPdfOrientation) {
+        state.pdfOrientation = savedPdfOrientation;
+        dom.settingsPdfOrientation.value = savedPdfOrientation;
+    }
+    
+    const savedPdfDpi = localStorage.getItem('meshnotes_pdfDpi');
+    if (savedPdfDpi) {
+        state.pdfDpi = parseInt(savedPdfDpi);
+        dom.settingsPdfDpi.value = savedPdfDpi;
+    }
 }
 
 // Expose key variables for console debugging

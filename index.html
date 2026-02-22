@@ -515,6 +515,49 @@
                 </section>
                 
                 <section>
+                    <h3>PDF Export</h3>
+                    <div class="settings-row">
+                        <label for="settings-pdf-title">Report Title</label>
+                        <input type="text" id="settings-pdf-title" placeholder="Leave empty to use model filename">
+                    </div>
+                    <div class="settings-row">
+                        <label for="settings-pdf-institution">Institution / Organization</label>
+                        <input type="text" id="settings-pdf-institution" placeholder="e.g., University of...">
+                    </div>
+                    <div class="settings-row">
+                        <label for="settings-pdf-project">Project Name</label>
+                        <input type="text" id="settings-pdf-project" placeholder="Optional project name">
+                    </div>
+                    <div class="settings-row color-row">
+                        <label>Accent Color</label>
+                        <input type="color" id="settings-pdf-accent-color" value="#AA8101" title="PDF accent color">
+                    </div>
+                    <div class="settings-row">
+                        <label for="settings-pdf-page-size">Page Size</label>
+                        <select id="settings-pdf-page-size">
+                            <option value="a4">A4 (210 × 297 mm)</option>
+                            <option value="letter">Letter (8.5 × 11 in)</option>
+                            <option value="a3">A3 (297 × 420 mm)</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="settings-pdf-orientation">Orientation</label>
+                        <select id="settings-pdf-orientation">
+                            <option value="portrait">Portrait</option>
+                            <option value="landscape">Landscape</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="settings-pdf-dpi">Screenshot Quality</label>
+                        <select id="settings-pdf-dpi">
+                            <option value="72">72 DPI (Screen / Fast)</option>
+                            <option value="150" selected>150 DPI (Standard Print)</option>
+                            <option value="300">300 DPI (High Quality Print)</option>
+                        </select>
+                    </div>
+                </section>
+                
+                <section>
                     <h3>Background Color</h3>
                     <div class="settings-row background-row">
                         <div class="background-presets">

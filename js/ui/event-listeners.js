@@ -3,7 +3,7 @@ import { state, dom } from '../state.js';
 import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
 import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, resetAllSettings } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, resetAllSettings } from '../core/lighting.js';
 import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
@@ -509,6 +509,35 @@ export function setupEventListeners() {
     
     dom.settingsMeasurementPointColor.addEventListener('input', (e) => {
         setMeasurementPointColor(e.target.value);
+    });
+    
+    // Settings: PDF Export
+    dom.settingsPdfTitle.addEventListener('input', (e) => {
+        setPdfTitle(e.target.value);
+    });
+    
+    dom.settingsPdfInstitution.addEventListener('input', (e) => {
+        setPdfInstitution(e.target.value);
+    });
+    
+    dom.settingsPdfProject.addEventListener('input', (e) => {
+        setPdfProject(e.target.value);
+    });
+    
+    dom.settingsPdfAccentColor.addEventListener('input', (e) => {
+        setPdfAccentColor(e.target.value);
+    });
+    
+    dom.settingsPdfPageSize.addEventListener('change', (e) => {
+        setPdfPageSize(e.target.value);
+    });
+    
+    dom.settingsPdfOrientation.addEventListener('change', (e) => {
+        setPdfOrientation(e.target.value);
+    });
+    
+    dom.settingsPdfDpi.addEventListener('change', (e) => {
+        setPdfDpi(e.target.value);
     });
     
     // Settings: Reset All

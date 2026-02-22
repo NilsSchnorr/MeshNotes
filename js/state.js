@@ -46,6 +46,15 @@ export const state = {
     measurementUnit: 'units',
     measurementLineColor: '#AA8101',
     measurementPointColor: '#FFFFFF',
+    
+    // PDF export settings
+    pdfTitle: '',
+    pdfInstitution: '',
+    pdfProject: '',
+    pdfAccentColor: '#AA8101',
+    pdfPageSize: 'a4',
+    pdfOrientation: 'portrait',
+    pdfDpi: 150,
 
     // Tools
     currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure'
@@ -289,6 +298,13 @@ export function initDomReferences() {
     dom.settingsMeasurementUnitCustom = document.getElementById('settings-measurement-unit-custom');
     dom.settingsMeasurementLineColor = document.getElementById('settings-measurement-line-color');
     dom.settingsMeasurementPointColor = document.getElementById('settings-measurement-point-color');
+    dom.settingsPdfTitle = document.getElementById('settings-pdf-title');
+    dom.settingsPdfInstitution = document.getElementById('settings-pdf-institution');
+    dom.settingsPdfProject = document.getElementById('settings-pdf-project');
+    dom.settingsPdfAccentColor = document.getElementById('settings-pdf-accent-color');
+    dom.settingsPdfPageSize = document.getElementById('settings-pdf-page-size');
+    dom.settingsPdfOrientation = document.getElementById('settings-pdf-orientation');
+    dom.settingsPdfDpi = document.getElementById('settings-pdf-dpi');
     dom.settingsResetAll = document.getElementById('settings-reset-all');
     
     // Camera toggle (now in sliders panel)
