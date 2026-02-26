@@ -2360,13 +2360,15 @@
             border-color: var(--color-gold);
         }
 
-        /* ============ TABLET RESPONSIVE STYLES ============ */
+        /* ============ TABLET / TOUCH RESPONSIVE STYLES ============ */
+        /* Optimised for 11" iPad (1194 × 834 CSS px landscape) */
 
         /* Sidebar content wrapper (needed for collapse animation) */
         .sidebar-content {
             display: flex;
             flex-direction: column;
             height: 100%;
+            overflow: hidden;
         }
 
         /* Hide sidebar toggle on desktop by default */
@@ -2374,199 +2376,313 @@
             display: none;
         }
 
-        /* Touch-friendly targets for any coarse pointer device */
+        /* ---- Touch-friendly targets (any coarse-pointer device) ---- */
         @media (pointer: coarse) {
             :root {
-                --touch-target-min: 44px;
+                --touch-min: 44px;
+            }
+
+            /* Header: safe-area padding */
+            #header {
+                padding-left: max(20px, env(safe-area-inset-left));
+                padding-right: max(20px, env(safe-area-inset-right));
+            }
+
+            /* Hide subtitle on smaller tablets */
+            #header h1 .subtitle {
+                display: none;
+            }
+
+            /* Toolbar: scrollable, touch-sized buttons, safe-area */
+            #toolbar {
+                gap: 6px;
+                padding: 0 max(12px, env(safe-area-inset-left));
+                padding-right: max(12px, env(safe-area-inset-right));
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;          /* Firefox */
+            }
+
+            #toolbar::-webkit-scrollbar {
+                display: none;                  /* Chrome/Safari */
             }
 
             .tool-btn {
-                padding: 12px 16px;
-                min-height: var(--touch-target-min);
-                min-width: var(--touch-target-min);
-                font-size: 14px;
+                padding: 10px 14px;
+                min-height: var(--touch-min);
+                min-width: var(--touch-min);
+                font-size: 13px;
+                flex-shrink: 0;                 /* prevent squish in scroll */
             }
 
-            #toolbar {
-                gap: 8px;
-                padding: 0 16px;
+            .tool-separator {
+                flex-shrink: 0;
             }
 
-            /* Larger sliders */
+            /* Larger slider thumbs */
             input[type="range"] {
                 height: 36px;
             }
 
             input[type="range"]::-webkit-slider-thumb {
-                width: 28px;
-                height: 28px;
+                width: 26px;
+                height: 26px;
             }
 
-            /* Larger annotation list items */
+            /* Annotation list items */
             .annotation-item {
-                padding: 14px;
-                min-height: 50px;
+                padding: 12px 14px;
+                min-height: 48px;
             }
 
-            /* Touch-friendly popup buttons */
-            #annotation-popup button {
-                padding: 12px 20px;
+            /* Touch-friendly popup / modal buttons */
+            .popup button,
+            .obj-dialog button {
+                padding: 12px 18px;
                 font-size: 15px;
+                min-height: var(--touch-min);
             }
 
             /* Larger close buttons */
-            .modal-close {
+            .modal-close,
+            #about-modal-close,
+            #legal-modal-close,
+            #settings-modal-close {
                 width: 44px;
                 height: 44px;
-                font-size: 24px;
+                font-size: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* ViewHelper: pull inward from edge */
+            #viewhelper-container {
+                top: 8px;
+                right: 8px;
+                width: 100px;
+                height: 100px;
+            }
+
+            #viewhelper-canvas {
+                width: 100px;
+                height: 100px;
+            }
+
+            /* Sliders panel: above home-indicator zone, inward from edge */
+            #sliders-panel {
+                bottom: max(16px, env(safe-area-inset-bottom));
+                right: max(16px, env(safe-area-inset-right));
+            }
+
+            /* Model stats: inward from edge */
+            #model-stats {
+                bottom: max(16px, env(safe-area-inset-bottom));
+                right: 230px;
+            }
+
+            /* Instructions / status: inward from edge + above home indicator */
+            #instructions {
+                bottom: max(16px, env(safe-area-inset-bottom));
+                left: max(16px, env(safe-area-inset-left));
+            }
+
+            #status {
+                bottom: calc(max(16px, env(safe-area-inset-bottom)) + 44px);
+                left: max(16px, env(safe-area-inset-left));
+            }
+
+            /* Tool-help panel: inward from edge */
+            #tool-help {
+                top: 8px;
+                left: max(12px, env(safe-area-inset-left));
             }
         }
 
-        /* Tablet-specific layout (roughly iPad dimensions) */
-        @media screen and (max-width: 1200px) and (pointer: coarse) {
+        /* ---- Tablet layout (iPad 11": 1194×834 landscape) ---- */
+        @media screen and (max-width: 1366px) and (pointer: coarse) {
             :root {
                 --sidebar-width: 280px;
             }
 
-            /* Collapsible sidebar */
+            /* --- Collapsible sidebar --- */
             #sidebar {
                 position: fixed;
                 right: 0;
-                top: calc(50px + 50px);
+                top: 88px;                      /* header 50px + toolbar 38px */
                 bottom: 0;
                 width: var(--sidebar-width);
                 transform: translateX(0);
-                transition: transform 0.3s ease;
-                z-index: 100;
+                transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+                z-index: 150;
             }
 
+            /* Collapsed: push entire sidebar off-screen; toggle tab stays visible */
             #sidebar.collapsed {
-                transform: translateX(calc(var(--sidebar-width) - 44px));
+                transform: translateX(var(--sidebar-width));
             }
 
             #sidebar.collapsed .sidebar-content {
                 opacity: 0;
                 pointer-events: none;
-                transition: opacity 0.2s ease;
             }
 
+            .sidebar-content {
+                transition: opacity 0.25s ease;
+            }
+
+            /* Toggle tab: hangs off the left edge of the sidebar */
             #sidebar-toggle {
                 display: flex;
                 position: absolute;
-                left: -44px;
+                left: -40px;
                 top: 50%;
                 transform: translateY(-50%);
-                width: 44px;
-                height: 88px;
-                background: var(--color-surface);
+                width: 40px;
+                height: 72px;
+                background: var(--color-blue-dark);
+                border: 1px solid var(--color-blue);
+                border-right: none;
                 border-radius: 8px 0 0 8px;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
-                font-size: 18px;
+                font-size: 16px;
+                color: var(--color-text-medium);
+                -webkit-tap-highlight-color: transparent;
+                z-index: 151;
+            }
+
+            #sidebar-toggle:active {
+                background: var(--color-blue);
                 color: var(--color-text-light);
-                border: 1px solid var(--color-blue);
-                border-right: none;
-            }
-
-            /* Viewport adjustment */
-            #viewport {
-                transition: padding-right 0.3s ease;
-            }
-
-            #viewport.sidebar-expanded {
-                padding-right: var(--sidebar-width);
             }
         }
 
-        /* Hide sidebar toggle on desktop */
-        @media screen and (min-width: 1201px), (pointer: fine) {
+        /* Hide sidebar toggle on desktop (fine pointer or wide screen) */
+        @media (pointer: fine) {
             #sidebar-toggle {
-                display: none;
+                display: none !important;
             }
         }
 
-        /* ============ BOTTOM-SHEET POPUP FOR TOUCH DEVICES (Phase 4) ============ */
-
+        /* ---- Bottom-sheet annotation popup (touch devices) ---- */
         @media (pointer: coarse) {
             #annotation-popup {
-                /* Override desktop positioning */
+                /* Override desktop absolute positioning */
                 position: fixed !important;
                 left: 0 !important;
                 right: 0 !important;
                 bottom: 0 !important;
                 top: auto !important;
 
-                /* Full width, limited height */
+                /* Full width, capped height */
                 width: 100% !important;
                 max-width: 100% !important;
                 max-height: 70vh;
 
-                /* Slide-up animation */
+                /* Slide-up entrance */
                 transform: translateY(100%);
-                transition: transform 0.3s ease;
+                transition: transform 0.3s cubic-bezier(.4,0,.2,1);
 
-                /* Rounded top corners */
+                /* Rounded top corners, no bottom rounding */
                 border-radius: 16px 16px 0 0;
-
-                /* Reset desktop positioning */
                 margin: 0;
+
+                /* Stay above sidebar & overlays */
+                z-index: 250;
+
+                /* Safe-area bottom padding for home indicator */
+                padding-bottom: env(safe-area-inset-bottom);
             }
 
             #annotation-popup.visible {
                 transform: translateY(0);
             }
 
-            /* Drag handle indicator */
+            /* Drag-handle visual */
             #popup-title {
                 cursor: default;
-                padding-top: 20px;
+                padding-top: 22px;
                 position: relative;
             }
 
             #popup-title::before {
                 content: '';
                 display: block;
-                width: 40px;
+                width: 36px;
                 height: 4px;
                 background: var(--color-text-muted);
                 border-radius: 2px;
                 position: absolute;
-                top: 8px;
+                top: 10px;
                 left: 50%;
                 transform: translateX(-50%);
             }
 
-            /* Scrollable content area */
+            /* Disable desktop cursor-move on the title bar */
+            .popup h3 {
+                cursor: default;
+            }
+
+            .popup h3:hover,
+            .popup h3:active {
+                background: none;
+            }
+
+            /* Scrollable body */
             #annotation-popup #popup-main-fields,
             #annotation-popup #entries-container,
             #annotation-popup #new-entry-form {
-                max-height: calc(70vh - 120px);
+                max-height: calc(70vh - 140px);
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
             }
 
-            /* Fixed button bar at bottom */
+            /* Sticky button bar */
             #annotation-popup .btn-row {
                 position: sticky;
                 bottom: 0;
-                background: var(--color-surface);
-                padding: 16px;
+                background: var(--color-blue-dark);
+                padding: 14px 16px;
+                padding-bottom: calc(14px + env(safe-area-inset-bottom));
                 border-top: 1px solid var(--color-blue);
                 display: flex;
-                gap: 12px;
+                gap: 10px;
             }
 
             #annotation-popup .btn-row button {
                 flex: 1;
                 padding: 14px;
-                font-size: 16px;
+                font-size: 15px;
             }
-        }
 
-        /* Keep desktop behavior for mouse/trackpad devices */
-        @media (pointer: fine) {
-            #annotation-popup {
-                /* Existing draggable popup styles apply */
+            /* Group popup: also bottom-sheet on touch */
+            #group-popup {
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                top: auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                transform: translateY(100%);
+                transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+                border-radius: 16px 16px 0 0;
+                z-index: 250;
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            #group-popup.visible {
+                transform: translateY(0);
+            }
+
+            /* Full-screen modals: safe-area aware */
+            #about-overlay,
+            #legal-overlay,
+            #settings-overlay {
+                padding: env(safe-area-inset-top) env(safe-area-inset-right)
+                         env(safe-area-inset-bottom) env(safe-area-inset-left);
             }
         }

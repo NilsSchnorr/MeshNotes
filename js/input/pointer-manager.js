@@ -17,14 +17,13 @@ export function isTouchDevice() {
     return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 }
 
-// Dynamic touch-action management
-export function setCanvasTouchAction(allowNavigation) {
+/**
+ * Set touch-action on the canvas.
+ * MUST always be 'none' so that OrbitControls receives all pointer events.
+ * If the browser handles pan/pinch natively (touch-action: pan-x pan-y),
+ * it fires pointercancel which kills OrbitControls.
+ */
+export function initCanvasTouchAction() {
     if (!dom.canvas) return;
-    if (allowNavigation) {
-        // Allow browser to handle pan/zoom gestures
-        dom.canvas.style.touchAction = 'pan-x pan-y pinch-zoom';
-    } else {
-        // Block all browser gestures (during annotation)
-        dom.canvas.style.touchAction = 'none';
-    }
+    dom.canvas.style.touchAction = 'none';
 }

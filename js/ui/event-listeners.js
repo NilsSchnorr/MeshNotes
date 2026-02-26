@@ -5,7 +5,7 @@ import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } fr
 import { toggleCamera } from '../core/camera.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
-import { setCanvasTouchAction } from '../input/pointer-manager.js';
+import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
@@ -24,9 +24,6 @@ export function setTool(tool) {
     const hadUnlockedBox = state.boxEditUnlocked !== null;
 
     state.currentTool = tool;
-
-    // Update touch-action: always allow finger navigation
-    setCanvasTouchAction(true);
 
     // Clear box edit state when selecting any tool
     clearBoxEditState();
@@ -626,8 +623,8 @@ export function setupEventListeners() {
     // Virtual keyboard handling for iOS
     setupVirtualKeyboardHandling();
 
-    // Set initial touch-action
-    setCanvasTouchAction(true);
+    // Canvas touch-action must be 'none' so OrbitControls receives all pointer events
+    initCanvasTouchAction();
 }
 
 // ============ Pointer Events with Capture Phase Interception ============
@@ -736,7 +733,17 @@ function _handlePointerUp(e) {
     onCanvasPointerUp(e);
 }
 
-// ============ Two-Finger Box Rotation Gesture (Phase 2) ============
+// ============ Touch Handling: Tap Detection + Two-Finger Box Rotation ============
+
+// Finger tap detection state (separate from pen/mouse)
+let _touchDownX = 0;
+let _touchDownY = 0;
+let _touchDownTime = 0;
+let _touchDownPointerId = -1;
+let _lastFingerTapTime = 0;
+let _lastFingerTapX = 0;
+let _lastFingerTapY = 0;
+let _touchWasDrag = false;
 
 function _handleTouchDown(e) {
     _activeTouches.set(e.pointerId, {
@@ -746,12 +753,27 @@ function _handleTouchDown(e) {
         startY: e.clientY
     });
 
+    // Record first finger down for tap detection (only single-finger taps)
+    if (_activeTouches.size === 1) {
+        _touchDownX = e.clientX;
+        _touchDownY = e.clientY;
+        _touchDownTime = Date.now();
+        _touchDownPointerId = e.pointerId;
+        _touchWasDrag = false;
+    }
+
     // Check for two-finger gesture on box
     if (_activeTouches.size === 2 && state.boxEditUnlocked !== null) {
+        _touchWasDrag = true; // Two fingers = not a tap
         const ann = state.annotations.find(a => a.id === state.boxEditUnlocked);
         if (ann && ann.type === 'box') {
             _startBoxRotationGesture(ann);
         }
+    }
+
+    // More than one finger means no tap
+    if (_activeTouches.size > 1) {
+        _touchWasDrag = true;
     }
 }
 
@@ -759,6 +781,15 @@ function _handleTouchMove(e) {
     if (!_activeTouches.has(e.pointerId)) return;
     _activeTouches.get(e.pointerId).x = e.clientX;
     _activeTouches.get(e.pointerId).y = e.clientY;
+
+    // Check if finger moved too far for a tap (10px threshold)
+    if (e.pointerId === _touchDownPointerId && !_touchWasDrag) {
+        const dx = e.clientX - _touchDownX;
+        const dy = e.clientY - _touchDownY;
+        if (dx * dx + dy * dy > 100) {
+            _touchWasDrag = true;
+        }
+    }
 
     if (_isRotatingBoxWithGesture && _activeTouches.size === 2) {
         e.stopPropagation(); // Prevent OrbitControls during gesture
@@ -771,6 +802,34 @@ function _handleTouchUp(e) {
 
     if (_activeTouches.size < 2 && _isRotatingBoxWithGesture) {
         _endBoxRotationGesture();
+    }
+
+    // Single-finger tap detection: short duration, no drag, no multi-touch
+    if (e.pointerId === _touchDownPointerId && !_touchWasDrag && _activeTouches.size === 0) {
+        const duration = Date.now() - _touchDownTime;
+        const dx = e.clientX - _touchDownX;
+        const dy = e.clientY - _touchDownY;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq <= 100 && duration < 400) {
+            // Tap detected — check for double-tap
+            const now = Date.now();
+            const tapDx = e.clientX - _lastFingerTapX;
+            const tapDy = e.clientY - _lastFingerTapY;
+            const tapDistSq = tapDx * tapDx + tapDy * tapDy;
+
+            if (now - _lastFingerTapTime < 350 && tapDistSq < 625) {
+                // Double-tap
+                onCanvasDoubleTap(e);
+                _lastFingerTapTime = 0;
+            } else {
+                // Single tap
+                onCanvasTap(e);
+                _lastFingerTapTime = now;
+                _lastFingerTapX = e.clientX;
+                _lastFingerTapY = e.clientY;
+            }
+        }
     }
 }
 
@@ -820,33 +879,32 @@ function _endBoxRotationGesture() {
 function setupSidebarToggle() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebar-toggle');
-    const viewport = document.getElementById('viewport');
 
     if (!toggle) return;
 
-    toggle.addEventListener('click', () => {
+    // Check if this is a touch device at all
+    const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+    if (!isCoarse) return; // Desktop — sidebar is always visible, toggle hidden via CSS
+
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
         const isCollapsed = sidebar.classList.toggle('collapsed');
-        viewport.classList.toggle('sidebar-expanded', !isCollapsed);
         toggle.textContent = isCollapsed ? '\u25B6' : '\u25C0';
 
-        // Trigger resize for Three.js canvas
-        window.dispatchEvent(new Event('resize'));
+        // Trigger resize so Three.js recalculates canvas size
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
     });
 
-    // Auto-collapse on small touch screens
-    function checkAutoCollapse() {
-        const isTouch = window.matchMedia('(pointer: coarse)').matches;
-        const isNarrow = window.innerWidth < 1024;
-
-        if (isTouch && isNarrow && !sidebar.classList.contains('collapsed')) {
+    // Auto-collapse on touch devices (start collapsed)
+    function autoCollapse() {
+        if (!sidebar.classList.contains('collapsed')) {
             sidebar.classList.add('collapsed');
-            viewport.classList.remove('sidebar-expanded');
             toggle.textContent = '\u25B6';
         }
     }
 
-    window.addEventListener('resize', checkAutoCollapse);
-    checkAutoCollapse();
+    // Start collapsed on tablet
+    autoCollapse();
 }
 
 // ============ Virtual Keyboard Handling (Phase 4) ============
