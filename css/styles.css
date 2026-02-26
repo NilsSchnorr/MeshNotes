@@ -2470,27 +2470,39 @@
                 height: 100px;
             }
 
-            /* Sliders panel: above home-indicator zone, inward from edge */
-            #sliders-panel {
-                bottom: max(16px, env(safe-area-inset-bottom));
-                right: max(16px, env(safe-area-inset-right));
+            /* Container: account for safe areas so nothing hides behind home indicator */
+            #container {
+                height: calc(100vh - 88px - env(safe-area-inset-bottom, 0px));
             }
 
-            /* Model stats: inward from edge */
+            /* Sliders panel: well above home-indicator, inward from right edge */
+            #sliders-panel {
+                bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+                right: calc(16px + env(safe-area-inset-right, 0px));
+            }
+
+            /* Bigger toggle button for touch */
+            #sliders-panel-toggle {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+
+            /* Model stats: inward from edge, above home indicator */
             #model-stats {
-                bottom: max(16px, env(safe-area-inset-bottom));
-                right: 230px;
+                bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+                right: calc(230px + env(safe-area-inset-right, 0px));
             }
 
             /* Instructions / status: inward from edge + above home indicator */
             #instructions {
-                bottom: max(16px, env(safe-area-inset-bottom));
-                left: max(16px, env(safe-area-inset-left));
+                bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+                left: calc(16px + env(safe-area-inset-left, 0px));
             }
 
             #status {
-                bottom: calc(max(16px, env(safe-area-inset-bottom)) + 44px);
-                left: max(16px, env(safe-area-inset-left));
+                bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+                left: calc(16px + env(safe-area-inset-left, 0px));
             }
 
             /* Tool-help panel: inward from edge */

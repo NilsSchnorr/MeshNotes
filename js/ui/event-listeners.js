@@ -268,7 +268,11 @@ export function setupEventListeners() {
     });
 
     // Annotation popup
-    dom.btnPopupSave.addEventListener('click', saveAnnotation);
+    dom.btnPopupSave.addEventListener('click', () => {
+        saveAnnotation();
+        // Safety net: always re-enable orbit after popup closes
+        state.controls.enabled = true;
+    });
     dom.btnPopupCancel.addEventListener('click', () => {
         dom.annotationPopup.classList.remove('visible');
         clearTempDrawing();
@@ -279,6 +283,8 @@ export function setupEventListeners() {
         hideInlineGroupForm();
         // Restore tool help if a tool is still active
         restoreToolHelp();
+        // Safety net: always re-enable orbit after popup closes
+        state.controls.enabled = true;
     });
     dom.btnPopupDelete.addEventListener('click', deleteAnnotation);
     dom.btnAddLink.addEventListener('click', addLink);
@@ -606,6 +612,7 @@ export function setupEventListeners() {
             state.editingEntryId = null;
             state.editingModelInfo = false;
             hideInlineGroupForm();
+            state.controls.enabled = true;
 
             if (state.currentTool === 'measure') {
                 clearAllMeasurements();
@@ -646,36 +653,38 @@ let _boxGestureStartRotation = null;
 function setupCanvasPointerEvents() {
     const canvas = dom.canvas;
 
-    // Capture phase: intercept pen events before OrbitControls
+    // Capture phase: intercept pen events before OrbitControls.
+    // MUST use stopImmediatePropagation for pen — plain stopPropagation
+    // does NOT prevent other listeners on the SAME element (canvas) from
+    // firing, so OrbitControls would still see pen events and corrupt its
+    // internal pointer state, breaking subsequent finger orbit.
     canvas.addEventListener('pointerdown', (e) => {
         if (e.pointerType === 'pen') {
-            e.stopPropagation();
+            e.stopImmediatePropagation();
+            e.preventDefault();
             _handlePointerDown(e);
         } else if (e.pointerType === 'mouse') {
-            // Desktop mouse: handle normally (existing behavior)
             _handlePointerDown(e);
         } else if (e.pointerType === 'touch') {
-            // Track touch for two-finger box rotation gesture
             _handleTouchDown(e);
         }
-        // 'touch' events: let OrbitControls handle for navigation
     }, { capture: true });
 
     canvas.addEventListener('pointermove', (e) => {
         if (e.pointerType === 'pen') {
-            e.stopPropagation();
+            e.stopImmediatePropagation();
+            e.preventDefault();
             onCanvasPointerMove(e);
         } else if (e.pointerType === 'mouse') {
             onCanvasPointerMove(e);
         } else if (e.pointerType === 'touch') {
             _handleTouchMove(e);
         }
-        // 'touch' events: OrbitControls handles navigation
     }, { capture: true });
 
     canvas.addEventListener('pointerup', (e) => {
         if (e.pointerType === 'pen') {
-            e.stopPropagation();
+            e.stopImmediatePropagation();
             _handlePointerUp(e);
         } else if (e.pointerType === 'mouse') {
             _handlePointerUp(e);
@@ -684,7 +693,6 @@ function setupCanvasPointerEvents() {
         }
     }, { capture: true });
 
-    // Pointer cancel (finger lifted, pen out of range, etc.)
     canvas.addEventListener('pointercancel', (e) => {
         if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
             _handlePointerUp(e);
@@ -707,22 +715,28 @@ function _handlePointerUp(e) {
     const distSq = dx * dx + dy * dy;
     const duration = Date.now() - _pointerDownTime;
 
-    // Click detection: same threshold as existing code (distSq <= 9)
-    const isClick = distSq <= 9 && duration < 500;
+    // Pen on glass wobbles more than a mouse on a desk — use a
+    // larger movement threshold for pen so taps aren't rejected.
+    const isPen = e.pointerType === 'pen';
+    const clickDistThreshold = isPen ? 64 : 9;   // 8px vs 3px radius
+    const isClick = distSq <= clickDistThreshold && duration < 500;
 
     if (isClick) {
-        // Double-tap detection
         const now = Date.now();
         const tapDx = e.clientX - _lastTapX;
         const tapDy = e.clientY - _lastTapY;
         const tapDistSq = tapDx * tapDx + tapDy * tapDy;
 
-        if (now - _lastTapTime < 300 && tapDistSq < 400) {
-            // Double-tap detected
+        // Pen double-tap: wider timing window (450ms) and larger
+        // spatial tolerance (30px radius) because the user lifts the
+        // pen between taps and the second tap lands slightly offset.
+        const dblTapTime = isPen ? 450 : 300;
+        const dblTapDist = isPen ? 900 : 400;
+
+        if (now - _lastTapTime < dblTapTime && tapDistSq < dblTapDist) {
             onCanvasDoubleTap(e);
-            _lastTapTime = 0; // Reset to prevent triple-tap
+            _lastTapTime = 0;
         } else {
-            // Single tap
             onCanvasTap(e);
             _lastTapTime = now;
             _lastTapX = e.clientX;
