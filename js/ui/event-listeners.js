@@ -644,6 +644,12 @@ let _lastTapTime = 0;
 let _lastTapX = 0;
 let _lastTapY = 0;
 
+// Apple Pencil barrel tap detection
+// When configured to "Switch to Eraser" in iPad Settings, barrel tap toggles eraser mode.
+// We detect this by watching for the eraser button (bit 32) in pointer events.
+let _lastPenEraserState = false;
+let _barrelTapCooldown = 0;
+
 // Two-finger box rotation gesture state
 const _activeTouches = new Map();
 let _isRotatingBoxWithGesture = false;
@@ -664,6 +670,24 @@ function setupCanvasPointerEvents() {
             e.preventDefault();
             // Capture pen pointer to receive events even if stylus moves outside canvas
             canvas.setPointerCapture(e.pointerId);
+            
+            // Check for Apple Pencil barrel tap (eraser toggle)
+            // When barrel is double-tapped, the eraser state toggles.
+            // We detect this change and treat it as a "confirm" action.
+            const isEraserActive = (e.buttons & 32) !== 0;
+            if (isEraserActive !== _lastPenEraserState) {
+                const now = Date.now();
+                // Eraser state changed - this is likely a barrel tap
+                // Only trigger if not in cooldown (prevents double-firing)
+                if (now > _barrelTapCooldown && _shouldBarrelTapConfirm()) {
+                    _barrelTapCooldown = now + 500; // 500ms cooldown
+                    onCanvasDoubleTap(e);
+                    _lastPenEraserState = isEraserActive;
+                    return; // Don't process as normal tap
+                }
+                _lastPenEraserState = isEraserActive;
+            }
+            
             _handlePointerDown(e);
         } else if (e.pointerType === 'mouse') {
             _handlePointerDown(e);
@@ -721,6 +745,39 @@ function _handlePointerDown(e) {
     onCanvasPointerDown(e);
 }
 
+/**
+ * Determines if an Apple Pencil barrel tap should trigger a "confirm" action.
+ * Returns true when we're in a state where double-tap would be meaningful:
+ * - Drawing a line/polygon (would finish it)
+ * - Placing a box (would confirm placement)
+ * - Painting a surface (would finish it)
+ * - Measuring (would complete measurement)
+ */
+function _shouldBarrelTapConfirm() {
+    // Line/polygon in progress
+    if ((state.currentTool === 'line' || state.currentTool === 'polygon') && 
+        state.tempPoints.length > 0) {
+        return true;
+    }
+    
+    // Box placement in progress
+    if (state.isBoxPlacementMode || state.boxEditUnlocked !== null) {
+        return true;
+    }
+    
+    // Surface painting in progress
+    if (state.currentTool === 'surface' && state.paintedFaces.size > 0) {
+        return true;
+    }
+    
+    // Multi-point measurement in progress
+    if (state.currentTool === 'measure' && state.measurePoints.length >= 2) {
+        return true;
+    }
+    
+    return false;
+}
+
 function _handlePointerUp(e) {
     const dx = e.clientX - _pointerDownX;
     const dy = e.clientY - _pointerDownY;
@@ -730,8 +787,8 @@ function _handlePointerUp(e) {
     // Pen on glass wobbles more than a mouse on a desk — use a
     // larger movement threshold for pen so taps aren't rejected.
     const isPen = e.pointerType === 'pen';
-    const clickDistThreshold = isPen ? 64 : 9;   // 8px vs 3px radius
-    const isClick = distSq <= clickDistThreshold && duration < 500;
+    const clickDistThreshold = isPen ? 144 : 9;   // 12px vs 3px radius
+    const isClick = distSq <= clickDistThreshold && duration < 600;
 
     if (isClick) {
         const now = Date.now();
@@ -739,11 +796,12 @@ function _handlePointerUp(e) {
         const tapDy = e.clientY - _lastTapY;
         const tapDistSq = tapDx * tapDx + tapDy * tapDy;
 
-        // Pen double-tap: wider timing window (450ms) and larger
-        // spatial tolerance (30px radius) because the user lifts the
+        // Pen double-tap: wider timing window (600ms) and larger
+        // spatial tolerance (50px radius) because the user lifts the
         // pen between taps and the second tap lands slightly offset.
-        const dblTapTime = isPen ? 450 : 300;
-        const dblTapDist = isPen ? 900 : 400;
+        // These generous thresholds help with Apple Pencil on iPad.
+        const dblTapTime = isPen ? 600 : 300;
+        const dblTapDist = isPen ? 2500 : 400;
 
         if (now - _lastTapTime < dblTapTime && tapDistSq < dblTapDist) {
             onCanvasDoubleTap(e);

@@ -122,6 +122,7 @@ const toolHelpContent = {
 };
 
 // Touch-specific help content (stylus + finger gestures)
+// Note: Apple Pencil barrel double-tap works as "confirm" when configured to "Switch to Eraser" in iPad Settings
 const toolHelpContentTouch = {
     boxEdit: {
         icon: '🔓',
@@ -136,6 +137,7 @@ const toolHelpContentTouch = {
             <div class="help-section">
                 <div class="help-section-title" style="color: #EDC040;">Finish Editing</div>
                 <div class="help-row"><span class="help-key" style="background: #EDC040; color: #1a1a2e;">Double-tap</span><span class="help-desc">Lock box</span></div>
+                <div class="help-row"><span class="help-key">Pencil barrel tap</span><span class="help-desc">Lock box *</span></div>
                 <div class="help-row"><span class="help-key">Tap elsewhere</span><span class="help-desc">Lock box</span></div>
             </div>
             <div class="help-section">
@@ -143,6 +145,9 @@ const toolHelpContentTouch = {
                 <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate view</span></div>
                 <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
                 <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
+            </div>
+            <div class="help-section" style="font-size: 10px; color: #888; margin-top: 4px;">
+                * Requires Settings → Apple Pencil → "Switch to Eraser"
             </div>
         `
     },
@@ -170,12 +175,16 @@ const toolHelpContentTouch = {
                 <div class="help-section-title">Stylus</div>
                 <div class="help-row"><span class="help-key">Tap</span><span class="help-desc">Add point</span></div>
                 <div class="help-row"><span class="help-key">Double-tap</span><span class="help-desc">Finish</span></div>
+                <div class="help-row"><span class="help-key">Pencil barrel tap</span><span class="help-desc">Finish *</span></div>
             </div>
             <div class="help-section">
                 <div class="help-section-title">Navigation (finger)</div>
                 <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate</span></div>
                 <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
                 <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
+            </div>
+            <div class="help-section" style="font-size: 10px; color: #888; margin-top: 4px;">
+                * Requires Settings → Apple Pencil → "Switch to Eraser"
             </div>
         `
     },
@@ -187,12 +196,16 @@ const toolHelpContentTouch = {
                 <div class="help-section-title">Stylus</div>
                 <div class="help-row"><span class="help-key">Tap</span><span class="help-desc">Add vertex</span></div>
                 <div class="help-row"><span class="help-key">Double-tap</span><span class="help-desc">Close</span></div>
+                <div class="help-row"><span class="help-key">Pencil barrel tap</span><span class="help-desc">Close *</span></div>
             </div>
             <div class="help-section">
                 <div class="help-section-title">Navigation (finger)</div>
                 <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate</span></div>
                 <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
                 <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
+            </div>
+            <div class="help-section" style="font-size: 10px; color: #888; margin-top: 4px;">
+                * Requires Settings → Apple Pencil → "Switch to Eraser"
             </div>
         `
     },
@@ -209,12 +222,16 @@ const toolHelpContentTouch = {
             </div>
             <div class="help-section">
                 <div class="help-section-title" style="color: #EDC040;">2. Confirm</div>
-                <div class="help-row"><span class="help-key" style="background: #EDC040; color: #1a1a2e;">Double-tap</span><span class="help-desc">Save box &amp; add details</span></div>
+                <div class="help-row"><span class="help-key" style="background: #EDC040; color: #1a1a2e;">Double-tap</span><span class="help-desc">Save box</span></div>
+                <div class="help-row"><span class="help-key">Pencil barrel tap</span><span class="help-desc">Save box *</span></div>
             </div>
             <div class="help-section">
                 <div class="help-section-title">Navigation (finger)</div>
                 <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate view</span></div>
                 <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
+            </div>
+            <div class="help-section" style="font-size: 10px; color: #888; margin-top: 4px;">
+                * Requires Settings → Apple Pencil → "Switch to Eraser"
             </div>
         `
     }
