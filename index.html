@@ -1009,30 +1009,33 @@
         </div>
 
         <div id="sidebar">
-            <div class="sidebar-section" style="flex: 1; overflow-y: auto;">
-                <h2>
-                    Annotations
-                    <button class="tool-btn" id="btn-add-group">+ Group</button>
-                </h2>
-                
-                <!-- Search Box -->
-                <div id="search-box">
-                    <input type="text" id="search-input" placeholder="Search annotations...">
-                </div>
-                
-                <!-- Model Information -->
-                <div id="model-info-section">
-                    <div class="model-info-item" id="model-info-item">
-                        <div class="model-info-header">
-                            <span class="model-info-icon">📋</span>
-                            <span class="model-info-title">Model Information</span>
-                        </div>
-                        <div class="model-info-subtitle" id="model-info-subtitle">No entries yet</div>
+            <button id="sidebar-toggle" aria-label="Toggle sidebar">&#9664;</button>
+            <div class="sidebar-content">
+                <div class="sidebar-section" style="flex: 1; overflow-y: auto;">
+                    <h2>
+                        Annotations
+                        <button class="tool-btn" id="btn-add-group">+ Group</button>
+                    </h2>
+
+                    <!-- Search Box -->
+                    <div id="search-box">
+                        <input type="text" id="search-input" placeholder="Search annotations...">
                     </div>
-                </div>
-                
-                <div id="groups-container">
-                    <div class="empty-state" id="no-groups">No annotations yet. Load a model and use the tools to annotate.</div>
+
+                    <!-- Model Information -->
+                    <div id="model-info-section">
+                        <div class="model-info-item" id="model-info-item">
+                            <div class="model-info-header">
+                                <span class="model-info-icon">📋</span>
+                                <span class="model-info-title">Model Information</span>
+                            </div>
+                            <div class="model-info-subtitle" id="model-info-subtitle">No entries yet</div>
+                        </div>
+                    </div>
+
+                    <div id="groups-container">
+                        <div class="empty-state" id="no-groups">No annotations yet. Load a model and use the tools to annotate.</div>
+                    </div>
                 </div>
             </div>
         </div>

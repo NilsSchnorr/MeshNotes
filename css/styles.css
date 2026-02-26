@@ -2359,3 +2359,214 @@
         .settings-row.color-row input[type="color"]:hover {
             border-color: var(--color-gold);
         }
+
+        /* ============ TABLET RESPONSIVE STYLES ============ */
+
+        /* Sidebar content wrapper (needed for collapse animation) */
+        .sidebar-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Hide sidebar toggle on desktop by default */
+        #sidebar-toggle {
+            display: none;
+        }
+
+        /* Touch-friendly targets for any coarse pointer device */
+        @media (pointer: coarse) {
+            :root {
+                --touch-target-min: 44px;
+            }
+
+            .tool-btn {
+                padding: 12px 16px;
+                min-height: var(--touch-target-min);
+                min-width: var(--touch-target-min);
+                font-size: 14px;
+            }
+
+            #toolbar {
+                gap: 8px;
+                padding: 0 16px;
+            }
+
+            /* Larger sliders */
+            input[type="range"] {
+                height: 36px;
+            }
+
+            input[type="range"]::-webkit-slider-thumb {
+                width: 28px;
+                height: 28px;
+            }
+
+            /* Larger annotation list items */
+            .annotation-item {
+                padding: 14px;
+                min-height: 50px;
+            }
+
+            /* Touch-friendly popup buttons */
+            #annotation-popup button {
+                padding: 12px 20px;
+                font-size: 15px;
+            }
+
+            /* Larger close buttons */
+            .modal-close {
+                width: 44px;
+                height: 44px;
+                font-size: 24px;
+            }
+        }
+
+        /* Tablet-specific layout (roughly iPad dimensions) */
+        @media screen and (max-width: 1200px) and (pointer: coarse) {
+            :root {
+                --sidebar-width: 280px;
+            }
+
+            /* Collapsible sidebar */
+            #sidebar {
+                position: fixed;
+                right: 0;
+                top: calc(50px + 50px);
+                bottom: 0;
+                width: var(--sidebar-width);
+                transform: translateX(0);
+                transition: transform 0.3s ease;
+                z-index: 100;
+            }
+
+            #sidebar.collapsed {
+                transform: translateX(calc(var(--sidebar-width) - 44px));
+            }
+
+            #sidebar.collapsed .sidebar-content {
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease;
+            }
+
+            #sidebar-toggle {
+                display: flex;
+                position: absolute;
+                left: -44px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 44px;
+                height: 88px;
+                background: var(--color-surface);
+                border-radius: 8px 0 0 8px;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                font-size: 18px;
+                color: var(--color-text-light);
+                border: 1px solid var(--color-blue);
+                border-right: none;
+            }
+
+            /* Viewport adjustment */
+            #viewport {
+                transition: padding-right 0.3s ease;
+            }
+
+            #viewport.sidebar-expanded {
+                padding-right: var(--sidebar-width);
+            }
+        }
+
+        /* Hide sidebar toggle on desktop */
+        @media screen and (min-width: 1201px), (pointer: fine) {
+            #sidebar-toggle {
+                display: none;
+            }
+        }
+
+        /* ============ BOTTOM-SHEET POPUP FOR TOUCH DEVICES (Phase 4) ============ */
+
+        @media (pointer: coarse) {
+            #annotation-popup {
+                /* Override desktop positioning */
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                top: auto !important;
+
+                /* Full width, limited height */
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: 70vh;
+
+                /* Slide-up animation */
+                transform: translateY(100%);
+                transition: transform 0.3s ease;
+
+                /* Rounded top corners */
+                border-radius: 16px 16px 0 0;
+
+                /* Reset desktop positioning */
+                margin: 0;
+            }
+
+            #annotation-popup.visible {
+                transform: translateY(0);
+            }
+
+            /* Drag handle indicator */
+            #popup-title {
+                cursor: default;
+                padding-top: 20px;
+                position: relative;
+            }
+
+            #popup-title::before {
+                content: '';
+                display: block;
+                width: 40px;
+                height: 4px;
+                background: var(--color-text-muted);
+                border-radius: 2px;
+                position: absolute;
+                top: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            /* Scrollable content area */
+            #annotation-popup #popup-main-fields,
+            #annotation-popup #entries-container,
+            #annotation-popup #new-entry-form {
+                max-height: calc(70vh - 120px);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Fixed button bar at bottom */
+            #annotation-popup .btn-row {
+                position: sticky;
+                bottom: 0;
+                background: var(--color-surface);
+                padding: 16px;
+                border-top: 1px solid var(--color-blue);
+                display: flex;
+                gap: 12px;
+            }
+
+            #annotation-popup .btn-row button {
+                flex: 1;
+                padding: 14px;
+                font-size: 16px;
+            }
+        }
+
+        /* Keep desktop behavior for mouse/trackpad devices */
+        @media (pointer: fine) {
+            #annotation-popup {
+                /* Existing draggable popup styles apply */
+            }
+        }

@@ -4,7 +4,8 @@ import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helper
 import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, resetAllSettings } from '../core/lighting.js';
-import { onCanvasClick, onCanvasDblClick, onCanvasMouseDown, onCanvasMouseMove, onCanvasMouseUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
+import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
+import { setCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
@@ -21,8 +22,11 @@ export { hideToolHelp, restoreToolHelp, hideAllToolPanels, showBoxEditHelp, clea
 export function setTool(tool) {
     // If a box was unlocked, lock it and update visual feedback
     const hadUnlockedBox = state.boxEditUnlocked !== null;
-    
+
     state.currentTool = tool;
+
+    // Update touch-action: always allow finger navigation
+    setCanvasTouchAction(true);
 
     // Clear box edit state when selecting any tool
     clearBoxEditState();
@@ -320,12 +324,8 @@ export function setupEventListeners() {
         if (e.target === dom.scalebarConfirmOverlay) hideScalebarConfirm();
     });
 
-    // Canvas events
-    dom.canvas.addEventListener('click', onCanvasClick);
-    dom.canvas.addEventListener('dblclick', onCanvasDblClick);
-    dom.canvas.addEventListener('mousedown', onCanvasMouseDown);
-    dom.canvas.addEventListener('mousemove', onCanvasMouseMove);
-    dom.canvas.addEventListener('mouseup', onCanvasMouseUp);
+    // Canvas pointer events with capture phase interception for stylus/tablet support
+    setupCanvasPointerEvents();
 
     // Prevent context menu when right-clicking on boxes (for rotation)
     dom.canvas.addEventListener('contextmenu', (e) => {
@@ -355,41 +355,42 @@ export function setupEventListeners() {
         dom.slidersPanelToggle.textContent = dom.slidersPanel.classList.contains('collapsed') ? '\u25B2' : '\u25BC';
     });
 
-    // Popup dragging
-    dom.popupTitle.addEventListener('mousedown', (e) => {
-        state.isDraggingPopup = true;
-        // Store offset between mouse and popup's current CSS left/top
-        const popupLeft = parseInt(dom.annotationPopup.style.left) || 0;
-        const popupTop = parseInt(dom.annotationPopup.style.top) || 0;
-        const viewportRect = dom.annotationPopup.parentElement.getBoundingClientRect();
-        state.popupDragOffsetX = e.clientX - viewportRect.left - popupLeft;
-        state.popupDragOffsetY = e.clientY - viewportRect.top - popupTop;
-        e.preventDefault();
-    });
+    // Popup dragging - only on desktop (pointer: fine)
+    if (!window.matchMedia('(pointer: coarse)').matches) {
+        dom.popupTitle.addEventListener('mousedown', (e) => {
+            state.isDraggingPopup = true;
+            const popupLeft = parseInt(dom.annotationPopup.style.left) || 0;
+            const popupTop = parseInt(dom.annotationPopup.style.top) || 0;
+            const viewportRect = dom.annotationPopup.parentElement.getBoundingClientRect();
+            state.popupDragOffsetX = e.clientX - viewportRect.left - popupLeft;
+            state.popupDragOffsetY = e.clientY - viewportRect.top - popupTop;
+            e.preventDefault();
+        });
 
-    document.addEventListener('mousemove', (e) => {
-        if (!state.isDraggingPopup) return;
+        document.addEventListener('mousemove', (e) => {
+            if (!state.isDraggingPopup) return;
 
-        const viewportRect = dom.annotationPopup.parentElement.getBoundingClientRect();
-        const viewportWidth = viewportRect.width;
-        const viewportHeight = viewportRect.height;
-        const popupRect = dom.annotationPopup.getBoundingClientRect();
+            const viewportRect = dom.annotationPopup.parentElement.getBoundingClientRect();
+            const viewportWidth = viewportRect.width;
+            const viewportHeight = viewportRect.height;
+            const popupRect = dom.annotationPopup.getBoundingClientRect();
 
-        let newX = e.clientX - viewportRect.left - state.popupDragOffsetX;
-        let newY = e.clientY - viewportRect.top - state.popupDragOffsetY;
+            let newX = e.clientX - viewportRect.left - state.popupDragOffsetX;
+            let newY = e.clientY - viewportRect.top - state.popupDragOffsetY;
 
-        newX = Math.max(0, Math.min(newX, viewportWidth - popupRect.width));
-        newY = Math.max(0, Math.min(newY, viewportHeight - popupRect.height));
+            newX = Math.max(0, Math.min(newX, viewportWidth - popupRect.width));
+            newY = Math.max(0, Math.min(newY, viewportHeight - popupRect.height));
 
-        dom.annotationPopup.style.left = newX + 'px';
-        dom.annotationPopup.style.top = newY + 'px';
-        dom.annotationPopup.style.right = 'auto';
-        dom.annotationPopup.style.bottom = 'auto';
-    });
+            dom.annotationPopup.style.left = newX + 'px';
+            dom.annotationPopup.style.top = newY + 'px';
+            dom.annotationPopup.style.right = 'auto';
+            dom.annotationPopup.style.bottom = 'auto';
+        });
 
-    document.addEventListener('mouseup', () => {
-        state.isDraggingPopup = false;
-    });
+        document.addEventListener('mouseup', () => {
+            state.isDraggingPopup = false;
+        });
+    }
 
     // About modal
     dom.btnAbout.addEventListener('click', () => {
@@ -616,6 +617,257 @@ export function setupEventListeners() {
 
             setTool(null);
             clearTempDrawing();
+        }
+    });
+
+    // Sidebar toggle for tablet
+    setupSidebarToggle();
+
+    // Virtual keyboard handling for iOS
+    setupVirtualKeyboardHandling();
+
+    // Set initial touch-action
+    setCanvasTouchAction(true);
+}
+
+// ============ Pointer Events with Capture Phase Interception ============
+
+// Click/double-tap detection state
+let _pointerDownX = 0;
+let _pointerDownY = 0;
+let _pointerDownTime = 0;
+let _lastTapTime = 0;
+let _lastTapX = 0;
+let _lastTapY = 0;
+
+// Two-finger box rotation gesture state
+const _activeTouches = new Map();
+let _isRotatingBoxWithGesture = false;
+let _boxGestureStartAngle = 0;
+let _boxGestureStartRotation = null;
+
+function setupCanvasPointerEvents() {
+    const canvas = dom.canvas;
+
+    // Capture phase: intercept pen events before OrbitControls
+    canvas.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'pen') {
+            e.stopPropagation();
+            _handlePointerDown(e);
+        } else if (e.pointerType === 'mouse') {
+            // Desktop mouse: handle normally (existing behavior)
+            _handlePointerDown(e);
+        } else if (e.pointerType === 'touch') {
+            // Track touch for two-finger box rotation gesture
+            _handleTouchDown(e);
+        }
+        // 'touch' events: let OrbitControls handle for navigation
+    }, { capture: true });
+
+    canvas.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'pen') {
+            e.stopPropagation();
+            onCanvasPointerMove(e);
+        } else if (e.pointerType === 'mouse') {
+            onCanvasPointerMove(e);
+        } else if (e.pointerType === 'touch') {
+            _handleTouchMove(e);
+        }
+        // 'touch' events: OrbitControls handles navigation
+    }, { capture: true });
+
+    canvas.addEventListener('pointerup', (e) => {
+        if (e.pointerType === 'pen') {
+            e.stopPropagation();
+            _handlePointerUp(e);
+        } else if (e.pointerType === 'mouse') {
+            _handlePointerUp(e);
+        } else if (e.pointerType === 'touch') {
+            _handleTouchUp(e);
+        }
+    }, { capture: true });
+
+    // Pointer cancel (finger lifted, pen out of range, etc.)
+    canvas.addEventListener('pointercancel', (e) => {
+        if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
+            _handlePointerUp(e);
+        } else if (e.pointerType === 'touch') {
+            _handleTouchUp(e);
+        }
+    }, { capture: true });
+}
+
+function _handlePointerDown(e) {
+    _pointerDownX = e.clientX;
+    _pointerDownY = e.clientY;
+    _pointerDownTime = Date.now();
+    onCanvasPointerDown(e);
+}
+
+function _handlePointerUp(e) {
+    const dx = e.clientX - _pointerDownX;
+    const dy = e.clientY - _pointerDownY;
+    const distSq = dx * dx + dy * dy;
+    const duration = Date.now() - _pointerDownTime;
+
+    // Click detection: same threshold as existing code (distSq <= 9)
+    const isClick = distSq <= 9 && duration < 500;
+
+    if (isClick) {
+        // Double-tap detection
+        const now = Date.now();
+        const tapDx = e.clientX - _lastTapX;
+        const tapDy = e.clientY - _lastTapY;
+        const tapDistSq = tapDx * tapDx + tapDy * tapDy;
+
+        if (now - _lastTapTime < 300 && tapDistSq < 400) {
+            // Double-tap detected
+            onCanvasDoubleTap(e);
+            _lastTapTime = 0; // Reset to prevent triple-tap
+        } else {
+            // Single tap
+            onCanvasTap(e);
+            _lastTapTime = now;
+            _lastTapX = e.clientX;
+            _lastTapY = e.clientY;
+        }
+    }
+
+    onCanvasPointerUp(e);
+}
+
+// ============ Two-Finger Box Rotation Gesture (Phase 2) ============
+
+function _handleTouchDown(e) {
+    _activeTouches.set(e.pointerId, {
+        x: e.clientX,
+        y: e.clientY,
+        startX: e.clientX,
+        startY: e.clientY
+    });
+
+    // Check for two-finger gesture on box
+    if (_activeTouches.size === 2 && state.boxEditUnlocked !== null) {
+        const ann = state.annotations.find(a => a.id === state.boxEditUnlocked);
+        if (ann && ann.type === 'box') {
+            _startBoxRotationGesture(ann);
+        }
+    }
+}
+
+function _handleTouchMove(e) {
+    if (!_activeTouches.has(e.pointerId)) return;
+    _activeTouches.get(e.pointerId).x = e.clientX;
+    _activeTouches.get(e.pointerId).y = e.clientY;
+
+    if (_isRotatingBoxWithGesture && _activeTouches.size === 2) {
+        e.stopPropagation(); // Prevent OrbitControls during gesture
+        _updateBoxRotationGesture();
+    }
+}
+
+function _handleTouchUp(e) {
+    _activeTouches.delete(e.pointerId);
+
+    if (_activeTouches.size < 2 && _isRotatingBoxWithGesture) {
+        _endBoxRotationGesture();
+    }
+}
+
+function _startBoxRotationGesture(ann) {
+    const touches = Array.from(_activeTouches.values());
+    _isRotatingBoxWithGesture = true;
+    _boxGestureStartAngle = Math.atan2(
+        touches[1].y - touches[0].y,
+        touches[1].x - touches[0].x
+    );
+    _boxGestureStartRotation = ann.boxData.rotation
+        ? { ...ann.boxData.rotation }
+        : { x: 0, y: 0, z: 0 };
+
+    state.selectedBoxAnnotation = ann;
+    // Disable OrbitControls during box rotation
+    state.controls.enabled = false;
+}
+
+function _updateBoxRotationGesture() {
+    if (!state.selectedBoxAnnotation) return;
+
+    const touches = Array.from(_activeTouches.values());
+    const currentAngle = Math.atan2(
+        touches[1].y - touches[0].y,
+        touches[1].x - touches[0].x
+    );
+    const deltaAngle = currentAngle - _boxGestureStartAngle;
+
+    // Apply rotation around Y axis (vertical in screen space)
+    state.selectedBoxAnnotation.boxData.rotation = {
+        x: _boxGestureStartRotation.x,
+        y: _boxGestureStartRotation.y + deltaAngle,
+        z: _boxGestureStartRotation.z
+    };
+    renderAnnotations();
+}
+
+function _endBoxRotationGesture() {
+    _isRotatingBoxWithGesture = false;
+    state.selectedBoxAnnotation = null;
+    state.controls.enabled = true;
+}
+
+// ============ Sidebar Toggle (Phase 3) ============
+
+function setupSidebarToggle() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    const viewport = document.getElementById('viewport');
+
+    if (!toggle) return;
+
+    toggle.addEventListener('click', () => {
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        viewport.classList.toggle('sidebar-expanded', !isCollapsed);
+        toggle.textContent = isCollapsed ? '\u25B6' : '\u25C0';
+
+        // Trigger resize for Three.js canvas
+        window.dispatchEvent(new Event('resize'));
+    });
+
+    // Auto-collapse on small touch screens
+    function checkAutoCollapse() {
+        const isTouch = window.matchMedia('(pointer: coarse)').matches;
+        const isNarrow = window.innerWidth < 1024;
+
+        if (isTouch && isNarrow && !sidebar.classList.contains('collapsed')) {
+            sidebar.classList.add('collapsed');
+            viewport.classList.remove('sidebar-expanded');
+            toggle.textContent = '\u25B6';
+        }
+    }
+
+    window.addEventListener('resize', checkAutoCollapse);
+    checkAutoCollapse();
+}
+
+// ============ Virtual Keyboard Handling (Phase 4) ============
+
+function setupVirtualKeyboardHandling() {
+    if (!window.visualViewport) return;
+
+    window.visualViewport.addEventListener('resize', () => {
+        const popup = document.getElementById('annotation-popup');
+        if (!popup.classList.contains('visible')) return;
+
+        // Check if keyboard is likely visible
+        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+
+        if (keyboardHeight > 100) {
+            // Keyboard visible - adjust popup
+            popup.style.maxHeight = `${window.visualViewport.height * 0.7}px`;
+            popup.style.bottom = '0';
+        } else {
+            // Keyboard hidden - reset
+            popup.style.maxHeight = '';
         }
     });
 }

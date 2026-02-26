@@ -140,6 +140,11 @@ export const state = {
     isDraggingPopup: false,
     popupDragOffsetX: 0,
     popupDragOffsetY: 0,
+
+    // Two-finger box rotation gesture (tablet)
+    isRotatingBoxWithGesture: false,
+    boxGestureStartAngle: 0,
+    boxGestureStartRotation: null,
 };
 
 // ============ DOM Elements ============

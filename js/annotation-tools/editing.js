@@ -798,7 +798,10 @@ export function updateTempLine() {
     state.annotationObjects.add(state.tempLine);
 }
 
-export function onCanvasClick(event) {
+// Pointer-event-compatible aliases for the canvas handlers.
+// These are the core annotation logic; click/double-tap detection
+// is handled by the pointer event wrappers in event-listeners.js.
+export function onCanvasTap(event) {
     if (state.wasDragging) {
         state.wasDragging = false;
         return;
@@ -907,7 +910,7 @@ export function onCanvasClick(event) {
     }
 }
 
-export function onCanvasDblClick(event) {
+export function onCanvasDoubleTap(event) {
     if (!state.currentModel) return;
 
     if (state.currentTool === 'line' && state.tempPoints.length >= 2) {
@@ -975,7 +978,7 @@ export function onCanvasDblClick(event) {
     }
 }
 
-export function onCanvasMouseDown(event) {
+export function onCanvasPointerDown(event) {
     if (state.currentTool === 'point' && state.currentModel && event.button === 0) {
         state.pendingPointPosition = getIntersection(event);
         return;
@@ -1138,7 +1141,7 @@ export function onCanvasMouseDown(event) {
     }
 }
 
-export function onCanvasMouseMove(event) {
+export function onCanvasPointerMove(event) {
     const rect = dom.canvas.getBoundingClientRect();
     const mouse = new THREE.Vector2(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -1455,7 +1458,7 @@ export function onCanvasMouseMove(event) {
     }
 }
 
-export function onCanvasMouseUp(event) {
+export function onCanvasPointerUp(event) {
     if (state.isPaintingSurface) {
         state.isPaintingSurface = false;
         state.controls.enabled = true;
