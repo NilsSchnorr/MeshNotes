@@ -2,7 +2,17 @@
 // All tool-specific info panels (tool-help, brush-display, measurement-display) are managed here
 import { state, dom } from '../state.js';
 
+// ============ Device Detection ============
+
+/**
+ * Check if we're on a touch-primary device (tablet/phone)
+ */
+function isTouchDevice() {
+    return window.matchMedia('(pointer: coarse)').matches;
+}
+
 // ============ Tool Help Content (compact format matching surface/measure style) ============
+// Desktop content with keyboard/mouse instructions
 
 const toolHelpContent = {
     boxEdit: {
@@ -111,6 +121,105 @@ const toolHelpContent = {
     // Note: surface and measure tools use their own dedicated panels (brush-display, measurement-display)
 };
 
+// Touch-specific help content (stylus + finger gestures)
+const toolHelpContentTouch = {
+    boxEdit: {
+        icon: '🔓',
+        name: 'Edit Box',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">Stylus</div>
+                <div class="help-row"><span class="help-key">Drag box</span><span class="help-desc">Move</span></div>
+                <div class="help-row"><span class="help-key">Drag corner</span><span class="help-desc">Resize</span></div>
+                <div class="help-row"><span class="help-key">2-finger twist</span><span class="help-desc">Rotate</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title" style="color: #EDC040;">Finish Editing</div>
+                <div class="help-row"><span class="help-key" style="background: #EDC040; color: #1a1a2e;">Double-tap</span><span class="help-desc">Lock box</span></div>
+                <div class="help-row"><span class="help-key">Tap elsewhere</span><span class="help-desc">Lock box</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation (finger)</div>
+                <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate view</span></div>
+                <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
+                <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
+            </div>
+        `
+    },
+    point: {
+        icon: '📍',
+        name: 'Point Annotation',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">Stylus</div>
+                <div class="help-row"><span class="help-key">Tap</span><span class="help-desc">Place point</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation (finger)</div>
+                <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate</span></div>
+                <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
+                <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
+            </div>
+        `
+    },
+    line: {
+        icon: '📏',
+        name: 'Line Annotation',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">Stylus</div>
+                <div class="help-row"><span class="help-key">Tap</span><span class="help-desc">Add point</span></div>
+                <div class="help-row"><span class="help-key">Double-tap</span><span class="help-desc">Finish</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation (finger)</div>
+                <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate</span></div>
+                <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
+                <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
+            </div>
+        `
+    },
+    polygon: {
+        icon: '⬡',
+        name: 'Polygon Annotation',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">Stylus</div>
+                <div class="help-row"><span class="help-key">Tap</span><span class="help-desc">Add vertex</span></div>
+                <div class="help-row"><span class="help-key">Double-tap</span><span class="help-desc">Close</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation (finger)</div>
+                <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate</span></div>
+                <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
+                <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
+            </div>
+        `
+    },
+    box: {
+        icon: '📦',
+        name: 'Box Annotation',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">1. Place &amp; Adjust (stylus)</div>
+                <div class="help-row"><span class="help-key">Tap</span><span class="help-desc">Place box on model</span></div>
+                <div class="help-row"><span class="help-key">Drag box</span><span class="help-desc">Move</span></div>
+                <div class="help-row"><span class="help-key">Drag corner</span><span class="help-desc">Resize</span></div>
+                <div class="help-row"><span class="help-key">2-finger twist</span><span class="help-desc">Rotate</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title" style="color: #EDC040;">2. Confirm</div>
+                <div class="help-row"><span class="help-key" style="background: #EDC040; color: #1a1a2e;">Double-tap</span><span class="help-desc">Save box &amp; add details</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation (finger)</div>
+                <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate view</span></div>
+                <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
+            </div>
+        `
+    }
+};
+
 // ============ Hide All Tool Info Panels ============
 
 /**
@@ -126,6 +235,7 @@ export function hideAllToolPanels() {
 
 /**
  * Shows the tool help panel for the specified tool.
+ * Automatically selects touch or desktop help content based on device.
  * @param {string|null} tool - The tool name or null to hide
  */
 export function showToolHelp(tool) {
@@ -135,24 +245,75 @@ export function showToolHelp(tool) {
     // Handle special cases: surface and measure have their own panels
     if (tool === 'surface') {
         dom.brushDisplay.classList.add('visible');
+        updateBrushHelpForDevice();
         return;
     }
     
     if (tool === 'measure') {
         dom.measurementDisplay.classList.add('visible');
+        updateMeasureHelpForDevice();
         return;
     }
     
     // Show tool-help panel for other tools
-    if (!tool || !toolHelpContent[tool]) {
+    if (!tool) {
         return;
     }
 
-    const help = toolHelpContent[tool];
+    // Select appropriate content based on device type
+    const isTouch = isTouchDevice();
+    const helpSource = isTouch ? toolHelpContentTouch : toolHelpContent;
+    const help = helpSource[tool];
+    
+    if (!help) {
+        return;
+    }
+
     dom.toolHelpTitle.querySelector('.icon').textContent = help.icon;
     dom.toolHelpTitle.querySelector('.name').textContent = help.name;
     dom.toolHelpContent.innerHTML = help.content;
     dom.toolHelp.classList.add('visible');
+}
+
+/**
+ * Updates brush display help section for current device type.
+ */
+function updateBrushHelpForDevice() {
+    const helpSection = document.querySelector('#brush-display .brush-help');
+    if (!helpSection) return;
+    
+    if (isTouchDevice()) {
+        helpSection.innerHTML = `
+            <div class="brush-help-section">
+                <div class="brush-help-title">Stylus</div>
+                <div class="brush-help-row"><span class="help-key">Drag</span><span class="brush-help-desc">Paint faces</span></div>
+                <div class="brush-help-row"><span class="help-key">Hold eraser</span><span class="brush-help-desc">Erase mode</span></div>
+            </div>
+            <div class="brush-help-section">
+                <div class="brush-help-title">Navigation (finger)</div>
+                <div class="brush-help-row"><span class="help-key">1-finger drag</span><span class="brush-help-desc">Rotate view</span></div>
+                <div class="brush-help-row"><span class="help-key">Pinch</span><span class="brush-help-desc">Zoom</span></div>
+            </div>
+        `;
+    }
+    // Desktop content is already in HTML, no change needed
+}
+
+/**
+ * Updates measurement display help section for current device type.
+ */
+function updateMeasureHelpForDevice() {
+    const helpSection = document.querySelector('#measurement-display .measure-help');
+    if (!helpSection) return;
+    
+    if (isTouchDevice()) {
+        helpSection.innerHTML = `
+            <div class="measure-help-row"><span class="help-key">Tap</span><span class="measure-help-desc">Add point</span></div>
+            <div class="measure-help-row"><span class="help-key">Double-tap</span><span class="measure-help-desc">Finish</span></div>
+            <div class="measure-help-row"><span class="help-key">Tap value</span><span class="measure-help-desc">Copy</span></div>
+        `;
+    }
+    // Desktop content is already in HTML, no change needed
 }
 
 /**

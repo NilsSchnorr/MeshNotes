@@ -2544,6 +2544,22 @@
                 transition: opacity 0.25s ease;
             }
 
+            /* Canvas fills viewport */
+            #canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+            /* Viewport expands when sidebar collapses (class added via JS) */
+            #viewport {
+                transition: margin-right 0.3s cubic-bezier(.4,0,.2,1);
+                margin-right: var(--sidebar-width);
+            }
+
+            #viewport.sidebar-collapsed {
+                margin-right: 0;
+            }
+
             /* Toggle tab: hangs off the left edge of the sidebar */
             #sidebar-toggle {
                 display: flex;

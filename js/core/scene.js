@@ -5,12 +5,39 @@ import { state, dom } from '../state.js';
 
 // ============ Scene Initialization ============
 
+/**
+ * Calculates the available viewport width, accounting for sidebar state.
+ * On tablet (coarse pointer), sidebar can be collapsed.
+ * On desktop, sidebar is always visible at 320px.
+ */
+function getViewportWidth() {
+    const sidebar = document.getElementById('sidebar');
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    
+    // On tablet with collapsed sidebar, use full width
+    if (isCoarsePointer && sidebar && sidebar.classList.contains('collapsed')) {
+        return window.innerWidth;
+    }
+    
+    // Otherwise subtract sidebar width (320px on desktop, 280px on tablet)
+    const sidebarWidth = isCoarsePointer ? 280 : 320;
+    return window.innerWidth - sidebarWidth;
+}
+
+/**
+ * Calculates the available viewport height, accounting for header and toolbar.
+ */
+function getViewportHeight() {
+    // Header (50px) + toolbar (38px) = 88px
+    return window.innerHeight - 88;
+}
+
 export function initScene() {
     state.scene = new THREE.Scene();
     state.scene.background = new THREE.Color(0x041D31);
 
-    const width = window.innerWidth - 320;
-    const height = window.innerHeight - 50;
+    const width = getViewportWidth();
+    const height = getViewportHeight();
 
     state.renderer = new THREE.WebGLRenderer({ canvas: dom.canvas, antialias: true, preserveDrawingBuffer: true });
     state.renderer.setSize(width, height);
@@ -34,8 +61,8 @@ export function addGrid() {
 }
 
 export function onWindowResize() {
-    const width = window.innerWidth - 320;
-    const height = window.innerHeight - 50;
+    const width = getViewportWidth();
+    const height = getViewportHeight();
     const aspect = width / height;
 
     // Update perspective camera

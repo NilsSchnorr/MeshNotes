@@ -662,6 +662,8 @@ function setupCanvasPointerEvents() {
         if (e.pointerType === 'pen') {
             e.stopImmediatePropagation();
             e.preventDefault();
+            // Capture pen pointer to receive events even if stylus moves outside canvas
+            canvas.setPointerCapture(e.pointerId);
             _handlePointerDown(e);
         } else if (e.pointerType === 'mouse') {
             _handlePointerDown(e);
@@ -685,6 +687,10 @@ function setupCanvasPointerEvents() {
     canvas.addEventListener('pointerup', (e) => {
         if (e.pointerType === 'pen') {
             e.stopImmediatePropagation();
+            // Release pointer capture
+            if (canvas.hasPointerCapture(e.pointerId)) {
+                canvas.releasePointerCapture(e.pointerId);
+            }
             _handlePointerUp(e);
         } else if (e.pointerType === 'mouse') {
             _handlePointerUp(e);
@@ -694,7 +700,13 @@ function setupCanvasPointerEvents() {
     }, { capture: true });
 
     canvas.addEventListener('pointercancel', (e) => {
-        if (e.pointerType === 'pen' || e.pointerType === 'mouse') {
+        if (e.pointerType === 'pen') {
+            // Release pointer capture on cancel
+            if (canvas.hasPointerCapture(e.pointerId)) {
+                canvas.releasePointerCapture(e.pointerId);
+            }
+            _handlePointerUp(e);
+        } else if (e.pointerType === 'mouse') {
             _handlePointerUp(e);
         } else if (e.pointerType === 'touch') {
             _handleTouchUp(e);
@@ -893,6 +905,7 @@ function _endBoxRotationGesture() {
 function setupSidebarToggle() {
     const sidebar = document.getElementById('sidebar');
     const toggle = document.getElementById('sidebar-toggle');
+    const viewport = document.getElementById('viewport');
 
     if (!toggle) return;
 
@@ -900,13 +913,26 @@ function setupSidebarToggle() {
     const isCoarse = window.matchMedia('(pointer: coarse)').matches;
     if (!isCoarse) return; // Desktop — sidebar is always visible, toggle hidden via CSS
 
+    // Listen for transition end to trigger resize at the right moment
+    sidebar.addEventListener('transitionend', (e) => {
+        // Only react to the transform transition (not opacity etc.)
+        if (e.propertyName === 'transform') {
+            window.dispatchEvent(new Event('resize'));
+        }
+    });
+
     toggle.addEventListener('click', (e) => {
         e.stopPropagation();
         const isCollapsed = sidebar.classList.toggle('collapsed');
         toggle.textContent = isCollapsed ? '\u25B6' : '\u25C0';
 
-        // Trigger resize so Three.js recalculates canvas size
-        setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
+        // Update viewport class for CSS transition
+        if (viewport) {
+            viewport.classList.toggle('sidebar-collapsed', isCollapsed);
+        }
+
+        // Fallback resize in case transitionend doesn't fire (e.g., reduced motion)
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
     });
 
     // Auto-collapse on touch devices (start collapsed)
@@ -914,6 +940,12 @@ function setupSidebarToggle() {
         if (!sidebar.classList.contains('collapsed')) {
             sidebar.classList.add('collapsed');
             toggle.textContent = '\u25B6';
+            // Also update viewport class
+            if (viewport) {
+                viewport.classList.add('sidebar-collapsed');
+            }
+            // Immediate resize on initial load
+            requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
         }
     }
 
@@ -926,6 +958,8 @@ function setupSidebarToggle() {
 function setupVirtualKeyboardHandling() {
     if (!window.visualViewport) return;
 
+    let lastKeyboardHeight = 0;
+
     window.visualViewport.addEventListener('resize', () => {
         const popup = document.getElementById('annotation-popup');
         if (!popup.classList.contains('visible')) return;
@@ -935,11 +969,37 @@ function setupVirtualKeyboardHandling() {
 
         if (keyboardHeight > 100) {
             // Keyboard visible - adjust popup
-            popup.style.maxHeight = `${window.visualViewport.height * 0.7}px`;
+            const availableHeight = window.visualViewport.height;
+            popup.style.maxHeight = `${availableHeight * 0.7}px`;
             popup.style.bottom = '0';
-        } else {
-            // Keyboard hidden - reset
+
+            // Scroll focused input into view if it's inside the popup
+            const focusedEl = document.activeElement;
+            if (focusedEl && popup.contains(focusedEl) && 
+                (focusedEl.tagName === 'INPUT' || focusedEl.tagName === 'TEXTAREA')) {
+                // Small delay to let layout settle
+                setTimeout(() => {
+                    focusedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
+
+            lastKeyboardHeight = keyboardHeight;
+        } else if (lastKeyboardHeight > 100) {
+            // Keyboard just hidden - reset all styles
             popup.style.maxHeight = '';
+            popup.style.bottom = '';
+            lastKeyboardHeight = 0;
+        }
+    });
+
+    // Also handle scroll event to keep input visible during typing
+    window.visualViewport.addEventListener('scroll', () => {
+        const popup = document.getElementById('annotation-popup');
+        const focusedEl = document.activeElement;
+        
+        if (popup.classList.contains('visible') && focusedEl && popup.contains(focusedEl)) {
+            // Ensure popup stays visible
+            popup.style.bottom = '0';
         }
     });
 }

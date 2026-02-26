@@ -141,10 +141,8 @@ export const state = {
     popupDragOffsetX: 0,
     popupDragOffsetY: 0,
 
-    // Two-finger box rotation gesture (tablet)
-    isRotatingBoxWithGesture: false,
-    boxGestureStartAngle: 0,
-    boxGestureStartRotation: null,
+    // Note: Two-finger box rotation gesture state is managed locally in
+    // event-listeners.js to keep the gesture handling self-contained.
 };
 
 // ============ DOM Elements ============
