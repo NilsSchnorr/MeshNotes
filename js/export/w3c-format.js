@@ -250,6 +250,16 @@ export function convertToW3CAnnotation(ann, group) {
             if (entry.links && entry.links.length > 0) {
                 body['schema:url'] = entry.links;
             }
+            
+            // Include version history if present
+            if (entry.versions && entry.versions.length > 0) {
+                body['meshnotes:versions'] = entry.versions.map(v => ({
+                    value: v.description || '',
+                    creator: v.author ? { type: 'Person', name: v.author } : undefined,
+                    'schema:url': v.links && v.links.length > 0 ? v.links : undefined,
+                    'meshnotes:savedAt': v.savedAt
+                }));
+            }
 
             return body;
         });
@@ -262,6 +272,22 @@ export function convertToW3CAnnotation(ann, group) {
     w3cAnn['annotationType'] = ann.type;
     if (ann.surfaceProjection === false) {
         w3cAnn['surfaceProjection'] = false;
+    }
+    
+    // Include name version history if present
+    if (ann.nameVersions && ann.nameVersions.length > 0) {
+        w3cAnn['meshnotes:nameVersions'] = ann.nameVersions.map(v => ({
+            value: v.value,
+            'meshnotes:savedAt': v.savedAt
+        }));
+    }
+    
+    // Include group version history if present
+    if (ann.groupVersions && ann.groupVersions.length > 0) {
+        w3cAnn['meshnotes:groupVersions'] = ann.groupVersions.map(v => ({
+            groupId: v.groupId,
+            'meshnotes:savedAt': v.savedAt
+        }));
     }
 
     return w3cAnn;
@@ -316,8 +342,35 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
                 modified: body.modified || undefined,
                 links: body['schema:url'] || []
             };
+            
+            // Restore version history if present
+            if (body['meshnotes:versions'] && body['meshnotes:versions'].length > 0) {
+                entry.versions = body['meshnotes:versions'].map(v => ({
+                    description: v.value || '',
+                    author: v.creator ? v.creator.name : '',
+                    links: v['schema:url'] || [],
+                    savedAt: v['meshnotes:savedAt']
+                }));
+            }
+            
             return entry;
         });
+    }
+    
+    // Restore name version history if present
+    if (w3cAnn['meshnotes:nameVersions'] && w3cAnn['meshnotes:nameVersions'].length > 0) {
+        ann.nameVersions = w3cAnn['meshnotes:nameVersions'].map(v => ({
+            value: v.value,
+            savedAt: v['meshnotes:savedAt']
+        }));
+    }
+    
+    // Restore group version history if present
+    if (w3cAnn['meshnotes:groupVersions'] && w3cAnn['meshnotes:groupVersions'].length > 0) {
+        ann.groupVersions = w3cAnn['meshnotes:groupVersions'].map(v => ({
+            groupId: v.groupId,
+            savedAt: v['meshnotes:savedAt']
+        }));
     }
 
     return ann;

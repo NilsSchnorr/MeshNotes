@@ -79,16 +79,30 @@ export function exportAnnotations() {
             type: 'Annotation',
             motivation: 'describing',
             'schema:name': 'Model Information',
-            body: state.modelInfo.entries.map(entry => ({
-                type: 'TextualBody',
-                value: entry.description || '',
-                format: 'text/plain',
-                'meshnotes:entryUuid': entry.uuid,
-                creator: entry.author ? { type: 'Person', name: entry.author } : undefined,
-                created: entry.timestamp,
-                modified: entry.modified || undefined,
-                'schema:url': entry.links && entry.links.length > 0 ? entry.links : undefined
-            }))
+            body: state.modelInfo.entries.map(entry => {
+                const bodyObj = {
+                    type: 'TextualBody',
+                    value: entry.description || '',
+                    format: 'text/plain',
+                    'meshnotes:entryUuid': entry.uuid,
+                    creator: entry.author ? { type: 'Person', name: entry.author } : undefined,
+                    created: entry.timestamp,
+                    modified: entry.modified || undefined,
+                    'schema:url': entry.links && entry.links.length > 0 ? entry.links : undefined
+                };
+                
+                // Include version history if present
+                if (entry.versions && entry.versions.length > 0) {
+                    bodyObj['meshnotes:versions'] = entry.versions.map(v => ({
+                        value: v.description || '',
+                        creator: v.author ? { type: 'Person', name: v.author } : undefined,
+                        'schema:url': v.links && v.links.length > 0 ? v.links : undefined,
+                        'meshnotes:savedAt': v.savedAt
+                    }));
+                }
+                
+                return bodyObj;
+            })
         } : undefined,
 
         // Annotations

@@ -871,6 +871,118 @@
             font-size: 12px;
         }
 
+        /* Version History (visible only in edit mode) */
+        .entry-version-history {
+            display: none;
+            margin-top: 12px;
+            border-top: 1px solid var(--color-blue);
+            padding-top: 10px;
+        }
+
+        .entry-card.editing .entry-version-history {
+            display: block;
+        }
+
+        .version-history-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            padding: 4px 0;
+            width: 100%;
+            text-align: left;
+        }
+
+        .version-history-toggle:hover {
+            color: var(--color-text-medium);
+        }
+
+        .version-history-toggle .toggle-icon {
+            font-size: 9px;
+            transition: transform 0.2s;
+        }
+
+        .version-history-toggle.expanded .toggle-icon {
+            transform: rotate(90deg);
+        }
+
+        .version-history-toggle .version-count {
+            background: var(--color-blue);
+            color: var(--color-text-medium);
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: auto;
+        }
+
+        .version-list {
+            display: none;
+            margin-top: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .version-history-toggle.expanded + .version-list {
+            display: block;
+        }
+
+        .version-item {
+            background: rgba(4, 29, 49, 0.6);
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+
+        .version-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .version-item-meta {
+            color: var(--color-text-dim);
+            margin-bottom: 4px;
+            font-size: 10px;
+        }
+
+        .version-item-meta .version-author {
+            color: var(--color-text-muted);
+        }
+
+        .version-item-description {
+            color: var(--color-text-muted);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.4;
+        }
+
+        .version-item-links {
+            margin-top: 4px;
+            color: var(--color-text-dim);
+            font-size: 10px;
+        }
+
+        .version-item-links a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+        }
+
+        .version-item-links a:hover {
+            color: var(--color-gold);
+            text-decoration: underline;
+        }
+
+        .no-versions {
+            color: var(--color-text-dim);
+            font-style: italic;
+            font-size: 11px;
+            padding: 4px 0;
+        }
+
         .btn-add-entry {
             width: 100%;
             padding: 10px;

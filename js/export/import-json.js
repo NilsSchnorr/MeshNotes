@@ -68,6 +68,27 @@ function importW3CAnnotations(data) {
         return entry.modified || entry.timestamp || entry.created || '';
     }
 
+    // Helper: merge version histories, avoiding duplicates by savedAt timestamp
+    function mergeVersionHistories(existingVersions, importedVersions) {
+        if (!importedVersions || importedVersions.length === 0) return;
+        if (!existingVersions) existingVersions = [];
+        
+        const existingTimestamps = new Set(existingVersions.map(v => v.savedAt));
+        
+        importedVersions.forEach(importedVersion => {
+            // Only add if we don't have a version with this exact timestamp
+            if (!existingTimestamps.has(importedVersion.savedAt)) {
+                existingVersions.push({ ...importedVersion });
+                existingTimestamps.add(importedVersion.savedAt);
+            }
+        });
+        
+        // Sort versions chronologically
+        existingVersions.sort((a, b) => (a.savedAt || '').localeCompare(b.savedAt || ''));
+        
+        return existingVersions;
+    }
+
     // Helper: merge entries from imported annotation into existing annotation
     function mergeEntries(existingEntries, importedEntries) {
         let entriesAdded = 0;
@@ -86,23 +107,30 @@ function importW3CAnnotations(data) {
             }
 
             if (!existingEntry) {
-                // New entry - add it
+                // New entry - add it (including any version history)
                 existingEntries.push(importedEntry);
                 entriesAdded++;
             } else {
-                // Existing entry - check if imported version is newer
+                // Existing entry - merge version histories first
+                if (importedEntry.versions && importedEntry.versions.length > 0) {
+                    if (!existingEntry.versions) existingEntry.versions = [];
+                    mergeVersionHistories(existingEntry.versions, importedEntry.versions);
+                }
+                
+                // Check if imported version is newer
                 const existingTime = entryTimestamp(existingEntry);
                 const importedTime = entryTimestamp(importedEntry);
 
                 if (importedTime > existingTime) {
-                    // Imported version is newer - update
+                    // Imported version is newer - update content
                     existingEntry.description = importedEntry.description;
                     existingEntry.author = importedEntry.author;
                     existingEntry.modified = importedEntry.modified;
                     existingEntry.links = importedEntry.links || [];
                     entriesUpdated++;
                 }
-                // else: local version is same or newer, skip
+                // else: local version is same or newer, skip content update
+                // (but version histories were still merged above)
             }
         });
 
@@ -123,15 +151,29 @@ function importW3CAnnotations(data) {
             ? importedModelInfo.body
             : [importedModelInfo.body];
 
-        const importedEntries = bodies.map((body, idx) => ({
-            id: Date.now() + idx + Math.floor(Math.random() * 1000),
-            uuid: body['meshnotes:entryUuid'] || generateUUID(),
-            description: body.value || '',
-            author: body.creator ? body.creator.name : '',
-            timestamp: body.created || new Date().toISOString(),
-            modified: body.modified || undefined,
-            links: body['schema:url'] || []
-        }));
+        const importedEntries = bodies.map((body, idx) => {
+            const entry = {
+                id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                uuid: body['meshnotes:entryUuid'] || generateUUID(),
+                description: body.value || '',
+                author: body.creator ? body.creator.name : '',
+                timestamp: body.created || new Date().toISOString(),
+                modified: body.modified || undefined,
+                links: body['schema:url'] || []
+            };
+            
+            // Include version history if present
+            if (body['meshnotes:versions'] && body['meshnotes:versions'].length > 0) {
+                entry.versions = body['meshnotes:versions'].map(v => ({
+                    description: v.value || '',
+                    author: v.creator ? v.creator.name : '',
+                    links: v['schema:url'] || [],
+                    savedAt: v['meshnotes:savedAt']
+                }));
+            }
+            
+            return entry;
+        });
 
         mergeEntries(state.modelInfo.entries, importedEntries);
         updateModelInfoDisplay();
@@ -207,6 +249,18 @@ function importW3CAnnotations(data) {
                     ? Math.max(...importedAnn.entries.map(e => new Date(entryTimestamp(e)).getTime() || 0))
                     : 0;
 
+                // Merge name version histories
+                if (importedAnn.nameVersions && importedAnn.nameVersions.length > 0) {
+                    if (!existingAnn.nameVersions) existingAnn.nameVersions = [];
+                    mergeVersionHistories(existingAnn.nameVersions, importedAnn.nameVersions);
+                }
+                
+                // Merge group version histories
+                if (importedAnn.groupVersions && importedAnn.groupVersions.length > 0) {
+                    if (!existingAnn.groupVersions) existingAnn.groupVersions = [];
+                    mergeVersionHistories(existingAnn.groupVersions, importedAnn.groupVersions);
+                }
+
                 // Update metadata (name, group, geometry) if imported version is newer
                 if (importedLatest > existingLatest) {
                     existingAnn.name = importedAnn.name;
@@ -217,7 +271,7 @@ function importW3CAnnotations(data) {
                     if (importedAnn.projectedEdges) existingAnn.projectedEdges = importedAnn.projectedEdges;
                 }
 
-                // Merge body entries
+                // Merge body entries (including their version histories)
                 const result = mergeEntries(existingAnn.entries, importedAnn.entries);
 
                 if (result.entriesAdded > 0 || result.entriesUpdated > 0) {

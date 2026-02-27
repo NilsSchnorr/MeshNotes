@@ -178,6 +178,11 @@ export function renderModelInfoEntriesList() {
                 ${entry.links.map(link => `<a href="${escapeHtml(link)}" target="_blank">🔗 ${escapeHtml(link.split('/').pop() || link)}</a>`).join('')}
             </div>
         ` : '';
+        
+        // Build version history HTML (only visible in edit mode via CSS)
+        const versionCount = getEntryVersionCount(entry);
+        const versions = getEntryVersions(entry);
+        const versionHistoryHtml = buildVersionHistoryHtml(entry.id, versionCount, versions);
 
         return `
             <div class="entry-card" data-entry-id="${entry.id}">
@@ -210,6 +215,7 @@ export function renderModelInfoEntriesList() {
                             <button class="btn-save" data-action="add-link">+</button>
                         </div>
                     </div>
+                    ${versionHistoryHtml}
                     <div class="entry-edit-buttons">
                         <button class="btn-cancel" data-action="cancel-edit">Cancel</button>
                         <button class="btn-save" data-action="save-edit">Save Entry</button>
@@ -297,6 +303,12 @@ function saveModelInfoEntryEdit(entryId, card) {
 
     const description = card.querySelector('[data-field="description"]').value.trim();
     const author = card.querySelector('[data-field="author"]').value.trim();
+    
+    // Get current links from the entry (they may have been modified in-place)
+    const currentLinks = entry.links || [];
+    
+    // Create version snapshot before applying changes
+    const hasChanges = createEntryVersion(entry, description, author, currentLinks);
 
     entry.description = description;
     entry.author = author;
@@ -306,7 +318,7 @@ function saveModelInfoEntryEdit(entryId, card) {
     state.editingEntryId = null;
     renderModelInfoEntriesList();
     updateModelInfoDisplay();
-    showStatus('Entry updated');
+    showStatus(hasChanges ? 'Entry updated (previous version saved)' : 'Entry saved');
 }
 
 function deleteModelInfoEntry(entryId) {
@@ -341,6 +353,11 @@ export function renderEntriesList(ann) {
                 ${entry.links.map(link => `<a href="${escapeHtml(link)}" target="_blank">🔗 ${escapeHtml(link.split('/').pop() || link)}</a>`).join('')}
             </div>
         ` : '';
+        
+        // Build version history HTML (only visible in edit mode via CSS)
+        const versionCount = getEntryVersionCount(entry);
+        const versions = getEntryVersions(entry);
+        const versionHistoryHtml = buildVersionHistoryHtml(entry.id, versionCount, versions);
 
         return `
             <div class="entry-card" data-entry-id="${entry.id}">
@@ -373,6 +390,7 @@ export function renderEntriesList(ann) {
                             <button class="btn-save" data-action="add-link">+</button>
                         </div>
                     </div>
+                    ${versionHistoryHtml}
                     <div class="entry-edit-buttons">
                         <button class="btn-cancel" data-action="cancel-edit">Cancel</button>
                         <button class="btn-save" data-action="save-edit">Save Entry</button>
@@ -441,6 +459,14 @@ export function renderEntriesList(ann) {
             }
         });
     });
+    
+    // Version history toggle buttons
+    dom.entriesList.querySelectorAll('.version-history-toggle').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            btn.classList.toggle('expanded');
+        });
+    });
 }
 
 function startEditingEntry(entryId) {
@@ -461,12 +487,174 @@ export function cancelEditingEntry() {
     });
 }
 
+// ============ Versioning System ============
+
+/**
+ * Saves a version snapshot of an entry before applying edits.
+ * Only creates a version if there are actual changes to any field.
+ * @param {Object} entry - The entry object to version
+ * @param {string} newDescription - New description value
+ * @param {string} newAuthor - New author value
+ * @param {string[]} newLinks - New links array
+ * @returns {boolean} True if changes were detected and version was created
+ */
+function createEntryVersion(entry, newDescription, newAuthor, newLinks) {
+    // Normalize for comparison
+    const oldDesc = entry.description || '';
+    const oldAuthor = entry.author || '';
+    const oldLinks = entry.links || [];
+    const normalizedNewLinks = newLinks || [];
+    
+    // Check if anything actually changed
+    const descChanged = oldDesc !== newDescription;
+    const authorChanged = oldAuthor !== newAuthor;
+    const linksChanged = JSON.stringify(oldLinks) !== JSON.stringify(normalizedNewLinks);
+    
+    if (!descChanged && !authorChanged && !linksChanged) {
+        return false; // No changes, no version needed
+    }
+    
+    // Initialize versions array if needed
+    if (!entry.versions) {
+        entry.versions = [];
+    }
+    
+    // Save current state as a version
+    entry.versions.push({
+        description: oldDesc,
+        author: oldAuthor,
+        links: [...oldLinks],
+        savedAt: new Date().toISOString()
+    });
+    
+    return true;
+}
+
+/**
+ * Gets the version count for an entry (for display badges).
+ * @param {Object} entry - The entry object
+ * @returns {number} Number of previous versions (current version not counted)
+ */
+export function getEntryVersionCount(entry) {
+    return entry && entry.versions ? entry.versions.length : 0;
+}
+
+/**
+ * Gets the version history for an entry.
+ * @param {Object} entry - The entry object
+ * @returns {Array} Array of version objects, newest first
+ */
+export function getEntryVersions(entry) {
+    if (!entry || !entry.versions) return [];
+    // Return versions in reverse chronological order (newest first)
+    return [...entry.versions].reverse();
+}
+
+/**
+ * Gets the combined version count for annotation-level changes (name + group).
+ * @param {Object} ann - The annotation object
+ * @returns {number} Total number of name and group versions
+ */
+export function getAnnotationVersionCount(ann) {
+    if (!ann) return 0;
+    const nameVersions = ann.nameVersions ? ann.nameVersions.length : 0;
+    const groupVersions = ann.groupVersions ? ann.groupVersions.length : 0;
+    return nameVersions + groupVersions;
+}
+
+/**
+ * Gets the name version history for an annotation.
+ * @param {Object} ann - The annotation object
+ * @returns {Array} Array of name version objects, newest first
+ */
+export function getAnnotationNameVersions(ann) {
+    if (!ann || !ann.nameVersions) return [];
+    return [...ann.nameVersions].reverse();
+}
+
+/**
+ * Gets the group version history for an annotation.
+ * @param {Object} ann - The annotation object  
+ * @returns {Array} Array of group version objects, newest first
+ */
+export function getAnnotationGroupVersions(ann) {
+    if (!ann || !ann.groupVersions) return [];
+    return [...ann.groupVersions].reverse();
+}
+
+/**
+ * Builds the HTML for version history display in edit mode.
+ * The section is hidden by default and only shown via CSS when the entry card has .editing class.
+ * @param {number} entryId - The entry ID (for data attributes)
+ * @param {number} versionCount - Number of previous versions
+ * @param {Array} versions - Array of version objects (newest first)
+ * @returns {string} HTML string for the version history section
+ */
+function buildVersionHistoryHtml(entryId, versionCount, versions) {
+    // Always render the container (CSS controls visibility based on .editing class)
+    const toggleText = versionCount > 0 
+        ? `Previous versions` 
+        : 'No previous versions';
+    
+    const countBadge = versionCount > 0 
+        ? `<span class="version-count">${versionCount}</span>` 
+        : '';
+    
+    let versionItemsHtml = '';
+    if (versionCount > 0) {
+        versionItemsHtml = versions.map((v, idx) => {
+            const savedDate = new Date(v.savedAt);
+            const dateStr = savedDate.toLocaleDateString() + ' ' + 
+                           savedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            const linksHtml = (v.links && v.links.length > 0) 
+                ? `<div class="version-item-links">
+                      Links: ${v.links.map(link => 
+                          `<a href="${escapeHtml(link)}" target="_blank">${escapeHtml(link.split('/').pop() || link)}</a>`
+                      ).join(', ')}
+                   </div>` 
+                : '';
+            
+            return `
+                <div class="version-item">
+                    <div class="version-item-meta">
+                        <span class="version-author">${escapeHtml(v.author || 'Unknown')}</span> • ${dateStr}
+                    </div>
+                    <div class="version-item-description">${escapeHtml(v.description || '(empty)')}</div>
+                    ${linksHtml}
+                </div>
+            `;
+        }).join('');
+    } else {
+        versionItemsHtml = '<div class="no-versions">This entry has not been edited yet.</div>';
+    }
+    
+    return `
+        <div class="entry-version-history" data-entry-id="${entryId}">
+            <button class="version-history-toggle" data-action="toggle-history" data-entry-id="${entryId}">
+                <span class="toggle-icon">▶</span>
+                <span>${toggleText}</span>
+                ${countBadge}
+            </button>
+            <div class="version-list">
+                ${versionItemsHtml}
+            </div>
+        </div>
+    `;
+}
+
 function saveEntryEdit(entryId, card) {
     const entry = state.editingAnnotation.entries.find(en => en.id === entryId);
     if (!entry) return;
 
     const description = card.querySelector('[data-field="description"]').value.trim();
     const author = card.querySelector('[data-field="author"]').value.trim();
+    
+    // Get current links from the entry (they may have been modified in-place)
+    const currentLinks = entry.links || [];
+    
+    // Create version snapshot before applying changes
+    const hasChanges = createEntryVersion(entry, description, author, currentLinks);
 
     entry.description = description;
     entry.author = author;
@@ -475,7 +663,7 @@ function saveEntryEdit(entryId, card) {
 
     state.editingEntryId = null;
     renderEntriesList(state.editingAnnotation);
-    showStatus('Entry updated');
+    showStatus(hasChanges ? 'Entry updated (previous version saved)' : 'Entry saved');
 }
 
 function deleteEntry(entryId) {
@@ -550,6 +738,62 @@ export function hideScalebarConfirm() {
     state.scalebarNoSwitchCallback = null;
 }
 
+/**
+ * Creates a version snapshot of an annotation's name before changing it.
+ * Only creates a version if the name actually changed.
+ * @param {Object} ann - The annotation object
+ * @param {string} newName - The new name value
+ * @returns {boolean} True if name changed and version was created
+ */
+function createAnnotationNameVersion(ann, newName) {
+    const oldName = ann.name || '';
+    
+    if (oldName === newName) {
+        return false; // No change
+    }
+    
+    // Initialize nameVersions array if needed
+    if (!ann.nameVersions) {
+        ann.nameVersions = [];
+    }
+    
+    // Save current name as a version
+    ann.nameVersions.push({
+        value: oldName,
+        savedAt: new Date().toISOString()
+    });
+    
+    return true;
+}
+
+/**
+ * Creates a version snapshot of an annotation's group assignment before changing it.
+ * Only creates a version if the group actually changed.
+ * @param {Object} ann - The annotation object
+ * @param {number} newGroupId - The new group ID
+ * @returns {boolean} True if group changed and version was created
+ */
+function createAnnotationGroupVersion(ann, newGroupId) {
+    const oldGroupId = ann.groupId;
+    
+    if (oldGroupId === newGroupId) {
+        return false; // No change
+    }
+    
+    // Initialize groupVersions array if needed
+    if (!ann.groupVersions) {
+        ann.groupVersions = [];
+    }
+    
+    // Save current group as a version
+    ann.groupVersions.push({
+        groupId: oldGroupId,
+        savedAt: new Date().toISOString()
+    });
+    
+    return true;
+}
+
 export function saveAnnotation() {
     if (state.editingModelInfo) {
         if (state.isAddingEntry || state.modelInfo.entries.length === 0) {
@@ -584,6 +828,10 @@ export function saveAnnotation() {
     const groupId = parseInt(dom.annGroup.value) || state.groups[0].id;
 
     if (state.editingAnnotation) {
+        // Create version snapshots before applying changes
+        const nameChanged = createAnnotationNameVersion(state.editingAnnotation, name);
+        const groupChanged = createAnnotationGroupVersion(state.editingAnnotation, groupId);
+        
         state.editingAnnotation.name = name;
         state.editingAnnotation.groupId = groupId;
 
