@@ -105,6 +105,9 @@ export function setupLoadedModel(model, fileName, upAxis) {
 }
 
 function setupLoadedModelInternal(model, fileName, upAxis) {
+    console.log(`setupLoadedModel: starting for "${fileName}" (upAxis: ${upAxis})`);
+    console.time('setupLoadedModel');
+    
     // Store the model's original up-axis for coordinate transforms in export/import
     state.modelUpAxis = upAxis || 'y-up';
 
@@ -127,6 +130,7 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
 
     state.currentModel = model;
     state.scene.add(state.currentModel);
+    console.log('setupLoadedModel: model added to scene');
 
     state.originalMaterials.clear();
     state.modelMeshes = [];
@@ -154,6 +158,18 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
             }
         }
     });
+    
+    console.log(`setupLoadedModel: traversal complete — ${state.modelMeshes.length} meshes, ${totalFaces.toLocaleString()} faces, vertexColors: ${state.hasVertexColors}`);
+    
+    // Check WebGL context before proceeding with expensive operations
+    const gl = state.renderer.getContext();
+    if (gl.isContextLost()) {
+        console.error('WebGL context was lost during model upload to GPU!');
+        dom.loading.classList.remove('visible');
+        showStatus('WebGL context lost — model too large for GPU.');
+        return;
+    }
+    console.log('setupLoadedModel: WebGL context OK after geometry upload');
     
     // Build BVH trees separately with error handling
     // BVH is required for surface tools and efficient raycasting
@@ -216,6 +232,23 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     }
 
     state.currentModel.position.sub(center);
+    
+    // Update camera clipping planes based on model size
+    // Near: small fraction of model size (but not too small to avoid z-fighting)
+    // Far: large multiple of model size to ensure the entire scene is visible
+    const nearPlane = Math.max(0.001, state.modelBoundingSize * 0.0001);
+    const farPlane = state.modelBoundingSize * 100;
+    
+    state.perspectiveCamera.near = nearPlane;
+    state.perspectiveCamera.far = farPlane;
+    state.perspectiveCamera.updateProjectionMatrix();
+    
+    state.orthographicCamera.near = nearPlane;
+    state.orthographicCamera.far = farPlane;
+    state.orthographicCamera.updateProjectionMatrix();
+    
+    console.log(`setupLoadedModel: clipping planes set to near=${nearPlane.toFixed(4)}, far=${farPlane.toFixed(1)}`);
+    
     state.camera.position.set(state.modelBoundingSize * 1.5, state.modelBoundingSize * 1.5, state.modelBoundingSize * 1.5);
     state.controls.target.set(0, 0, 0);
     state.controls.update();
@@ -248,11 +281,21 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         setModelOpacity(parseInt(dom.opacitySlider.value));
     }
 
+    // Final WebGL context check after all setup is complete
+    const glFinal = state.renderer.getContext();
+    if (glFinal.isContextLost()) {
+        console.error('WebGL context was lost during model setup! Model will not render.');
+        showStatus('WebGL context lost during setup — model may be too large for GPU.');
+    }
+    
     dom.loading.classList.remove('visible');
     showStatus(`Loaded: ${fileName}`);
 
     // Update ViewHelper labels to match the model's coordinate system
     updateViewHelperLabels();
+    
+    console.timeEnd('setupLoadedModel');
+    console.log(`setupLoadedModel: complete for "${fileName}"`);
 }
 
 export function loadOBJModel(objFile, materialFiles, upAxis) {
@@ -307,6 +350,7 @@ export function loadOBJModel(objFile, materialFiles, upAxis) {
             objLoader.load(
                 objUrl,
                 (obj) => {
+                    console.log('OBJ file parsed (with materials), setting up model...');
                     obj.traverse((child) => {
                         if (child.isMesh && child.material) {
                             const mat = child.material;
@@ -317,7 +361,14 @@ export function loadOBJModel(objFile, materialFiles, upAxis) {
                     URL.revokeObjectURL(objUrl);
                     Object.values(textureUrlMap).forEach(u => URL.revokeObjectURL(u));
                 },
-                undefined,
+                (progress) => {
+                    if (progress.lengthComputable) {
+                        const percent = Math.round((progress.loaded / progress.total) * 100);
+                        console.log(`Loading OBJ: ${percent}%`);
+                    } else {
+                        console.log(`Loading OBJ: ${(progress.loaded / 1024 / 1024).toFixed(1)} MB loaded...`);
+                    }
+                },
                 (error) => {
                     console.error('Error loading OBJ:', error);
                     dom.loading.classList.remove('visible');
@@ -344,6 +395,7 @@ export function loadOBJPlain(objUrl, textureUrlMap, fileName, upAxis) {
     objLoader.load(
         objUrl,
         (obj) => {
+            console.log('OBJ file parsed (plain), setting up model...');
             const textureUrls = Object.values(textureUrlMap);
             if (textureUrls.length > 0) {
                 const textureLoader = new THREE.TextureLoader();
@@ -365,7 +417,14 @@ export function loadOBJPlain(objUrl, textureUrlMap, fileName, upAxis) {
             URL.revokeObjectURL(objUrl);
             Object.values(textureUrlMap).forEach(u => URL.revokeObjectURL(u));
         },
-        undefined,
+        (progress) => {
+            if (progress.lengthComputable) {
+                const percent = Math.round((progress.loaded / progress.total) * 100);
+                console.log(`Loading OBJ: ${percent}%`);
+            } else {
+                console.log(`Loading OBJ: ${(progress.loaded / 1024 / 1024).toFixed(1)} MB loaded...`);
+            }
+        },
         (error) => {
             console.error('Error loading OBJ:', error);
             dom.loading.classList.remove('visible');

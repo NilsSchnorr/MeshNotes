@@ -36,6 +36,7 @@ export const state = {
     modelMeshes: [],
     modelBoundingSize: 1,
     modelUpAxis: 'z-up', // 'y-up' or 'z-up'
+    webglContextLost: false,
 
     // UI Multipliers
     pointSizeMultiplier: 1.0,

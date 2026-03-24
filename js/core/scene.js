@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { state, dom } from '../state.js';
+import { showStatus } from '../utils/helpers.js';
 
 // ============ Scene Initialization ============
 
@@ -46,6 +47,23 @@ export function initScene() {
 
     // Annotation objects group
     state.scene.add(state.annotationObjects);
+
+    // WebGL context loss detection
+    dom.canvas.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault();
+        console.error('⚠️ WebGL context LOST! The GPU ran out of resources.');
+        console.error('This typically happens when a model is too large for the GPU to handle.');
+        state.webglContextLost = true;
+        showStatus('WebGL context lost — model too large for GPU. Try a smaller model.', true);
+        // Hide loading screen if it's still showing
+        dom.loading.classList.remove('visible');
+    }, false);
+
+    dom.canvas.addEventListener('webglcontextrestored', () => {
+        console.log('WebGL context restored.');
+        state.webglContextLost = false;
+        showStatus('WebGL context restored. Please reload your model.');
+    }, false);
 }
 
 export function initControls() {
