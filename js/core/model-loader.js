@@ -506,10 +506,10 @@ export function toggleTexture() {
     if (!state.currentModel) return;
 
     if (state.displayMode === 'texture') {
-        state.displayMode = state.hasVertexColors ? 'vertexColors' : 'gray';
+        state.displayMode = state.hasVertexColors ? 'vertexColors' : 'mesh';
     } else if (state.displayMode === 'vertexColors') {
-        state.displayMode = 'gray';
-    } else if (state.displayMode === 'gray') {
+        state.displayMode = 'mesh';
+    } else if (state.displayMode === 'mesh') {
         state.displayMode = 'wireframe';
     } else {
         state.displayMode = 'texture';
@@ -521,7 +521,7 @@ export function toggleTexture() {
     const modeLabels = {
         'texture': 'Texture',
         'vertexColors': 'Vertex Colors',
-        'gray': 'Gray',
+        'mesh': 'Mesh',
         'wireframe': 'Wireframe'
     };
     showStatus(`Display: ${modeLabels[state.displayMode]}`);
@@ -546,15 +546,14 @@ export function applyDisplayMode() {
                     metalness: 0.0
                 });
             } else if (state.displayMode === 'wireframe') {
-                // Gold accent color: rgb(170, 129, 1)
                 child.material = new THREE.MeshBasicMaterial({
-                    color: 0xaa8101,
+                    color: new THREE.Color(state.wireframeColor),
                     wireframe: true
                 });
             } else {
-                // Gray mode
+                // Mesh mode (solid color, no texture)
                 child.material = new THREE.MeshStandardMaterial({
-                    color: 0x888888,
+                    color: new THREE.Color(state.meshColor),
                     roughness: 0.7,
                     metalness: 0.0
                 });
@@ -571,7 +570,7 @@ export function updateTextureButtonLabel() {
     const labels = {
         'texture': '🖼️ Texture',
         'vertexColors': '🎨 Colors',
-        'gray': '⬜ Gray',
+        'mesh': '⬜ Mesh',
         'wireframe': '🔲 Wireframe'
     };
     dom.btnTexture.innerHTML = labels[state.displayMode] || '🖼️ Texture';

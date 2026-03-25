@@ -30,7 +30,7 @@ export const state = {
     currentModel: null,
     modelFileName: '',
     originalMaterials: new Map(),
-    displayMode: 'texture', // 'texture', 'vertexColors', 'gray', 'wireframe'
+    displayMode: 'texture', // 'texture', 'vertexColors', 'mesh', 'wireframe'
     hasVertexColors: false,
     modelOpacity: 1.0,
     modelMeshes: [],
@@ -47,6 +47,10 @@ export const state = {
     measurementUnit: 'units',
     measurementLineColor: '#AA8101',
     measurementPointColor: '#FFFFFF',
+    
+    // Model display colors
+    meshColor: '#888888',
+    wireframeColor: '#AA8101',
     
     // PDF export settings
     pdfTitle: '',
@@ -309,6 +313,8 @@ export function initDomReferences() {
     dom.settingsPdfPageSize = document.getElementById('settings-pdf-page-size');
     dom.settingsPdfOrientation = document.getElementById('settings-pdf-orientation');
     dom.settingsPdfDpi = document.getElementById('settings-pdf-dpi');
+    dom.settingsMeshColor = document.getElementById('settings-mesh-color');
+    dom.settingsWireframeColor = document.getElementById('settings-wireframe-color');
     dom.settingsResetAll = document.getElementById('settings-reset-all');
     
     // Camera toggle (now in sliders panel)

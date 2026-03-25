@@ -161,6 +161,19 @@ function loadSavedSettings() {
         dom.settingsMeasurementPointColor.value = savedMeasurementPointColor;
     }
     
+    // Model display colors
+    const savedMeshColor = localStorage.getItem('meshnotes_meshColor');
+    if (savedMeshColor) {
+        state.meshColor = savedMeshColor;
+        dom.settingsMeshColor.value = savedMeshColor;
+    }
+    
+    const savedWireframeColor = localStorage.getItem('meshnotes_wireframeColor');
+    if (savedWireframeColor) {
+        state.wireframeColor = savedWireframeColor;
+        dom.settingsWireframeColor.value = savedWireframeColor;
+    }
+    
     // PDF export settings
     const savedPdfTitle = localStorage.getItem('meshnotes_pdfTitle');
     if (savedPdfTitle) {

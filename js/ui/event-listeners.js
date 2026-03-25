@@ -1,9 +1,9 @@
 // js/ui/event-listeners.js
 import { state, dom } from '../state.js';
 import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
-import { loadModel, toggleTexture, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
+import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, resetAllSettings } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
@@ -515,6 +515,17 @@ export function setupEventListeners() {
         setMeasurementPointColor(e.target.value);
     });
     
+    // Settings: Model Display Colors
+    dom.settingsMeshColor.addEventListener('input', (e) => {
+        setMeshColor(e.target.value);
+        if (state.displayMode === 'mesh') applyDisplayMode();
+    });
+    
+    dom.settingsWireframeColor.addEventListener('input', (e) => {
+        setWireframeColor(e.target.value);
+        if (state.displayMode === 'wireframe') applyDisplayMode();
+    });
+    
     // Settings: PDF Export
     dom.settingsPdfTitle.addEventListener('input', (e) => {
         setPdfTitle(e.target.value);
@@ -546,7 +557,7 @@ export function setupEventListeners() {
     
     // Settings: Reset All
     dom.settingsResetAll.addEventListener('click', () => {
-        if (confirm('Reset all settings to their default values?\n\nThis will clear your saved preferences for point size, text size, background color, default author, and measurement unit.')) {
+        if (confirm('Reset all settings to their default values?\n\nThis will clear your saved preferences for point size, text size, background color, model display colors, default author, and measurement unit.')) {
             resetAllSettings();
             showStatus('Settings reset to defaults');
         }

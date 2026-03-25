@@ -244,6 +244,8 @@ export function resetAllSettings() {
     state.measurementUnit = 'units';
     state.measurementLineColor = '#AA8101';
     state.measurementPointColor = '#FFFFFF';
+    state.meshColor = '#888888';
+    state.wireframeColor = '#AA8101';
     state.backgroundColor = '#041D31';
     state.pdfTitle = '';
     state.pdfInstitution = '';
@@ -264,6 +266,8 @@ export function resetAllSettings() {
     dom.settingsMeasurementUnitCustom.style.display = 'none';
     dom.settingsMeasurementLineColor.value = '#AA8101';
     dom.settingsMeasurementPointColor.value = '#FFFFFF';
+    dom.settingsMeshColor.value = '#888888';
+    dom.settingsWireframeColor.value = '#AA8101';
     dom.settingsPdfTitle.value = '';
     dom.settingsPdfInstitution.value = '';
     dom.settingsPdfProject.value = '';
@@ -292,6 +296,20 @@ export function setMeasurementPointColor(color) {
     state.measurementPointColor = color;
     localStorage.setItem('meshnotes_measurementPointColor', color);
     dom.settingsMeasurementPointColor.value = color;
+}
+
+// ============ Model Display Color Settings ============
+
+export function setMeshColor(color) {
+    state.meshColor = color;
+    localStorage.setItem('meshnotes_meshColor', color);
+    dom.settingsMeshColor.value = color;
+}
+
+export function setWireframeColor(color) {
+    state.wireframeColor = color;
+    localStorage.setItem('meshnotes_wireframeColor', color);
+    dom.settingsWireframeColor.value = color;
 }
 
 // ============ PDF Export Settings ============
