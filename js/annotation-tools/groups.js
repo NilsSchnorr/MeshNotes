@@ -20,7 +20,8 @@ export function createDefaultGroup() {
             uuid: generateUUID(),
             name: 'Default',
             color: '#EDC040',
-            visible: true
+            visible: true,
+            opacity: 1.0
         });
         updateGroupsList();
     }
@@ -33,11 +34,16 @@ export function openGroupPopup(group = null) {
         dom.groupPopupTitle.textContent = 'Edit Group';
         dom.groupName.value = group.name;
         dom.groupColor.value = group.color;
+        const opacityPercent = Math.round((group.opacity !== undefined ? group.opacity : 1.0) * 100);
+        dom.groupOpacity.value = opacityPercent;
+        dom.groupOpacityValue.textContent = opacityPercent + '%';
         dom.btnGroupDelete.style.display = state.groups.length > 1 ? 'block' : 'none';
     } else {
         dom.groupPopupTitle.textContent = 'New Group';
         dom.groupName.value = '';
         dom.groupColor.value = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        dom.groupOpacity.value = 100;
+        dom.groupOpacityValue.textContent = '100%';
         dom.btnGroupDelete.style.display = 'none';
     }
 
@@ -48,17 +54,20 @@ export function openGroupPopup(group = null) {
 export function saveGroup() {
     const name = dom.groupName.value.trim() || 'Unnamed Group';
     const color = dom.groupColor.value;
+    const opacity = parseInt(dom.groupOpacity.value) / 100;
 
     if (state.editingGroup) {
         state.editingGroup.name = name;
         state.editingGroup.color = color;
+        state.editingGroup.opacity = opacity;
     } else {
         state.groups.push({
             id: Date.now(),
             uuid: generateUUID(),
             name,
             color,
-            visible: true
+            visible: true,
+            opacity
         });
     }
 
@@ -254,7 +263,8 @@ export function createGroupInline() {
         uuid: generateUUID(),
         name,
         color,
-        visible: true
+        visible: true,
+        opacity: 1.0
     };
 
     state.groups.push(newGroup);

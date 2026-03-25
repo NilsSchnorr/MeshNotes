@@ -247,6 +247,8 @@ export function initDomReferences() {
     dom.groupPopupTitle = document.getElementById('group-popup-title');
     dom.groupName = document.getElementById('group-name');
     dom.groupColor = document.getElementById('group-color');
+    dom.groupOpacity = document.getElementById('group-opacity');
+    dom.groupOpacityValue = document.getElementById('group-opacity-value');
     dom.btnGroupSave = document.getElementById('btn-group-save');
     dom.btnGroupCancel = document.getElementById('btn-group-cancel');
     dom.btnGroupDelete = document.getElementById('btn-group-delete');

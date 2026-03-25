@@ -258,6 +258,9 @@ export function setupEventListeners() {
     dom.btnGroupDelete.addEventListener('click', () => {
         if (state.editingGroup) deleteGroup(state.editingGroup);
     });
+    dom.groupOpacity.addEventListener('input', (e) => {
+        dom.groupOpacityValue.textContent = e.target.value + '%';
+    });
 
     // Inline group creation in annotation popup
     dom.btnAddGroupInline.addEventListener('click', showInlineGroupForm);

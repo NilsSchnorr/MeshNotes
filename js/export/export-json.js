@@ -71,7 +71,8 @@ export function exportAnnotations() {
             'meshnotes:uuid': g.uuid,
             'schema:name': g.name,
             'schema:color': g.color,
-            'meshnotes:visible': g.visible
+            'meshnotes:visible': g.visible,
+            'meshnotes:opacity': g.opacity !== undefined ? g.opacity : 1.0
         })),
 
         // Model information entries

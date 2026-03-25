@@ -37,11 +37,16 @@ export function renderAnnotations() {
         if (!group || !group.visible) return;
 
         const color = new THREE.Color(group.color);
+        const groupOpacity = group.opacity !== undefined ? group.opacity : 1.0;
         let labelPosition;
 
         if (ann.type === 'point') {
             const geometry = new THREE.SphereGeometry(0.02, 16, 16);
-            const material = new THREE.MeshBasicMaterial({ color });
+            const material = new THREE.MeshBasicMaterial({
+                color,
+                transparent: groupOpacity < 1,
+                opacity: groupOpacity
+            });
             const marker = new THREE.Mesh(geometry, material);
             marker.position.set(ann.points[0].x, ann.points[0].y, ann.points[0].z);
             marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.025 * state.pointSizeMultiplier);
@@ -79,6 +84,8 @@ export function renderAnnotations() {
             const lineMaterial = new LineMaterial({
                 color: color,
                 linewidth: 3,
+                transparent: groupOpacity < 1,
+                opacity: groupOpacity,
                 resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
                 polygonOffset: true,
                 polygonOffsetFactor: -4,
@@ -91,7 +98,11 @@ export function renderAnnotations() {
 
             ann.points.forEach((p, index) => {
                 const geometry = new THREE.SphereGeometry(0.02, 12, 12);
-                const material = new THREE.MeshBasicMaterial({ color });
+                const material = new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: groupOpacity < 1,
+                    opacity: groupOpacity
+                });
                 const marker = new THREE.Mesh(geometry, material);
                 marker.position.set(p.x, p.y, p.z);
                 marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier);
@@ -119,7 +130,7 @@ export function renderAnnotations() {
                 );
             }
         } else if (ann.type === 'surface' && ann.faceData) {
-            const surfaceMesh = renderSurfaceAnnotation(ann, color);
+            const surfaceMesh = renderSurfaceAnnotation(ann, color, groupOpacity);
             if (surfaceMesh) {
                 surfaceMesh.userData.annotationId = ann.id;
                 state.annotationObjects.add(surfaceMesh);
@@ -133,7 +144,7 @@ export function renderAnnotations() {
                 );
             }
         } else if (ann.type === 'box' && ann.boxData) {
-            const boxObjects = renderBoxAnnotation(ann, color, maxDim);
+            const boxObjects = renderBoxAnnotation(ann, color, maxDim, groupOpacity);
             if (boxObjects) {
                 boxObjects.forEach(obj => {
                     obj.userData.annotationId = ann.id;
@@ -152,6 +163,9 @@ export function renderAnnotations() {
 
         if (ann.name && labelPosition) {
             const label = createScaledTextSprite(ann.name, group.color, labelPosition, 0.8);
+            if (groupOpacity < 1) {
+                label.material.opacity = groupOpacity;
+            }
             label.userData.annotationId = ann.id;
             state.annotationObjects.add(label);
         }
@@ -165,7 +179,7 @@ export function renderAnnotations() {
     updateAnnotationsPanel();
 }
 
-export function renderSurfaceAnnotation(ann, color) {
+export function renderSurfaceAnnotation(ann, color, groupOpacity = 1.0) {
     if (!ann.faceData || ann.faceData.length === 0) return null;
 
     const facesByMesh = new Map();
@@ -221,7 +235,7 @@ export function renderSurfaceAnnotation(ann, color) {
     const highlightMaterial = new THREE.MeshBasicMaterial({
         color: color,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.5 * groupOpacity,
         side: THREE.DoubleSide,
         depthTest: true,
         depthWrite: false,
@@ -235,7 +249,7 @@ export function renderSurfaceAnnotation(ann, color) {
     return mesh;
 }
 
-export function renderBoxAnnotation(ann, color, maxDim) {
+export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
     if (!ann.boxData) return null;
 
     const { center, size, rotation } = ann.boxData;
@@ -253,7 +267,7 @@ export function renderBoxAnnotation(ann, color, maxDim) {
     const fillMaterial = new THREE.MeshBasicMaterial({
         color: color,
         transparent: true,
-        opacity: isUnlocked ? 0.35 : 0.25,
+        opacity: (isUnlocked ? 0.35 : 0.25) * groupOpacity,
         side: THREE.DoubleSide,
         depthTest: true,
         depthWrite: false
@@ -273,7 +287,7 @@ export function renderBoxAnnotation(ann, color, maxDim) {
         color: edgeColor,
         linewidth: 2,
         transparent: true,
-        opacity: 1.0,
+        opacity: 1.0 * groupOpacity,
         depthTest: true,
         depthWrite: false
     });
@@ -296,7 +310,7 @@ export function renderBoxAnnotation(ann, color, maxDim) {
         const handleMaterial = new THREE.MeshBasicMaterial({
             color: handleColor,
             transparent: true,
-            opacity: 1.0,
+            opacity: 1.0 * groupOpacity,
             depthTest: true,
             depthWrite: false
         });

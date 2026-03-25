@@ -202,7 +202,8 @@ function importW3CAnnotations(data) {
                     uuid: groupUuid || generateUUID(),
                     name: groupName,
                     color: importedGroup['schema:color'] || importedGroup.color || '#4CAF50',
-                    visible: importedGroup['meshnotes:visible'] !== false
+                    visible: importedGroup['meshnotes:visible'] !== false,
+                    opacity: importedGroup['meshnotes:opacity'] !== undefined ? importedGroup['meshnotes:opacity'] : 1.0
                 };
                 // Map both internal ID and UUID for annotation lookup
                 groupIdMap[importedGroup.id] = newGroupId;
@@ -227,7 +228,7 @@ function importW3CAnnotations(data) {
             // If no group assigned, use default
             if (!importedAnn.groupId) {
                 if (state.groups.length === 0) {
-                    state.groups.push({ id: Date.now(), uuid: generateUUID(), name: 'Default', color: '#4CAF50', visible: true });
+                    state.groups.push({ id: Date.now(), uuid: generateUUID(), name: 'Default', color: '#4CAF50', visible: true, opacity: 1.0 });
                 }
                 importedAnn.groupId = state.groups[0].id;
             }
@@ -321,7 +322,8 @@ function importLegacyAnnotations(data) {
             const newGroup = {
                 ...importedGroup,
                 id: newGroupId,
-                uuid: importedGroup.uuid || generateUUID()
+                uuid: importedGroup.uuid || generateUUID(),
+                opacity: importedGroup.opacity !== undefined ? importedGroup.opacity : 1.0
             };
 
             data.annotations.forEach(ann => {
