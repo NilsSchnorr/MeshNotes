@@ -444,6 +444,19 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header">
+                            <span>Flip View</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Click the <strong>Flip</strong> button in the bottom-right panel to rotate the model 180° upside down. This is useful for objects like coins where the front and back sides are stamped at different angles, making the reverse side difficult to reach with normal orbit controls.</p>
+                            <p style="margin-top: 10px;"><strong>Purely visual:</strong> The flip is a temporary display effect only. It does not change the model's actual orientation, and it does not affect annotation coordinates. All annotations — whether created before, during, or after flipping — are stored in the same coordinate space as if the model were in its original orientation. You can freely toggle the flip on and off without any impact on your data.</p>
+                            <p style="margin-top: 10px;"><strong>Export safety:</strong> JSON exports, PDF reports, and screenshots taken while the model is flipped will contain the same annotation coordinates as exports made without flipping. The flip state is never saved or exported — it is purely a viewing convenience that resets when you load a new model.</p>
+                            <p style="margin-top: 10px;"><strong>Annotations while flipped:</strong> You can create, edit, drag, and delete annotations normally while the model is flipped. New annotations placed on the visible (flipped) surface are automatically stored with the correct non-flipped coordinates. Existing annotations remain correctly positioned when you toggle the flip on or off.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
                             <span>View Helper</span>
                             <span class="toggle-icon">▶</span>
                         </div>
