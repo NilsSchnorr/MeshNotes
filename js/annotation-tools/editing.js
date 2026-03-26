@@ -4,9 +4,9 @@ import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state, dom } from '../state.js';
-import { showStatus } from '../utils/helpers.js';
+import { showStatus, toStorageCoords } from '../utils/helpers.js';
 import { getIntersection, getIntersectionFull, createScaledTextSprite } from '../core/scene.js';
-import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, recomputeAdjacentEdges } from './projection.js';
+import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, recomputeAdjacentEdges, computeProjectedEdgesFlipAware, recomputeAdjacentEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
 import { showBoxEditHelp, hideToolHelp } from '../ui/tool-help.js';
@@ -494,7 +494,9 @@ export function finishSurfacePainting(event) {
         return `${meshIdx}_${faceIdx}`;
     });
 
-    _openAnnotationPopup(event, 'surface', [center], faceData);
+    // Convert centroid from world space to storage (non-flipped) space
+    const storageCentroid = toStorageCoords(center);
+    _openAnnotationPopup(event, 'surface', [storageCentroid], faceData);
 
     // Clean up highlight mesh and module-level buffer references
     if (state.surfaceHighlightMesh) {
@@ -845,7 +847,7 @@ export function onCanvasTap(event) {
         const pointToUse = state.pendingPointPosition || point;
         state.pendingPointPosition = null;
         if (!pointToUse) return;
-        _openAnnotationPopup(event, 'point', [pointToUse]);
+        _openAnnotationPopup(event, 'point', [toStorageCoords(pointToUse)]);
         _setTool(null);
     } else if (state.currentTool === 'line') {
         state.tempPoints.push(point);
@@ -914,22 +916,26 @@ export function onCanvasDoubleTap(event) {
     if (!state.currentModel) return;
 
     if (state.currentTool === 'line' && state.tempPoints.length >= 2) {
-        _openAnnotationPopup(event, 'line', [...state.tempPoints]);
+        // Convert from world space to storage (non-flipped) space
+        const storagePoints = state.tempPoints.map(p => toStorageCoords(p));
+        _openAnnotationPopup(event, 'line', storagePoints);
         _setTool(null);
     } else if (state.currentTool === 'polygon' && state.tempPoints.length >= 3) {
-        _openAnnotationPopup(event, 'polygon', [...state.tempPoints]);
+        const storagePoints = state.tempPoints.map(p => toStorageCoords(p));
+        _openAnnotationPopup(event, 'polygon', storagePoints);
         _setTool(null);
     } else if (state.currentTool === 'surface' && state.paintedFaces.size > 0) {
         finishSurfacePainting(event);
         _setTool(null);
     } else if (state.isBoxPlacementMode && state.pendingBoxData) {
-        // Confirm box placement and open popup
-        const point = { 
-            x: state.pendingBoxData.center.x, 
-            y: state.pendingBoxData.center.y, 
-            z: state.pendingBoxData.center.z 
+        // Confirm box placement - convert from world space to storage coords
+        const storageCenter = toStorageCoords(state.pendingBoxData.center);
+        const point = { x: storageCenter.x, y: storageCenter.y, z: storageCenter.z };
+        const boxData = {
+            center: storageCenter,
+            size: { ...state.pendingBoxData.size },
+            rotation: state.pendingBoxData.rotation ? { ...state.pendingBoxData.rotation } : { x: 0, y: 0, z: 0 }
         };
-        const boxData = { ...state.pendingBoxData };
         
         // Clear pending box visuals
         clearPendingBox();
@@ -1169,14 +1175,16 @@ export function onCanvasPointerMove(event) {
             state.draggedMarker.position.copy(newPos);
 
             if (state.draggedAnnotation && state.draggedPointIndex >= 0) {
+                // Convert from world space to storage (non-flipped) space
+                const storagePos = toStorageCoords(newPos);
                 state.draggedAnnotation.points[state.draggedPointIndex] = {
-                    x: newPos.x,
-                    y: newPos.y,
-                    z: newPos.z
+                    x: storagePos.x,
+                    y: storagePos.y,
+                    z: storagePos.z
                 };
 
                 if (state.draggedAnnotation.projectedEdges && state.draggedAnnotation.surfaceProjection) {
-                    recomputeAdjacentEdges(state.draggedAnnotation, state.draggedPointIndex);
+                    recomputeAdjacentEdgesFlipAware(state.draggedAnnotation, state.draggedPointIndex);
                 }
 
                 renderAnnotations();
@@ -1317,21 +1325,22 @@ export function onCanvasPointerMove(event) {
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, state.camera);
 
-            const startCenter = new THREE.Vector3(
-                state.boxDragStartData.center.x,
-                state.boxDragStartData.center.y,
-                state.boxDragStartData.center.z
-            );
+            // Convert stored center to display (world) space for plane positioning
+            const sc = state.boxDragStartData.center;
+            const dc = state.isFlipped ? { x: sc.x, y: -sc.y, z: -sc.z } : sc;
+            const startCenter = new THREE.Vector3(dc.x, dc.y, dc.z);
             const cameraDir = new THREE.Vector3();
             state.camera.getWorldDirection(cameraDir);
             const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
 
             const intersection = new THREE.Vector3();
             if (raycaster.ray.intersectPlane(movePlane, intersection)) {
+                // Convert from world space back to storage
+                const stored = toStorageCoords(intersection);
                 state.selectedBoxAnnotation.boxData.center = {
-                    x: intersection.x,
-                    y: intersection.y,
-                    z: intersection.z
+                    x: stored.x,
+                    y: stored.y,
+                    z: stored.z
                 };
                 state.selectedBoxAnnotation.points[0] = { ...state.selectedBoxAnnotation.boxData.center };
                 renderAnnotations();
@@ -1351,11 +1360,10 @@ export function onCanvasPointerMove(event) {
             const oppositeIndex = 7 - state.activeBoxHandle;
             const oppositeCornerFactors = corners[oppositeIndex];
 
-            const startCenter = new THREE.Vector3(
-                state.boxDragStartData.center.x,
-                state.boxDragStartData.center.y,
-                state.boxDragStartData.center.z
-            );
+            // Convert stored center to display (world) space for manipulation
+            const sc = state.boxDragStartData.center;
+            const dc = state.isFlipped ? { x: sc.x, y: -sc.y, z: -sc.z } : sc;
+            const startCenter = new THREE.Vector3(dc.x, dc.y, dc.z);
             const startSize = state.boxDragStartData.size;
             const startRotation = state.boxDragStartData.rotation || { x: 0, y: 0, z: 0 };
             const euler = new THREE.Euler(startRotation.x, startRotation.y, startRotation.z);
@@ -1394,10 +1402,12 @@ export function onCanvasPointerMove(event) {
                     z: Math.max(0.01, Math.abs(diagonal.z))
                 };
 
+                // Convert from world space back to storage
+                const stored = toStorageCoords(newCenter);
                 state.selectedBoxAnnotation.boxData.center = {
-                    x: newCenter.x,
-                    y: newCenter.y,
-                    z: newCenter.z
+                    x: stored.x,
+                    y: stored.y,
+                    z: stored.z
                 };
                 state.selectedBoxAnnotation.boxData.size = newSize;
                 state.selectedBoxAnnotation.points[0] = { ...state.selectedBoxAnnotation.boxData.center };
@@ -1484,7 +1494,7 @@ export function onCanvasPointerUp(event) {
 
         if (state.draggedAnnotation && state.draggedAnnotation.surfaceProjection &&
             (state.draggedAnnotation.type === 'line' || state.draggedAnnotation.type === 'polygon')) {
-            state.draggedAnnotation.projectedEdges = computeProjectedEdges(
+            state.draggedAnnotation.projectedEdges = computeProjectedEdgesFlipAware(
                 state.draggedAnnotation.points,
                 state.draggedAnnotation.type === 'polygon'
             );

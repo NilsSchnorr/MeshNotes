@@ -1,7 +1,7 @@
 // js/annotation-tools/projection.js
 import * as THREE from 'three';
 import { state } from '../state.js';
-import { showStatus } from '../utils/helpers.js';
+import { showStatus, flipTransform } from '../utils/helpers.js';
 
 export function projectEdgeToSurface(pointA, pointB, segments = 30) {
     if (state.modelMeshes.length === 0) return null;
@@ -136,6 +136,51 @@ export function recomputeAdjacentEdges(ann, pointIndex) {
     }
 }
 
+// ============ Flip-Aware Projection Wrappers ============
+// When the model is flipped, stored annotation points are in non-flipped space
+// but the mesh's matrixWorld includes the flip. These wrappers convert points
+// to display (world) space before projection, then convert results back to storage.
+
+/**
+ * Flip-aware wrapper for computeProjectedEdges.
+ * Converts storage-space points to display space for projection math,
+ * then converts results back to storage space.
+ */
+export function computeProjectedEdgesFlipAware(points, closePolygon = false, segments = 30) {
+    if (!state.isFlipped) {
+        return computeProjectedEdges(points, closePolygon, segments);
+    }
+    const displayPoints = points.map(p => flipTransform(p));
+    const edges = computeProjectedEdges(displayPoints, closePolygon, segments);
+    return edges.map(edge => edge.map(p => flipTransform(p)));
+}
+
+/**
+ * Flip-aware wrapper for recomputeAdjacentEdges.
+ * Temporarily converts annotation data to display space, runs projection,
+ * then converts everything back to storage space.
+ */
+export function recomputeAdjacentEdgesFlipAware(ann, pointIndex) {
+    if (!state.isFlipped) {
+        recomputeAdjacentEdges(ann, pointIndex);
+        return;
+    }
+    // Temporarily convert points and existing edges to display (world) space
+    const savedPoints = ann.points;
+    ann.points = savedPoints.map(p => flipTransform(p));
+    if (ann.projectedEdges) {
+        ann.projectedEdges = ann.projectedEdges.map(edge => edge.map(p => flipTransform(p)));
+    }
+
+    recomputeAdjacentEdges(ann, pointIndex);
+
+    // Restore original points, convert all edges back to storage space
+    ann.points = savedPoints;
+    if (ann.projectedEdges) {
+        ann.projectedEdges = ann.projectedEdges.map(edge => edge.map(p => flipTransform(p)));
+    }
+}
+
 // Late-bound reference to renderAnnotations (set from main.js to avoid circular deps)
 let _renderAnnotations = null;
 export function setRenderAnnotations(fn) {
@@ -148,7 +193,7 @@ export function reprojectAllAnnotations() {
     let count = 0;
     state.annotations.forEach(ann => {
         if ((ann.type === 'line' || ann.type === 'polygon') && ann.points.length >= 2 && ann.surfaceProjection !== false) {
-            ann.projectedEdges = computeProjectedEdges(ann.points, ann.type === 'polygon');
+            ann.projectedEdges = computeProjectedEdgesFlipAware(ann.points, ann.type === 'polygon');
             ann.surfaceProjection = true;
             count++;
         }

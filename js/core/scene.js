@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { state, dom } from '../state.js';
-import { showStatus } from '../utils/helpers.js';
+import { showStatus, toDisplayCoords } from '../utils/helpers.js';
 
 // ============ Scene Initialization ============
 
@@ -101,6 +101,41 @@ export function onWindowResize() {
             child.material.resolution.set(width, height);
         }
     });
+}
+
+// ============ Model Flip ============
+
+/**
+ * Toggles the model flip state. Rotates the model 180° around the X axis
+ * to allow viewing the opposite side (e.g., back of a coin).
+ * This is purely visual — all stored annotation coordinates remain in
+ * non-flipped space. Exports are unaffected by flip state.
+ */
+export function toggleFlip() {
+    if (!state.currentModel) return;
+    
+    state.isFlipped = !state.isFlipped;
+    
+    // Rotate model by π around X axis (additive, preserves any import rotation)
+    if (state.isFlipped) {
+        state.currentModel.rotation.x += Math.PI;
+    } else {
+        state.currentModel.rotation.x -= Math.PI;
+    }
+    
+    // Re-center model after rotation change.
+    // The model's geometry origin may not coincide with its bounding box center,
+    // so after rotating we must recompute and compensate the position offset
+    // to keep the bbox center at world origin (0,0,0).
+    state.currentModel.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(state.currentModel);
+    const center = box.getCenter(new THREE.Vector3());
+    state.currentModel.position.sub(center);
+    
+    // Update button visual
+    dom.flipToggle.classList.toggle('active', state.isFlipped);
+    
+    showStatus(state.isFlipped ? 'Model flipped (visual only)' : 'Model un-flipped');
 }
 
 // ============ Raycasting ============

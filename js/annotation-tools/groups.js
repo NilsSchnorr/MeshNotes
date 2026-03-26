@@ -1,7 +1,7 @@
 // js/annotation-tools/groups.js
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
-import { generateUUID, escapeHtml, showStatus } from '../utils/helpers.js';
+import { generateUUID, escapeHtml, showStatus, toDisplayCoords } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
 
 // Late-bound references
@@ -111,7 +111,10 @@ export function selectAnnotation(id, skipRebuild = false) {
 
     if (ann && ann.points.length > 0) {
         const center = new THREE.Vector3();
-        ann.points.forEach(p => center.add(new THREE.Vector3(p.x, p.y, p.z)));
+        ann.points.forEach(p => {
+            const dp = toDisplayCoords(p);
+            center.add(new THREE.Vector3(dp.x, dp.y, dp.z));
+        });
         center.divideScalar(ann.points.length);
         state.controls.target.copy(center);
         state.controls.update();

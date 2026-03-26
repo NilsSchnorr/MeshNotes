@@ -3,6 +3,7 @@ import { state, dom } from '../state.js';
 import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
+import { toggleFlip } from '../core/scene.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
@@ -427,8 +428,12 @@ export function setupEventListeners() {
         }
     });
 
-    // Camera toggle (now in sliders panel header)
+    // Camera toggle and flip toggle (now in sliders panel header)
     dom.cameraToggle.addEventListener('click', toggleCamera);
+    dom.flipToggle.addEventListener('click', () => {
+        toggleFlip();
+        renderAnnotations();
+    });
     
     // Settings modal
     const settingsModal = document.getElementById('settings-modal');

@@ -1,7 +1,7 @@
 // js/annotation-tools/data.js
 import { state, dom } from '../state.js';
 import { generateUUID, escapeHtml, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
-import { computeProjectedEdges } from './projection.js';
+import { computeProjectedEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList, updateGroupSelect } from './groups.js';
 import { clearTempDrawing } from './editing.js';
@@ -840,7 +840,7 @@ export function saveAnnotation() {
             const hadProjection = state.editingAnnotation.surfaceProjection !== false;
 
             if (wantsProjection && !hadProjection) {
-                state.editingAnnotation.projectedEdges = computeProjectedEdges(
+                state.editingAnnotation.projectedEdges = computeProjectedEdgesFlipAware(
                     state.editingAnnotation.points, state.editingAnnotation.type === 'polygon'
                 );
                 state.editingAnnotation.surfaceProjection = true;
@@ -899,7 +899,7 @@ export function saveAnnotation() {
             const wantsProjection = state.surfaceProjectionEnabled && dom.annSurfaceProjection.checked;
             newAnnotation.surfaceProjection = wantsProjection;
             if (wantsProjection) {
-                newAnnotation.projectedEdges = computeProjectedEdges(points, type === 'polygon');
+                newAnnotation.projectedEdges = computeProjectedEdgesFlipAware(points, type === 'polygon');
             }
         }
 

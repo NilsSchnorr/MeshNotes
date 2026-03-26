@@ -110,6 +110,10 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     
     // Store the model's original up-axis for coordinate transforms in export/import
     state.modelUpAxis = upAxis || 'y-up';
+    
+    // Reset flip state for new model
+    state.isFlipped = false;
+    if (dom.flipToggle) dom.flipToggle.classList.remove('active');
 
     if (state.currentModel) {
         // Dispose old model's GPU resources

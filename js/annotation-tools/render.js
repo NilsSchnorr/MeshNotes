@@ -5,6 +5,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state, dom } from '../state.js';
 import { createScaledTextSprite } from '../core/scene.js';
+import { toDisplayCoords } from '../utils/helpers.js';
 
 // Late-bound reference to avoid circular dependency
 // (editing.js imports from render.js, render.js needs renderMeasurements from editing.js)
@@ -48,7 +49,8 @@ export function renderAnnotations() {
                 opacity: groupOpacity
             });
             const marker = new THREE.Mesh(geometry, material);
-            marker.position.set(ann.points[0].x, ann.points[0].y, ann.points[0].z);
+            const dp = toDisplayCoords(ann.points[0]);
+            marker.position.set(dp.x, dp.y, dp.z);
             marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.025 * state.pointSizeMultiplier);
             marker.userData.annotationId = ann.id;
             marker.userData.pointIndex = 0;
@@ -56,9 +58,9 @@ export function renderAnnotations() {
             state.annotationObjects.add(marker);
 
             labelPosition = new THREE.Vector3(
-                ann.points[0].x,
-                ann.points[0].y + labelOffset,
-                ann.points[0].z
+                dp.x,
+                dp.y + labelOffset,
+                dp.z
             );
         } else if (ann.type === 'line' || ann.type === 'polygon') {
             const positions = [];
@@ -67,11 +69,12 @@ export function renderAnnotations() {
                 ann.projectedEdges.forEach((edge, edgeIdx) => {
                     const startIdx = (edgeIdx === 0) ? 0 : 1;
                     for (let j = startIdx; j < edge.length; j++) {
-                        positions.push(edge[j].x, edge[j].y, edge[j].z);
+                        const ep = toDisplayCoords(edge[j]);
+                        positions.push(ep.x, ep.y, ep.z);
                     }
                 });
             } else {
-                const points = ann.points.map(p => new THREE.Vector3(p.x, p.y, p.z));
+                const points = ann.points.map(p => { const d = toDisplayCoords(p); return new THREE.Vector3(d.x, d.y, d.z); });
                 if (ann.type === 'polygon' && points.length > 0) {
                     points.push(points[0].clone());
                 }
@@ -104,7 +107,8 @@ export function renderAnnotations() {
                     opacity: groupOpacity
                 });
                 const marker = new THREE.Mesh(geometry, material);
-                marker.position.set(p.x, p.y, p.z);
+                const vp = toDisplayCoords(p);
+                marker.position.set(vp.x, vp.y, vp.z);
                 marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier);
                 marker.userData.annotationId = ann.id;
                 marker.userData.pointIndex = index;
@@ -114,7 +118,10 @@ export function renderAnnotations() {
 
             if (ann.type === 'polygon' && ann.points.length > 0) {
                 const centroid = ann.points.reduce(
-                    (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y, z: acc.z + p.z }),
+                    (acc, p) => {
+                        const d = toDisplayCoords(p);
+                        return { x: acc.x + d.x, y: acc.y + d.y, z: acc.z + d.z };
+                    },
                     { x: 0, y: 0, z: 0 }
                 );
                 labelPosition = new THREE.Vector3(
@@ -123,10 +130,11 @@ export function renderAnnotations() {
                     centroid.z / ann.points.length
                 );
             } else if (ann.points.length > 0) {
+                const lp = toDisplayCoords(ann.points[0]);
                 labelPosition = new THREE.Vector3(
-                    ann.points[0].x,
-                    ann.points[0].y + labelOffset,
-                    ann.points[0].z
+                    lp.x,
+                    lp.y + labelOffset,
+                    lp.z
                 );
             }
         } else if (ann.type === 'surface' && ann.faceData) {
@@ -137,10 +145,11 @@ export function renderAnnotations() {
             }
 
             if (ann.points && ann.points.length > 0) {
+                const sp = toDisplayCoords(ann.points[0]);
                 labelPosition = new THREE.Vector3(
-                    ann.points[0].x,
-                    ann.points[0].y + labelOffset,
-                    ann.points[0].z
+                    sp.x,
+                    sp.y + labelOffset,
+                    sp.z
                 );
             }
         } else if (ann.type === 'box' && ann.boxData) {
@@ -152,12 +161,14 @@ export function renderAnnotations() {
                 });
             }
 
-            const center = ann.boxData.center;
+            const bc = toDisplayCoords(ann.boxData.center);
             const size = ann.boxData.size;
+            // In flipped mode, the "top" of the box is offset in -Y direction
+            const yOffset = state.isFlipped ? -(size.y / 2 + labelOffset) : (size.y / 2 + labelOffset);
             labelPosition = new THREE.Vector3(
-                center.x,
-                center.y + size.y / 2 + labelOffset,
-                center.z
+                bc.x,
+                bc.y + yOffset,
+                bc.z
             );
         }
 
@@ -253,6 +264,7 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
     if (!ann.boxData) return null;
 
     const { center, size, rotation } = ann.boxData;
+    const dc = toDisplayCoords(center);
     const objects = [];
     
     // Check if this box is unlocked for editing
@@ -274,9 +286,14 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
     });
 
     const boxMesh = new THREE.Mesh(boxGeometry.clone(), fillMaterial);
-    boxMesh.position.set(center.x, center.y, center.z);
+    boxMesh.position.set(dc.x, dc.y, dc.z);
     if (rotation) {
-        boxMesh.rotation.set(rotation.x, rotation.y, rotation.z);
+        // When flipped, invert Y and Z rotation components for correct visual
+        if (state.isFlipped) {
+            boxMesh.rotation.set(-rotation.x, -rotation.y, rotation.z);
+        } else {
+            boxMesh.rotation.set(rotation.x, rotation.y, rotation.z);
+        }
     }
     boxMesh.userData.isBoxBody = true;
     boxMesh.renderOrder = 1;
@@ -323,13 +340,20 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
         );
 
         if (rotation) {
-            const euler = new THREE.Euler(rotation.x, rotation.y, rotation.z);
+            const euler = state.isFlipped
+                ? new THREE.Euler(-rotation.x, -rotation.y, rotation.z)
+                : new THREE.Euler(rotation.x, rotation.y, rotation.z);
             localPos.applyEuler(euler);
         }
+        // In flipped mode, local Y and Z offsets need to be negated
+        if (state.isFlipped) {
+            localPos.y = -localPos.y;
+            localPos.z = -localPos.z;
+        }
         handle.position.set(
-            center.x + localPos.x,
-            center.y + localPos.y,
-            center.z + localPos.z
+            dc.x + localPos.x,
+            dc.y + localPos.y,
+            dc.z + localPos.z
         );
 
         // Slightly larger handles when unlocked for better visibility

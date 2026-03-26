@@ -1,7 +1,7 @@
 // js/export/pdf-report.js - Multi-page PDF report generation
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
-import { showStatus, hexToRgb, delay } from '../utils/helpers.js';
+import { showStatus, hexToRgb, delay, toDisplayCoords } from '../utils/helpers.js';
 import { toggleCamera } from '../core/camera.js';
 import { updateFixedLightDirection, getDpiMultiplier } from '../core/lighting.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
@@ -500,9 +500,9 @@ async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layou
         contentStartY = 22;
     }
 
-    // Position camera to frame the annotation
+    // Position camera to frame the annotation (use display coords for correct view)
     const center = new THREE.Vector3();
-    const annPoints = ann.points.map(p => new THREE.Vector3(p.x, p.y, p.z));
+    const annPoints = ann.points.map(p => { const dp = toDisplayCoords(p); return new THREE.Vector3(dp.x, dp.y, dp.z); });
     annPoints.forEach(p => center.add(p));
     center.divideScalar(annPoints.length);
 

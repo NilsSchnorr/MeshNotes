@@ -27,6 +27,7 @@ export const state = {
     backgroundColor: '#041D31',
 
     // Model
+    isFlipped: false,
     currentModel: null,
     modelFileName: '',
     originalMaterials: new Map(),
@@ -319,6 +320,7 @@ export function initDomReferences() {
     dom.settingsWireframeColor = document.getElementById('settings-wireframe-color');
     dom.settingsResetAll = document.getElementById('settings-reset-all');
     
-    // Camera toggle (now in sliders panel)
+    // Camera toggle and flip toggle (now in sliders panel)
     dom.cameraToggle = document.getElementById('camera-toggle');
+    dom.flipToggle = document.getElementById('flip-toggle');
 }

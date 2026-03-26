@@ -109,6 +109,43 @@ export function hexToRgb(hex) {
     } : { r: 200, g: 200, b: 200 };
 }
 
+// ============ Flip Transform ============
+
+/**
+ * Transforms a point between flipped and non-flipped coordinate space.
+ * When the model is flipped (180° rotation around X axis), world-space
+ * coordinates map as (x, y, z) → (x, -y, -z).
+ * This transform is self-inverse: applying it twice returns the original point.
+ * @param {{x: number, y: number, z: number}} p - Point to transform
+ * @returns {{x: number, y: number, z: number}} Transformed point
+ */
+export function flipTransform(p) {
+    return { x: p.x, y: -p.y, z: -p.z };
+}
+
+/**
+ * Returns the point in display space, applying the flip transform if active.
+ * Use when positioning visual objects from stored annotation coordinates.
+ * @param {{x: number, y: number, z: number}} p - Stored annotation point
+ * @returns {{x: number, y: number, z: number}} Point in current display space
+ */
+export function toDisplayCoords(p) {
+    if (!state.isFlipped) return p;
+    return flipTransform(p);
+}
+
+/**
+ * Converts a raycasted world-space point to storage coordinates,
+ * undoing the flip transform if the model is currently flipped.
+ * Use before saving annotation points from raycasting results.
+ * @param {{x: number, y: number, z: number}} p - Raycasted world-space point
+ * @returns {{x: number, y: number, z: number}} Point in non-flipped storage space
+ */
+export function toStorageCoords(p) {
+    if (!state.isFlipped) return { x: p.x, y: p.y, z: p.z };
+    return flipTransform(p);
+}
+
 export function getModelMimeType() {
     if (!state.modelFileName) return 'model/gltf-binary';
     const ext = state.modelFileName.toLowerCase().split('.').pop();

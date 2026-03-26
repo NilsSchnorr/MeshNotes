@@ -2214,11 +2214,13 @@
             align-items: center;
             justify-content: center;
             padding: 8px 14px;
+            gap: 6px;
             border-bottom: 1px solid var(--color-white-hover);
         }
 
-        /* Camera toggle in panel header */
-        #camera-toggle {
+        /* Camera toggle & Flip toggle in panel header */
+        #camera-toggle,
+        #flip-toggle {
             padding: 5px 14px;
             border: 1px solid var(--color-blue);
             border-radius: 4px;
@@ -2227,14 +2229,16 @@
             cursor: pointer;
             font-size: 12px;
             transition: all 0.2s;
-            width: 100%;
+            flex: 1;
         }
 
-        #camera-toggle:hover {
+        #camera-toggle:hover,
+        #flip-toggle:hover {
             border-color: var(--color-gold);
         }
 
-        #camera-toggle.active {
+        #camera-toggle.active,
+        #flip-toggle.active {
             background: var(--color-gold-dark);
             border-color: var(--color-gold-dark);
         }
