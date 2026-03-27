@@ -6,6 +6,7 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state, dom } from '../state.js';
 import { createScaledTextSprite } from '../core/scene.js';
 import { toDisplayCoords } from '../utils/helpers.js';
+import { forceOcclusionUpdate } from '../utils/label-occlusion.js';
 
 // Late-bound reference to avoid circular dependency
 // (editing.js imports from render.js, render.js needs renderMeasurements from editing.js)
@@ -40,6 +41,7 @@ export function renderAnnotations() {
         const color = new THREE.Color(group.color);
         const groupOpacity = group.opacity !== undefined ? group.opacity : 1.0;
         let labelPosition;
+        let occlusionCheckPos; // Position to check for occlusion (annotation center, not label position)
 
         if (ann.type === 'point') {
             const geometry = new THREE.SphereGeometry(0.02, 16, 16);
@@ -62,6 +64,7 @@ export function renderAnnotations() {
                 dp.y + labelOffset,
                 dp.z
             );
+            occlusionCheckPos = new THREE.Vector3(dp.x, dp.y, dp.z);
         } else if (ann.type === 'line' || ann.type === 'polygon') {
             const positions = [];
 
@@ -129,6 +132,11 @@ export function renderAnnotations() {
                     centroid.y / ann.points.length + labelOffset,
                     centroid.z / ann.points.length
                 );
+                occlusionCheckPos = new THREE.Vector3(
+                    centroid.x / ann.points.length,
+                    centroid.y / ann.points.length,
+                    centroid.z / ann.points.length
+                );
             } else if (ann.points.length > 0) {
                 const lp = toDisplayCoords(ann.points[0]);
                 labelPosition = new THREE.Vector3(
@@ -136,6 +144,7 @@ export function renderAnnotations() {
                     lp.y + labelOffset,
                     lp.z
                 );
+                occlusionCheckPos = new THREE.Vector3(lp.x, lp.y, lp.z);
             }
         } else if (ann.type === 'surface' && ann.faceData) {
             const surfaceMesh = renderSurfaceAnnotation(ann, color, groupOpacity);
@@ -151,6 +160,7 @@ export function renderAnnotations() {
                     sp.y + labelOffset,
                     sp.z
                 );
+                occlusionCheckPos = new THREE.Vector3(sp.x, sp.y, sp.z);
             }
         } else if (ann.type === 'box' && ann.boxData) {
             const boxObjects = renderBoxAnnotation(ann, color, maxDim, groupOpacity);
@@ -170,6 +180,7 @@ export function renderAnnotations() {
                 bc.y + yOffset,
                 bc.z
             );
+            occlusionCheckPos = new THREE.Vector3(bc.x, bc.y, bc.z);
         }
 
         if (ann.name && labelPosition) {
@@ -178,6 +189,10 @@ export function renderAnnotations() {
                 label.material.opacity = groupOpacity;
             }
             label.userData.annotationId = ann.id;
+            // Store the position to check for occlusion (annotation center, not label offset position)
+            if (occlusionCheckPos) {
+                label.userData.occlusionCheckPosition = occlusionCheckPos;
+            }
             state.annotationObjects.add(label);
         }
     });
@@ -188,6 +203,9 @@ export function renderAnnotations() {
     }
 
     updateAnnotationsPanel();
+
+    // Update label visibility based on occlusion after all labels are created
+    forceOcclusionUpdate();
 }
 
 export function renderSurfaceAnnotation(ann, color, groupOpacity = 1.0) {

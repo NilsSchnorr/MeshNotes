@@ -12,6 +12,7 @@ import { renderAnnotations, setRenderCallbacks } from './annotation-tools/render
 import { setRenderAnnotations } from './annotation-tools/projection.js';
 import { setupEventListeners, setTool } from './ui/event-listeners.js';
 import { openGroupPopup } from './annotation-tools/groups.js';
+import { initLabelOcclusionUpdates } from './utils/label-occlusion.js';
 
 // Wire up late-bound references to break circular dependencies
 setUpdateModelInfoDisplay(updateModelInfoDisplay);
@@ -42,6 +43,9 @@ function init() {
     addGrid();
     initViewHelper();
     updateViewHelperLabels();
+
+    // Set up label occlusion updates (hides labels when annotations are behind the model)
+    initLabelOcclusionUpdates();
 
     // Default data
     createDefaultGroup();

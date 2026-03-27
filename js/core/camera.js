@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
 import { state, dom } from '../state.js';
+import { scheduleOcclusionUpdate } from '../utils/label-occlusion.js';
 
 // ============ Camera Initialization ============
 
@@ -44,9 +45,10 @@ export function initViewHelper() {
         }
     });
 
-    // When ViewHelper animation changes camera, update controls
+    // When ViewHelper animation changes camera, update controls and label occlusion
     state.viewHelper.addEventListener('change', () => {
         state.controls.update();
+        scheduleOcclusionUpdate();
     });
 }
 
@@ -194,6 +196,7 @@ export function toggleCamera() {
     state.viewHelper.center = state.controls.target;
     state.viewHelper.addEventListener('change', () => {
         state.controls.update();
+        scheduleOcclusionUpdate();
     });
     updateViewHelperLabels();
 }
