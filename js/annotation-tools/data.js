@@ -964,6 +964,28 @@ export function calculateScalebarParams() {
     };
 }
 
+/**
+ * Converts a hex color string to an rgba() CSS value.
+ * @param {string} hex - e.g. '#041D31' or '#fff'
+ * @param {number} alpha - 0..1
+ * @returns {string} e.g. 'rgba(4, 29, 49, 0.85)'
+ */
+function hexToRgba(hex, alpha) {
+    let r = 0, g = 0, b = 0;
+    // Handle shorthand (#abc) and full (#aabbcc)
+    const h = hex.replace('#', '');
+    if (h.length === 3) {
+        r = parseInt(h[0] + h[0], 16);
+        g = parseInt(h[1] + h[1], 16);
+        b = parseInt(h[2] + h[2], 16);
+    } else {
+        r = parseInt(h.substring(0, 2), 16);
+        g = parseInt(h.substring(2, 4), 16);
+        b = parseInt(h.substring(4, 6), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export function drawScalebarOnCanvas(targetCanvas, scaleFactorOverride = null) {
     const params = calculateScalebarParams();
     if (!params) return;
@@ -983,7 +1005,7 @@ export function drawScalebarOnCanvas(targetCanvas, scaleFactorOverride = null) {
     const y = canvasHeight - padding - barHeight - 25 * dpr;
 
     const bgPadding = 10 * dpr;
-    ctx.fillStyle = 'rgba(4, 29, 49, 0.85)';
+    ctx.fillStyle = hexToRgba(state.backgroundColor, 0.85);
     ctx.fillRect(
         x - bgPadding,
         y - bgPadding,
