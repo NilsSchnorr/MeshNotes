@@ -2470,6 +2470,14 @@
             }
         }
 
+        /* Settings hint text */
+        .settings-hint {
+            font-size: 12px;
+            color: var(--color-text-muted);
+            margin: 4px 0 0 0;
+            line-height: 1.4;
+        }
+
         /* Settings reset section */
         .settings-reset-section {
             padding-top: 8px;

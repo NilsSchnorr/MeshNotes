@@ -964,7 +964,7 @@ export function calculateScalebarParams() {
     };
 }
 
-export function drawScalebarOnCanvas(targetCanvas) {
+export function drawScalebarOnCanvas(targetCanvas, scaleFactorOverride = null) {
     const params = calculateScalebarParams();
     if (!params) return;
 
@@ -972,7 +972,7 @@ export function drawScalebarOnCanvas(targetCanvas) {
     const canvasWidth = targetCanvas.width;
     const canvasHeight = targetCanvas.height;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = scaleFactorOverride || (window.devicePixelRatio || 1);
     const scalebarWidth = params.pixelWidth * dpr;
     const segmentCount = 4;
     const segmentWidth = scalebarWidth / segmentCount;

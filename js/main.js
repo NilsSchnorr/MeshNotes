@@ -2,7 +2,7 @@
 import { state, dom, initDomReferences } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
-import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit } from './core/lighting.js';
+import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality } from './core/lighting.js';
 import { setUpdateModelInfoDisplay } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
@@ -219,6 +219,12 @@ function loadSavedSettings() {
     if (savedPdfDpi) {
         state.pdfDpi = parseInt(savedPdfDpi);
         dom.settingsPdfDpi.value = savedPdfDpi;
+    }
+    
+    // Screenshot quality
+    const savedScreenshotQuality = localStorage.getItem('meshnotes_screenshotQuality');
+    if (savedScreenshotQuality) {
+        setScreenshotQuality(savedScreenshotQuality);
     }
 }
 

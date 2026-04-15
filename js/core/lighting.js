@@ -254,6 +254,7 @@ export function resetAllSettings() {
     state.pdfPageSize = 'a4';
     state.pdfOrientation = 'portrait';
     state.pdfDpi = 150;
+    state.screenshotQuality = 2;
     
     // Reset UI elements
     dom.pointSizeSlider.value = 100;
@@ -275,6 +276,7 @@ export function resetAllSettings() {
     dom.settingsPdfPageSize.value = 'a4';
     dom.settingsPdfOrientation.value = 'portrait';
     dom.settingsPdfDpi.value = '150';
+    dom.settingsScreenshotQuality.value = '2';
     
     // Reset background color
     setBackgroundColor('#041D31');
@@ -351,6 +353,14 @@ export function setPdfDpi(dpi) {
     state.pdfDpi = parseInt(dpi);
     localStorage.setItem('meshnotes_pdfDpi', dpi);
     dom.settingsPdfDpi.value = dpi;
+}
+
+// ============ Screenshot Settings ============
+
+export function setScreenshotQuality(value) {
+    state.screenshotQuality = parseInt(value);
+    localStorage.setItem('meshnotes_screenshotQuality', value);
+    dom.settingsScreenshotQuality.value = value;
 }
 
 /**

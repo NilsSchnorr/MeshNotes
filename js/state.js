@@ -62,6 +62,9 @@ export const state = {
     pdfOrientation: 'portrait',
     pdfDpi: 150,
 
+    // Screenshot settings
+    screenshotQuality: 2, // Multiplier: 1 = standard, 2 = high, 4 = ultra
+
     // Tools
     currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure'
     tempPoints: [],
@@ -319,6 +322,7 @@ export function initDomReferences() {
     dom.settingsMeshColor = document.getElementById('settings-mesh-color');
     dom.settingsWireframeColor = document.getElementById('settings-wireframe-color');
     dom.settingsResetAll = document.getElementById('settings-reset-all');
+    dom.settingsScreenshotQuality = document.getElementById('settings-screenshot-quality');
     
     // Camera toggle and flip toggle (now in sliders panel)
     dom.cameraToggle = document.getElementById('camera-toggle');

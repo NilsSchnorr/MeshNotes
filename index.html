@@ -383,6 +383,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Screenshot</strong> to save the current view as a PNG image. The screenshot includes all visible annotations, name labels, and measurement lines exactly as shown on screen — useful for documentation, reports, and publications.</p>
+                            <p style="margin-top: 10px;"><strong>Screenshot Quality:</strong> In <strong>Settings</strong>, you can choose the screenshot resolution: <strong>Standard (1×)</strong> captures at screen resolution, <strong>High (2×)</strong> renders at double resolution for sharper detail when zoomed in, and <strong>Ultra (4×)</strong> renders at four times the resolution for maximum clarity. Higher quality may take longer on large models.</p>
                             <p style="margin-top: 10px;"><strong>Scalebar:</strong> In <strong>Orthographic</strong> camera mode, screenshots automatically include a scalebar in the bottom-right corner. The scalebar shows the real-world distance based on the model's coordinate system, with values rounded to clean numbers (e.g., 1, 2, 5, 10, 20, 50...) for readability. The unit depends on how your 3D model was originally created or exported (e.g., millimeters, centimeters, or meters).</p>
                             <p style="margin-top: 10px;">If you take a screenshot while in <strong>Perspective</strong> mode, MeshNotes will ask whether you want to switch to Orthographic view first. A scalebar can only be accurate in orthographic mode, where scale is uniform across the entire image — in perspective view, objects further from the camera appear smaller, making a single scalebar misleading.</p>
                         </div>
@@ -563,6 +564,19 @@
                         </label>
                         <input type="range" id="text-size-slider" min="25" max="600" value="100">
                     </div>
+                </section>
+                
+                <section>
+                    <h3>Screenshot</h3>
+                    <div class="settings-row">
+                        <label for="settings-screenshot-quality">Screenshot Quality</label>
+                        <select id="settings-screenshot-quality">
+                            <option value="1">Standard (1×)</option>
+                            <option value="2" selected>High (2×)</option>
+                            <option value="4">Ultra (4×)</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">Higher quality renders a sharper image. Ultra may be slow on large models.</p>
                 </section>
                 
                 <section>

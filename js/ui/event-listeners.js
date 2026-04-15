@@ -4,7 +4,7 @@ import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helper
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, resetAllSettings } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setScreenshotQuality, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
@@ -561,6 +561,11 @@ export function setupEventListeners() {
     
     dom.settingsPdfDpi.addEventListener('change', (e) => {
         setPdfDpi(e.target.value);
+    });
+    
+    // Settings: Screenshot Quality
+    dom.settingsScreenshotQuality.addEventListener('change', (e) => {
+        setScreenshotQuality(e.target.value);
     });
     
     // Settings: Reset All
