@@ -119,4 +119,6 @@ Saarland University, Saarbrücken, Germany
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+Copyright 2026 Nils Schnorr
+
+This project is licensed under the Apache License, Version 2.0 — see the [LICENSE](LICENSE) file for details. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
