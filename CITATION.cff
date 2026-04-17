@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "MeshNotes"
+type: software
+version: 0.9.0
+date-released: "2026-04-17"
+license: Apache-2.0
+repository-code: "https://github.com/NilsSchnorr/MeshNotes"
+url: "https://nilsschnorr.github.io/MeshNotes/"
+abstract: >-
+  MeshNotes is a free, browser-based tool for annotating 3D models with
+  points, lines, polygons, surfaces, and boxes, designed for archaeological
+  and cultural heritage documentation. It exports annotations in the W3C
+  Web Annotation Data Model (JSON-LD), supporting interoperability with
+  IIIF-based systems and alignment with NFDI4Objects standards. All data
+  processing runs locally in the browser — no server, no upload, no
+  tracking.
+keywords:
+  - 3D annotation
+  - archaeology
+  - cultural heritage
+  - Web Annotation Data Model
+  - W3C
+  - IIIF
+  - Three.js
+  - photogrammetry
+  - digital humanities
+  - NFDI4Objects
+authors:
+  - family-names: Schnorr
+    given-names: Nils
+    orcid: "https://orcid.org/0009-0003-7750-2818"
+    affiliation: "Department of Classical Archaeology, Saarland University"
