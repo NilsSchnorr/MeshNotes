@@ -412,6 +412,19 @@ export function setupEventListeners() {
         }
     });
 
+    // Manual modal
+    dom.btnManual.addEventListener('click', () => {
+        dom.manualOverlay.classList.add('visible');
+    });
+    dom.manualModalClose.addEventListener('click', () => {
+        dom.manualOverlay.classList.remove('visible');
+    });
+    dom.manualOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.manualOverlay) {
+            dom.manualOverlay.classList.remove('visible');
+        }
+    });
+
     // Download Manual as PDF
     dom.btnDownloadManual.addEventListener('click', downloadManualAsPdf);
 
@@ -612,6 +625,11 @@ export function setupEventListeners() {
 
             if (dom.aboutOverlay.classList.contains('visible')) {
                 dom.aboutOverlay.classList.remove('visible');
+                return;
+            }
+
+            if (dom.manualOverlay.classList.contains('visible')) {
+                dom.manualOverlay.classList.remove('visible');
                 return;
             }
 

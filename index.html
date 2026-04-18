@@ -11,7 +11,8 @@
     <header id="header">
         <h1>MeshNotes <span class="subtitle">– 3D Annotation Tool for Research & Heritage</span></h1>
         <div class="header-buttons">
-            <button id="btn-about">About / Help</button>
+            <button id="btn-about">About</button>
+            <button id="btn-manual">Manual</button>
             <button id="btn-legal">Legal / Data</button>
         </div>
     </header>
@@ -53,6 +54,28 @@
                 </section>
 
                 <section>
+                    <h3>Credits & License</h3>
+                    <p>MeshNotes uses the following open-source libraries:</p>
+                    <ul style="margin: 12px 0 12px 20px; color: #ccc;">
+                        <li><a href="https://threejs.org/" target="_blank">Three.js</a> (MIT License) — 3D rendering</li>
+                        <li><a href="https://github.com/gkjohnson/three-mesh-bvh" target="_blank">three-mesh-bvh</a> (MIT License) — Accelerated raycasting &amp; surface projection</li>
+                        <li><a href="https://github.com/parallax/jsPDF" target="_blank">jsPDF</a> (MIT License) — PDF generation</li>
+                    </ul>
+                    <p>MeshNotes itself is licensed under the <strong>Apache License, Version 2.0</strong> — free to use, modify, and distribute. See the <a href="https://github.com/NilsSchnorr/MeshNotes/blob/main/LICENSE" target="_blank">LICENSE file</a> for details.</p>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Modal -->
+    <div id="manual-overlay">
+        <div id="manual-modal">
+            <div id="manual-modal-header">
+                <h2>Manual</h2>
+                <button id="manual-modal-close">✕</button>
+            </div>
+            <div id="manual-modal-content">
+                <section>
                     <h3>Quick Start</h3>
                     <div style="background: #041D31; padding: 16px; border-radius: 6px;">
                         <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Load Model</strong> and select a 3D model file (.glb, .gltf, .obj, or .ply format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files.</p>
@@ -62,12 +85,11 @@
                         <p style="margin-bottom: 12px;"><strong>5. Take measurements</strong> — Use the Measure tool to click two points and get the distance. Hold <strong>Ctrl</strong> while clicking to measure paths through multiple points. Press Escape to clear.</p>
                         <p style="margin-bottom: 0;"><strong>6. Export your work</strong> — Click <strong>JSON</strong> to save annotations for backup or team sharing. Click <strong>PDF</strong> to generate a documentation report with screenshots.</p>
                     </div>
-                    <p style="margin-top: 12px; font-size: 13px; color: #aaa;">📱 <strong>Tablet users:</strong> MeshNotes works great on iPad with Apple Pencil. Use your stylus to annotate and your fingers to navigate. See the <em>Tablet &amp; Stylus Support</em> section in the Manual below for details.
+                    <p style="margin-top: 12px; font-size: 13px; color: #aaa;">📱 <strong>Tablet users:</strong> MeshNotes works great on iPad with Apple Pencil. Use your stylus to annotate and your fingers to navigate. See the <em>Tablet &amp; Stylus Support</em> section below for details.
                     </p>
                 </section>
 
                 <section>
-                    <h3>Manual</h3>
 
                     <div class="manual-item">
                         <div class="manual-item-header">
@@ -491,17 +513,6 @@
 
                     <button class="btn-download-manual" id="btn-download-manual">📄 Download Manual as PDF</button>
 
-                </section>
-
-                <section>
-                    <h3>Credits & License</h3>
-                    <p>MeshNotes uses the following open-source libraries:</p>
-                    <ul style="margin: 12px 0 12px 20px; color: #ccc;">
-                        <li><a href="https://threejs.org/" target="_blank">Three.js</a> (MIT License) — 3D rendering</li>
-                        <li><a href="https://github.com/gkjohnson/three-mesh-bvh" target="_blank">three-mesh-bvh</a> (MIT License) — Accelerated raycasting &amp; surface projection</li>
-                        <li><a href="https://github.com/parallax/jsPDF" target="_blank">jsPDF</a> (MIT License) — PDF generation</li>
-                    </ul>
-                    <p>MeshNotes itself is licensed under the <strong>Apache License, Version 2.0</strong> — free to use, modify, and distribute. See the <a href="https://github.com/NilsSchnorr/MeshNotes/blob/main/LICENSE" target="_blank">LICENSE file</a> for details.</p>
                 </section>
             </div>
         </div>

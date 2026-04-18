@@ -78,7 +78,7 @@
             color: var(--color-text-medium);
         }
 
-        #btn-about, #btn-legal {
+        #btn-about, #btn-manual, #btn-legal {
             padding: 8px 16px;
             background: var(--color-blue);
             border: none;
@@ -89,7 +89,7 @@
             transition: background 0.2s;
         }
 
-        #btn-about:hover, #btn-legal:hover {
+        #btn-about:hover, #btn-manual:hover, #btn-legal:hover {
             background: var(--color-blue-hover);
         }
 
@@ -1758,7 +1758,8 @@
         }
 
         /* About Modal */
-        #about-overlay {
+        #about-overlay,
+        #manual-overlay {
             display: none;
             position: fixed;
             top: 0;
@@ -1771,7 +1772,8 @@
             justify-content: center;
         }
 
-        #about-overlay.visible {
+        #about-overlay.visible,
+        #manual-overlay.visible {
             display: flex;
         }
 
@@ -1882,7 +1884,8 @@
             color: var(--color-text-light);
         }
 
-        #about-modal {
+        #about-modal,
+        #manual-modal {
             background: var(--color-blue-dark);
             border-radius: 12px;
             width: 90%;
@@ -1894,7 +1897,8 @@
             box-shadow: 0 10px 40px var(--color-overlay-light);
         }
 
-        #about-modal-header {
+        #about-modal-header,
+        #manual-modal-header {
             padding: 20px 24px;
             border-bottom: 1px solid var(--color-blue);
             display: flex;
@@ -1902,7 +1906,8 @@
             justify-content: space-between;
         }
 
-        #about-modal-header h2 {
+        #about-modal-header h2,
+        #manual-modal-header h2 {
             font-size: 20px;
             color: var(--color-text-light);
             display: flex;
@@ -1910,7 +1915,8 @@
             gap: 10px;
         }
 
-        #about-modal-close {
+        #about-modal-close,
+        #manual-modal-close {
             background: none;
             border: none;
             color: var(--color-text-muted);
@@ -1921,26 +1927,31 @@
             transition: all 0.2s;
         }
 
-        #about-modal-close:hover {
+        #about-modal-close:hover,
+        #manual-modal-close:hover {
             background: var(--color-blue);
             color: var(--color-text-light);
         }
 
-        #about-modal-content {
+        #about-modal-content,
+        #manual-modal-content {
             padding: 24px;
             overflow-y: auto;
             flex: 1;
         }
 
-        #about-modal-content section {
+        #about-modal-content section,
+        #manual-modal-content section {
             margin-bottom: 24px;
         }
 
-        #about-modal-content section:last-child {
+        #about-modal-content section:last-child,
+        #manual-modal-content section:last-child {
             margin-bottom: 0;
         }
 
-        #about-modal-content h3 {
+        #about-modal-content h3,
+        #manual-modal-content h3 {
             font-size: 16px;
             color: var(--color-gold);
             margin-bottom: 12px;
@@ -1948,30 +1959,35 @@
             border-bottom: 1px solid var(--color-blue);
         }
 
-        #about-modal-content p {
+        #about-modal-content p,
+        #manual-modal-content p {
             color: var(--color-border);
             line-height: 1.6;
             margin-bottom: 12px;
         }
 
-        #about-modal-content a {
+        #about-modal-content a,
+        #manual-modal-content a {
             color: var(--color-gold);
             text-decoration: none;
         }
 
-        #about-modal-content a:hover {
+        #about-modal-content a:hover,
+        #manual-modal-content a:hover {
             text-decoration: underline;
         }
 
         /* Manual section */
-        #about-modal-content h4 {
+        #about-modal-content h4,
+        #manual-modal-content h4 {
             font-size: 14px;
             color: var(--color-gold);
             margin: 20px 0 8px 0;
             font-weight: 600;
         }
 
-        #about-modal-content h4:first-of-type {
+        #about-modal-content h4:first-of-type,
+        #manual-modal-content h4:first-of-type {
             margin-top: 0;
         }
 
@@ -2059,7 +2075,8 @@
             color: var(--color-gold-light);
         }
 
-        #about-modal-content code {
+        #about-modal-content code,
+        #manual-modal-content code {
             background: var(--color-blue);
             padding: 2px 6px;
             border-radius: 3px;
@@ -2615,6 +2632,7 @@
             /* Larger close buttons */
             .modal-close,
             #about-modal-close,
+            #manual-modal-close,
             #legal-modal-close,
             #settings-modal-close {
                 width: 44px;
@@ -2876,6 +2894,7 @@
 
             /* Full-screen modals: safe-area aware */
             #about-overlay,
+            #manual-overlay,
             #legal-overlay,
             #settings-overlay {
                 padding: env(safe-area-inset-top) env(safe-area-inset-right)

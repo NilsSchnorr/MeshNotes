@@ -298,6 +298,9 @@ export function initDomReferences() {
     dom.aboutOverlay = document.getElementById('about-overlay');
     dom.btnAbout = document.getElementById('btn-about');
     dom.aboutModalClose = document.getElementById('about-modal-close');
+    dom.manualOverlay = document.getElementById('manual-overlay');
+    dom.btnManual = document.getElementById('btn-manual');
+    dom.manualModalClose = document.getElementById('manual-modal-close');
     dom.btnDownloadManual = document.getElementById('btn-download-manual');
     dom.legalOverlay = document.getElementById('legal-overlay');
     dom.btnLegal = document.getElementById('btn-legal');
