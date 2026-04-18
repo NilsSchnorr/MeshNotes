@@ -28,13 +28,14 @@
                 <section>
                     <h3>About</h3>
                     <p>
-                        <strong>MeshNotes</strong> is a free, browser-based tool for annotating 3D models with points, lines, polygons, and surfaces, 
+                        <strong>MeshNotes</strong> is a free, browser-based tool for annotating 3D models with points, lines, polygons, surfaces, and boxes, 
                         designed for cultural heritage documentation. It allows teams to collaboratively mark and describe features 
                         on 3D models of archaeological sites, architecture, and artifacts (e.g. from photogrammetry, laser scanning, or structured light scanning).
                     </p>
                     <p>
-                        Key features include multi-entry annotations (multiple users can add observations to the same feature with individual timestamps), 
-                        measurement tools, customizable groups with color coding, draggable points for editing, and <strong>W3C Web Annotation</strong> compliant export/import for interoperability and team collaboration.
+                        Key features include multi-entry annotations with version history, 
+                        measurement tools with configurable units, customizable groups with color coding and per-group opacity, 
+                        draggable points for editing, multiple display modes, and <strong>W3C Web Annotation</strong> compliant export/import for interoperability and team collaboration.
                     </p>
                     <p>
                         The tool runs entirely in your browser — no data is uploaded to any server. 
@@ -160,11 +161,11 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p><strong>Display Mode:</strong> Click the display button to cycle through three modes: <strong>Texture</strong> (shows the model's texture maps), <strong>Colors</strong> (shows vertex colors only, if present), and <strong>Gray</strong> (plain geometry without any color). The Colors mode is only available if the model contains vertex color data.</p>
+                            <p><strong>Display Mode:</strong> Click the display button to cycle through available modes: <strong>Texture</strong> (shows the model's texture maps), <strong>Colors</strong> (shows vertex colors only, if present), <strong>Mesh</strong> (solid single-color surface), and <strong>Wireframe</strong> (edge-only view). The Colors mode is only available if the model contains vertex color data. The colors used for Mesh and Wireframe modes can be customized in <strong>Settings</strong>.</p>
                             <p style="margin-top: 10px;"><strong>Brightness slider:</strong> Adjust scene lighting from 0% to 300%. <strong>Opacity slider:</strong> Make the model transparent (10-100%) to see annotations that pass through it.</p>
-                            <p style="margin-top: 10px;"><strong>Annotation Display:</strong> Use the <strong>Point Size</strong> slider (×0.3 to ×50) to adjust the size of annotation markers, and the <strong>Text Size</strong> slider (×0.3 to ×50) to adjust annotation label sizes. The sliders use exponential scaling, so small movements have bigger effect at high values — making it easy to reach extreme sizes for very large or small models. These settings are saved automatically.</p>
+                            <p style="margin-top: 10px;"><strong>Annotation Display:</strong> In <strong>Settings</strong>, use the <strong>Point Size</strong> slider (×0.3 to ×50) to adjust the size of annotation markers, and the <strong>Text Size</strong> slider (×0.3 to ×50) to adjust annotation label sizes. The sliders use exponential scaling, so small movements have bigger effect at high values — making it easy to reach extreme sizes for very large or small models. These settings are saved automatically.</p>
                             <p style="margin-top: 10px;"><strong>Light Source:</strong> By default, the main light follows your camera view, ensuring consistent illumination from any angle. Click the toggle to switch to <strong>Fixed Direction</strong> mode, which reveals two sliders: <strong>Horizontal</strong> (0°-360°) rotates the light around the model, and <strong>Vertical</strong> (-90° to +90°) adjusts the light height from below (-90°) through the horizon (0°) to directly above (+90°). This is ideal for raking light analysis of surface details like tool marks, inscriptions, or weathering patterns. The light is automatically boosted in fixed mode for better shadow visibility.</p>
-                            <p style="margin-top: 10px;"><strong>Background Color:</strong> Choose the viewport background color using the preset buttons (dark blue default, black, dark gray, gray, white) or click the color picker for a custom color. White or light gray backgrounds are ideal for publication-ready screenshots, while dark backgrounds reduce eye strain during extended annotation sessions. Your preference is saved automatically.</p>
+                            <p style="margin-top: 10px;"><strong>Background Color:</strong> In <strong>Settings</strong>, choose the viewport background color using the preset buttons (dark blue default, black, dark gray, gray, white) or click the color picker for a custom color. White or light gray backgrounds are ideal for publication-ready screenshots, while dark backgrounds reduce eye strain during extended annotation sessions. Your preference is saved automatically.</p>
                         </div>
                     </div>
 
@@ -250,7 +251,7 @@
                             <p>Click <strong>Measure</strong> to activate the measurement tool. Click two points on the model to measure the straight-line distance between them. Multiple measurements can be taken and all stay visible with their distance labels.</p>
                             <p style="margin-top: 10px;"><strong>Multi-point measurement:</strong> Hold <code>Ctrl</code> (or <code>Cmd</code> on Mac) while clicking to measure a path through multiple points — useful for measuring around corners, along curved edges, or following a non-straight route. Keep holding Ctrl and clicking to add more points. The total path distance is shown as you go. Release Ctrl and click once more to finalize, or simply click without Ctrl when you have two or more points. Multi-point measurements display the total distance along with a breakdown of individual segment lengths (e.g., <code>1.234 + 2.345 + 3.456</code>).</p>
                             <p style="margin-top: 10px;"><strong>Managing measurements:</strong> Click the <strong>×</strong> button next to any measurement to delete just that one. Click on a measurement value to <strong>copy it to clipboard</strong> for pasting into documentation. Press <code>Esc</code> to clear all measurements at once.</p>
-                            <p style="margin-top: 10px;">Distances are displayed in "units" — the actual unit (meters, millimeters, etc.) depends on how your 3D model was created or exported.</p>
+                            <p style="margin-top: 10px;">Distances are displayed in the unit configured in <strong>Settings</strong> (default: "units"). You can set this to mm, cm, m, or a custom label. The actual scale depends on how your 3D model was created or exported — MeshNotes does not convert between units.</p>
                         </div>
                     </div>
 
@@ -260,7 +261,8 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Groups help organize annotations by category, phase, or team member. Click <strong>+ Group</strong> in the sidebar to create a new group with a custom name and color. All annotations within a group share that color. Use the eye icon to show/hide all annotations in a group, and the edit icon to modify the group name/color or delete the entire group. A default group is created automatically when you first annotate.</p>
+                            <p>Groups help organize annotations by category, phase, or team member. Click <strong>+ Group</strong> in the sidebar to create a new group with a custom name and color. All annotations within a group share that color. Use the eye icon to show/hide all annotations in a group, and the edit icon to modify the group name, color, or opacity, or to delete the entire group. A default group is created automatically when you first annotate.</p>
+                            <p style="margin-top: 10px;"><strong>Group Opacity:</strong> Each group has an opacity slider (5–100%) that controls the transparency of all annotations in that group. This is useful when overlapping annotations from different groups need to remain distinguishable, or when you want to de-emphasize one group while focusing on another. Opacity settings are saved in the JSON export and restored on import.</p>
                         </div>
                     </div>
 
@@ -380,7 +382,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>PDF</strong> to generate a comprehensive documentation report of your annotated model. The report is formatted for A4 paper and designed for academic documentation, publication appendices, and archival.</p>
+                            <p>Click <strong>PDF</strong> to generate a comprehensive documentation report of your annotated model. The report is designed for academic documentation, publication appendices, and archival. Page size (A4, Letter, A3), orientation, screenshot quality (DPI), report title, institution, project name, and accent color can all be customized in <strong>Settings</strong>.</p>
 
                             <p style="margin-top: 10px;"><strong>Report structure:</strong></p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
@@ -406,7 +408,7 @@
                         <div class="manual-item-content">
                             <p>Click <strong>Screenshot</strong> to save the current view as a PNG image. The screenshot includes all visible annotations, name labels, and measurement lines exactly as shown on screen — useful for documentation, reports, and publications.</p>
                             <p style="margin-top: 10px;"><strong>Screenshot Quality:</strong> In <strong>Settings</strong>, you can choose the screenshot resolution: <strong>Standard (1×)</strong> captures at screen resolution, <strong>High (2×)</strong> renders at double resolution for sharper detail when zoomed in, and <strong>Ultra (4×)</strong> renders at four times the resolution for maximum clarity. Higher quality may take longer on large models.</p>
-                            <p style="margin-top: 10px;"><strong>Scalebar:</strong> In <strong>Orthographic</strong> camera mode, screenshots automatically include a scalebar in the bottom-right corner. The scalebar shows the real-world distance based on the model's coordinate system, with values rounded to clean numbers (e.g., 1, 2, 5, 10, 20, 50...) for readability. The unit depends on how your 3D model was originally created or exported (e.g., millimeters, centimeters, or meters).</p>
+                            <p style="margin-top: 10px;"><strong>Scalebar:</strong> In <strong>Orthographic</strong> camera mode, screenshots automatically include a scalebar in the bottom-right corner. The scalebar shows the real-world distance based on the model's coordinate system, with values rounded to clean numbers (e.g., 1, 2, 5, 10, 20, 50...) for readability. The unit label matches the measurement unit configured in Settings.</p>
                             <p style="margin-top: 10px;">If you take a screenshot while in <strong>Perspective</strong> mode, MeshNotes will ask whether you want to switch to Orthographic view first. A scalebar can only be accurate in orthographic mode, where scale is uniform across the entire image — in perspective view, objects further from the camera appear smaller, making a single scalebar misleading.</p>
                         </div>
                     </div>
@@ -508,6 +510,32 @@
                             <p>MeshNotes runs entirely in your web browser. No data is uploaded to any server — your 3D models, annotations, and all other data remain on your computer at all times. The tool does not use cookies, analytics, tracking, or any external services.</p>
                             <p style="margin-top: 10px;">When hosted on GitHub Pages, the application files are downloaded once, after which all processing happens locally. For offline use, you can clone or download the <a href="https://github.com/NilsSchnorr/MeshNotes" target="_blank">GitHub repository</a> and run a local web server (e.g., <code>python -m http.server</code> or VS Code Live Server). Note that opening <code>index.html</code> directly via <code>file://</code> won't work due to browser security restrictions on ES modules.</p>
                             <p style="margin-top: 10px;">Exported JSON and PDF files are generated locally in your browser and saved directly to your downloads folder. Sharing annotation data with collaborators is always an explicit action on your part — you decide when and with whom to share your exported files. This makes MeshNotes suitable for documenting sensitive or unpublished archaeological sites where data confidentiality is important.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
+                            <span>Settings</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Click the <strong>⚙️ Settings</strong> button in the toolbar to open the settings panel. All settings are saved automatically in your browser and persist between sessions.</p>
+
+                            <p style="margin-top: 10px;"><strong>User:</strong> Set a <strong>Default Author Name</strong> that is pre-filled whenever you create a new annotation entry, saving you from typing it each time.</p>
+
+                            <p style="margin-top: 10px;"><strong>Measurements:</strong> Choose a <strong>Display Unit</strong> (units, mm, cm, m, or custom) for measurement labels and scalebars. You can also customize the <strong>Line &amp; Label Color</strong> and <strong>Point Color</strong> of measurements to stand out against your model.</p>
+
+                            <p style="margin-top: 10px;"><strong>Annotation Display:</strong> Adjust <strong>Point Size</strong> and <strong>Text Size</strong> multipliers to scale annotation markers and labels for your model's size. The sliders use exponential scaling for easy fine-tuning at both small and large values.</p>
+
+                            <p style="margin-top: 10px;"><strong>Screenshot:</strong> Choose the <strong>Screenshot Quality</strong> — Standard (1×) captures at screen resolution, High (2×) at double, and Ultra (4×) at four times resolution. Higher quality produces sharper images but may be slower on large models.</p>
+
+                            <p style="margin-top: 10px;"><strong>Model Display:</strong> Customize the <strong>Mesh Color</strong> and <strong>Wireframe Color</strong> used in the Mesh and Wireframe display modes.</p>
+
+                            <p style="margin-top: 10px;"><strong>PDF Export:</strong> Configure your PDF reports with a custom <strong>Report Title</strong>, <strong>Institution</strong>, and <strong>Project Name</strong> that appear on the title page. Choose an <strong>Accent Color</strong> for headings and decorative elements, a <strong>Page Size</strong> (A4, Letter, or A3), <strong>Orientation</strong> (portrait or landscape), and <strong>Screenshot Quality</strong> (72, 150, or 300 DPI).</p>
+
+                            <p style="margin-top: 10px;"><strong>Background Color:</strong> Choose the viewport background from preset colors (dark blue, black, dark gray, gray, white) or pick a custom color. White or light backgrounds are ideal for publication screenshots.</p>
+
+                            <p style="margin-top: 10px;"><strong>Reset:</strong> Click <strong>Reset All Settings to Default</strong> at the bottom to restore all preferences to their original values.</p>
                         </div>
                     </div>
 
