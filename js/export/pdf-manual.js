@@ -12,6 +12,36 @@ export function downloadManualAsPdf() {
 
     let yPos = margin;
 
+    // ===== TEXT SANITIZATION =====
+    // jsPDF's standard fonts lack proper width metrics for many Unicode characters.
+    // splitTextToSize underestimates line widths when these are present, causing overflow.
+    // This function replaces problematic characters and normalizes whitespace.
+    function sanitize(text) {
+        return text
+            .replace(/\u2192/g, '->')       // → RIGHTWARDS ARROW
+            .replace(/\u25BE/g, 'v')        // ▾ BLACK DOWN-POINTING SMALL TRIANGLE
+            .replace(/\u25B6/g, '>')        // ▶ BLACK RIGHT-POINTING TRIANGLE
+            .replace(/\u25BC/g, 'v')        // ▼ BLACK DOWN-POINTING TRIANGLE
+            .replace(/\u2014/g, ' - ')      // — EM DASH
+            .replace(/\u2013/g, '-')        // – EN DASH
+            .replace(/\u00D7/g, 'x')        // × MULTIPLICATION SIGN
+            .replace(/\u00B0/g, ' deg')     // ° DEGREE SIGN
+            .replace(/\u2018/g, "'")        // ' LEFT SINGLE QUOTATION
+            .replace(/\u2019/g, "'")        // ' RIGHT SINGLE QUOTATION
+            .replace(/\u201C/g, '"')        // \u201c LEFT DOUBLE QUOTATION
+            .replace(/\u201D/g, '"')        // \u201d RIGHT DOUBLE QUOTATION
+            .replace(/\u2026/g, '...')      // … HORIZONTAL ELLIPSIS
+            .replace(/\u00A0/g, ' ')        // non-breaking space
+            .replace(/\u2022/g, '-')        // • BULLET (in extracted text)
+            .replace(/\uFE0F/g, '')         // variation selector-16 (emoji presentation)
+            .replace(/\u2699/g, '')         // \u2699 GEAR (Settings icon)
+            .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '') // remove surrogate pairs (most emojis)
+            .replace(/[\u2600-\u27BF]/g, '')  // misc symbols & dingbats
+            .replace(/[\n\r\t]+/g, ' ')     // collapse newlines/tabs
+            .replace(/ {2,}/g, ' ')          // collapse multiple spaces
+            .trim();
+    }
+
     // ===== TITLE PAGE =====
     pdf.setFontSize(28);
     pdf.setTextColor(170, 129, 1);
@@ -50,6 +80,7 @@ export function downloadManualAsPdf() {
         if (headerEl && contentEl) {
             let title = headerEl.textContent.trim();
             title = title.replace(/[\u25B6\u25BC]$/, '').trim();
+            title = sanitize(title);
 
             const contentClone = contentEl.cloneNode(true);
 
@@ -64,14 +95,14 @@ export function downloadManualAsPdf() {
                 const directText = clonedNote.textContent.trim();
 
                 if (directText) {
-                    noteContent.push({ type: 'note-text', text: directText });
+                    noteContent.push({ type: 'note-text', text: sanitize(directText) });
                 }
 
                 const lists = noteEl.querySelectorAll('ul');
                 lists.forEach(ul => {
                     const listItems = [];
                     ul.querySelectorAll('li').forEach(li => {
-                        listItems.push(li.textContent.trim());
+                        listItems.push(sanitize(li.textContent.trim()));
                     });
                     if (listItems.length > 0) {
                         noteContent.push({ type: 'note-list', items: listItems });
@@ -94,17 +125,17 @@ export function downloadManualAsPdf() {
                     } else if (child.tagName === 'UL') {
                         const listItems = [];
                         child.querySelectorAll('li').forEach(li => {
-                            listItems.push(li.textContent.trim());
+                            listItems.push(sanitize(li.textContent.trim()));
                         });
                         if (listItems.length > 0) {
                             paragraphs.push({ type: 'list', items: listItems });
                         }
                     } else {
-                        paragraphs.push({ type: 'paragraph', text: child.textContent.trim() });
+                        paragraphs.push({ type: 'paragraph', text: sanitize(child.textContent.trim()) });
                     }
                 });
             } else {
-                paragraphs.push({ type: 'paragraph', text: contentEl.textContent.trim() });
+                paragraphs.push({ type: 'paragraph', text: sanitize(contentEl.textContent.trim()) });
             }
 
             manualContent.push({ title, paragraphs });
@@ -175,7 +206,7 @@ export function downloadManualAsPdf() {
                     } else if (item.type === 'note-list') {
                         const listLines = [];
                         item.items.forEach(listItem => {
-                            const itemLines = pdf.splitTextToSize('\u2022 ' + listItem, contentWidth - 20);
+                            const itemLines = pdf.splitTextToSize('- ' + listItem, contentWidth - 20);
                             listLines.push(...itemLines);
                         });
                         noteContentLines.push({ type: 'list', lines: listLines });
@@ -214,7 +245,7 @@ export function downloadManualAsPdf() {
                 pdf.setTextColor(60, 60, 60);
 
                 para.items.forEach(item => {
-                    const itemLines = pdf.splitTextToSize('\u2022 ' + item, contentWidth - 10);
+                    const itemLines = pdf.splitTextToSize('- ' + item, contentWidth - 10);
 
                     itemLines.forEach((line, idx) => {
                         if (yPos > pageHeight - margin) {
@@ -229,7 +260,7 @@ export function downloadManualAsPdf() {
                 yPos += 3;
             } else {
                 pdf.setTextColor(60, 60, 60);
-                const textLines = pdf.splitTextToSize(para.text, contentWidth);
+                const textLines = pdf.splitTextToSize(para.text, contentWidth - 2);
 
                 textLines.forEach(line => {
                     if (yPos > pageHeight - margin) {
