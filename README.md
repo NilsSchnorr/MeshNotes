@@ -31,7 +31,7 @@ Key features include:
 - **Settings** — configure default author name, measurement units and colors, screenshot quality, PDF export options, display colors, and background color
 - **Tablet support** — optimized for iPad with Apple Pencil: stylus for annotation, fingers for navigation, collapsible sidebar
 
-The tool runs entirely in your browser — your data stays on your computer unless you share the exported JSON file.
+The tool runs entirely in your browser — your data stays on your computer unless you share the exported JSON-LD file.
 
 
 ## Getting Started
@@ -42,7 +42,7 @@ The tool runs entirely in your browser — your data stays on your computer unle
 
 2. Click **Load Model** to open a 3D model (`.glb`, `.gltf`, `.obj`, or `.ply` format)
 3. Use the toolbar to add annotations
-4. Export your work as JSON for backup/saving or team collaboration
+4. Export your work as JSON-LD for backup/saving or team collaboration
 
 
 ## Supported File Formats
@@ -91,10 +91,10 @@ Ensure your model is oriented correctly (typically Y-up or Z-up) before exportin
 
 MeshNotes supports collaborative workflows through its UUID-based merging system:
 
-1. Load the model and create annotations, then export as JSON
-2. Share the JSON file with team members
-3. Team members import your JSON, add their own annotations, and export
-4. When you import their JSON, new annotations and entries are merged with your existing work — duplicates are detected by UUID and entries with newer timestamps take precedence
+1. Load the model and create annotations, then export as JSON-LD
+2. Share the JSON-LD file with team members
+3. Team members import your JSON-LD, add their own annotations, and export
+4. When you import their JSON-LD, new annotations and entries are merged with your existing work — duplicates are detected by UUID and entries with newer timestamps take precedence
 
 This allows multiple people to work on the same model independently, then combine their annotations without losing or duplicating work.
 

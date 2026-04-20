@@ -167,6 +167,57 @@
             margin: 4px 4px;
         }
 
+        /* Export dropdown */
+        .export-dropdown {
+            position: relative;
+        }
+
+        .export-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: var(--color-blue-dark);
+            border: 1px solid var(--color-blue);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            z-index: 600;
+            min-width: 180px;
+            overflow: hidden;
+        }
+
+        .export-dropdown.open .export-dropdown-menu {
+            display: block;
+        }
+
+        .export-dropdown-item {
+            display: block;
+            width: 100%;
+            padding: 10px 14px;
+            border: none;
+            background: none;
+            color: var(--color-text-light);
+            font-size: 13px;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .export-dropdown-item:hover {
+            background: var(--color-blue);
+        }
+
+        .export-dropdown-item:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .export-dropdown-item:disabled:hover {
+            background: none;
+        }
+
         #file-input, #import-input, #obj-material-input, #ply-texture-input {
             display: none;
         }
@@ -2602,6 +2653,10 @@
             }
 
             .tool-separator {
+                flex-shrink: 0;
+            }
+
+            .export-dropdown {
                 flex-shrink: 0;
             }
 

@@ -84,7 +84,7 @@
                         <p style="margin-bottom: 12px;"><strong>3. Navigate annotations</strong> — Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing.</p>
                         <p style="margin-bottom: 12px;"><strong>4. Adjust annotations</strong> — When no tool is active, drag any annotation point to reposition it. Use groups to organize and color-code your work.</p>
                         <p style="margin-bottom: 12px;"><strong>5. Take measurements</strong> — Use the Measure tool to click two points and get the distance. Hold <strong>Ctrl</strong> while clicking to measure paths through multiple points. Press Escape to clear.</p>
-                        <p style="margin-bottom: 0;"><strong>6. Export your work</strong> — Click <strong>JSON</strong> to save annotations for backup or team sharing. Click <strong>PDF</strong> to generate a documentation report with screenshots.</p>
+                        <p style="margin-bottom: 0;"><strong>6. Export your work</strong> — Click <strong>Export</strong> and choose <strong>JSON-LD</strong> to save annotations for backup or team sharing, or <strong>PDF Report</strong> to generate a documentation report with screenshots.</p>
                     </div>
                     <p style="margin-top: 12px; font-size: 13px; color: #aaa;">📱 <strong>Tablet users:</strong> MeshNotes works great on iPad with Apple Pencil. Use your stylus to annotate and your fingers to navigate. See the <em>Tablet &amp; Stylus Support</em> section below for details.
                     </p>
@@ -326,8 +326,8 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p><strong>JSON Export:</strong> Click to download all annotations in <strong>W3C Web Annotation</strong> format (.jsonld). This standard format ensures interoperability with other annotation tools and IIIF-compatible viewers. The export includes all entries, timestamps, metadata, groups, and model information.</p>
-                            <p style="margin-top: 10px;"><strong>Import:</strong> Click to load annotations from a .json or .jsonld file. MeshNotes supports both the new W3C format and legacy MeshNotes files for backward compatibility. Imported annotations merge with existing ones — groups with the same name are combined.</p>
+                            <p><strong>JSON-LD Export:</strong> Click <strong>Export ▾</strong> and choose <strong>JSON-LD (.jsonld)</strong> to download all annotations in <strong>W3C Web Annotation</strong> format. This standard format ensures interoperability with other annotation tools and IIIF-compatible viewers. The export includes all entries, timestamps, metadata, groups, and model information.</p>
+                            <p style="margin-top: 10px;"><strong>Import:</strong> Click <strong>Import</strong> to load annotations from a .json or .jsonld file. MeshNotes supports both the new W3C format and legacy MeshNotes files for backward compatibility. Imported annotations merge with existing ones — groups with the same name are combined.</p>
                             <p style="margin-top: 10px; font-size: 12px; color: #888;">The W3C Web Annotation Data Model is a standard for interoperable annotations. Learn more at <a href="https://www.w3.org/TR/annotation-model/" target="_blank">w3.org/TR/annotation-model</a></p>
                         </div>
                     </div>
@@ -382,7 +382,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>PDF</strong> to generate a comprehensive documentation report of your annotated model. The report is designed for academic documentation, publication appendices, and archival. Page size (A4, Letter, A3), orientation, screenshot quality (DPI), report title, institution, project name, and accent color can all be customized in <strong>Settings</strong>.</p>
+                            <p>Click <strong>Export ▾</strong> and choose <strong>PDF Report</strong> to generate a comprehensive documentation report of your annotated model. The report is designed for academic documentation, publication appendices, and archival. Page size (A4, Letter, A3), orientation, screenshot quality (DPI), report title, institution, project name, and accent color can all be customized in <strong>Settings</strong>.</p>
 
                             <p style="margin-top: 10px;"><strong>Report structure:</strong></p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
@@ -844,9 +844,14 @@
         <div class="tool-separator"></div>
         
         <button class="tool-btn" id="btn-screenshot" disabled title="Take Screenshot">📷 Screenshot</button>
-        <button class="tool-btn" id="btn-export" disabled title="Export Annotations as JSON">💾 JSON</button>
-        <button class="tool-btn" id="btn-export-pdf" disabled title="Export as PDF Report">📄 PDF</button>
-        <button class="tool-btn" id="btn-import" title="Import Annotations">📥 Import</button>
+        <div class="export-dropdown" id="export-dropdown">
+            <button class="tool-btn" id="btn-export" disabled title="Export annotations or PDF report">💾 Export ▾</button>
+            <div class="export-dropdown-menu" id="export-dropdown-menu">
+                <button class="export-dropdown-item" id="btn-export-jsonld">📄 JSON-LD (.jsonld)</button>
+                <button class="export-dropdown-item" id="btn-export-pdf">📑 PDF Report</button>
+            </div>
+        </div>
+        <button class="tool-btn" id="btn-import" title="Import JSON-LD annotations">📥 Import</button>
         
         <button id="btn-settings" title="Settings">⚙️ Settings</button>
     </div>

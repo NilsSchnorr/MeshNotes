@@ -231,8 +231,25 @@ export function setupEventListeners() {
     dom.btnBox.addEventListener('click', () => setTool('box'));
     dom.btnMeasure.addEventListener('click', () => setTool('measure'));
     dom.btnScreenshot.addEventListener('click', takeScreenshot);
-    dom.btnExport.addEventListener('click', exportAnnotations);
-    dom.btnExportPdf.addEventListener('click', exportPdfReport);
+    // Export dropdown
+    dom.btnExport.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.exportDropdown.classList.toggle('open');
+    });
+    dom.btnExportJsonld.addEventListener('click', () => {
+        dom.exportDropdown.classList.remove('open');
+        exportAnnotations();
+    });
+    dom.btnExportPdf.addEventListener('click', () => {
+        dom.exportDropdown.classList.remove('open');
+        exportPdfReport();
+    });
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!dom.exportDropdown.contains(e.target)) {
+            dom.exportDropdown.classList.remove('open');
+        }
+    });
     dom.btnImport.addEventListener('click', () => dom.importInput.click());
     dom.importInput.addEventListener('change', (e) => {
         if (e.target.files[0]) importAnnotations(e.target.files[0]);
@@ -613,6 +630,12 @@ export function setupEventListeners() {
         }
         
         if (e.key === 'Escape') {
+            // Close export dropdown if open
+            if (dom.exportDropdown.classList.contains('open')) {
+                dom.exportDropdown.classList.remove('open');
+                return;
+            }
+
             if (dom.annotationClearOverlay.classList.contains('visible')) {
                 hideAnnotationClearDialog();
                 return;

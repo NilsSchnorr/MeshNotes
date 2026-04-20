@@ -184,7 +184,10 @@ export function initDomReferences() {
     dom.btnMeasure = document.getElementById('btn-measure');
     dom.btnScreenshot = document.getElementById('btn-screenshot');
     dom.btnExport = document.getElementById('btn-export');
+    dom.btnExportJsonld = document.getElementById('btn-export-jsonld');
     dom.btnExportPdf = document.getElementById('btn-export-pdf');
+    dom.exportDropdown = document.getElementById('export-dropdown');
+    dom.exportDropdownMenu = document.getElementById('export-dropdown-menu');
     dom.btnImport = document.getElementById('btn-import');
     dom.btnAddGroup = document.getElementById('btn-add-group');
 

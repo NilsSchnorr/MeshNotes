@@ -28,7 +28,7 @@ export function downloadManualAsPdf() {
 
     pdf.setFontSize(11);
     pdf.setTextColor(80, 80, 80);
-    const subtitle = 'A browser-based tool for annotating 3D models with points, lines, polygons, and surfaces, designed for cultural heritage documentation.';
+    const subtitle = 'A browser-based tool for annotating 3D models with points, lines, polygons, surfaces, and boxes, designed for cultural heritage documentation.';
     const subtitleLines = pdf.splitTextToSize(subtitle, contentWidth - 20);
     pdf.text(subtitleLines, pageWidth / 2, 100, { align: 'center' });
 
@@ -40,7 +40,7 @@ export function downloadManualAsPdf() {
     });
 
     // ===== EXTRACT MANUAL CONTENT =====
-    const manualItems = document.querySelectorAll('#about-modal-content .manual-item');
+    const manualItems = document.querySelectorAll('#manual-modal-content .manual-item');
     const manualContent = [];
 
     manualItems.forEach(item => {
