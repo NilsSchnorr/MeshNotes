@@ -28,6 +28,7 @@ export function escapeHtml(text) {
 
 // Status hold — prevents other showStatus calls from overwriting for a duration
 let statusHoldUntil = 0;
+let statusTimeout = null;
 
 export function showStatus(message, holdSeconds = 0) {
     const now = Date.now();
@@ -42,9 +43,15 @@ export function showStatus(message, holdSeconds = 0) {
     
     dom.status.textContent = message;
     dom.status.classList.add('visible');
-    setTimeout(() => {
+    
+    // Clear any existing timeout
+    if (statusTimeout) clearTimeout(statusTimeout);
+    
+    // Use hold duration or default 3 seconds for visibility
+    const visibleDuration = holdSeconds > 0 ? holdSeconds * 1000 : 3000;
+    statusTimeout = setTimeout(() => {
         dom.status.classList.remove('visible');
-    }, 3000);
+    }, visibleDuration);
 }
 
 export function updateFaceCountDisplay(count) {
