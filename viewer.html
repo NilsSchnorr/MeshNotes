@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>MeshNotes Viewer</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Viewer-specific styles */
+        #viewer-banner {
+            display: none;
+            background: #0a3a5c;
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 13px;
+            color: #ccc;
+            border-bottom: 1px solid #1A5A8A;
+        }
+        #viewer-banner.visible { display: block; }
+        #viewer-banner .expiry { color: #EDC040; }
+        #viewer-banner .expired-msg { color: #ff6b6b; }
+        
+        #viewer-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #041D31;
+            border-bottom: 1px solid #1A5A8A;
+            flex-shrink: 0;
+        }
+        #viewer-toolbar .viewer-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #EDC040;
+            margin-right: auto;
+        }
+        #viewer-toolbar button {
+            padding: 6px 14px;
+            border: 1px solid #1A5A8A;
+            background: #0a2a3f;
+            color: #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #viewer-toolbar button:hover { background: #1A5A8A; color: #fff; }
+        #viewer-toolbar .btn-editor {
+            background: #1a5a2a;
+            border-color: #2a8a3a;
+            color: #fff;
+        }
+        #viewer-toolbar .btn-editor:hover { background: #2a8a3a; }
+
+        /* Expired share overlay */
+        #expired-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        #expired-overlay.visible { display: flex; }
+        #expired-overlay .expired-box {
+            background: #0a2a3f;
+            border: 1px solid #1A5A8A;
+            border-radius: 8px;
+            padding: 32px 40px;
+            text-align: center;
+            max-width: 450px;
+        }
+        #expired-overlay h2 { color: #ff6b6b; margin-bottom: 12px; }
+        #expired-overlay p { color: #ccc; line-height: 1.6; }
+        #expired-overlay a { color: #EDC040; }
+
+        /* Loading overlay for viewer */
+        #viewer-loading {
+            display: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #ccc;
+            z-index: 100;
+        }
+        #viewer-loading.visible { display: block; }
+        #viewer-loading .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid #1A5A8A;
+            border-top: 3px solid #EDC040;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Hide toolbar elements that don't exist in viewer */
+        #toolbar { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header id="header">
+        <h1>MeshNotes <span class="subtitle">– Viewer</span></h1>
+        <div class="header-buttons">
+            <button id="btn-open-editor" class="btn-editor" style="background:#1a5a2a; border-color:#2a8a3a;">Open in Editor</button>
+        </div>
+    </header>
+
+    <!-- Share info banner -->
+    <div id="viewer-banner"></div>
+
+    <!-- Expired share overlay -->
+    <div id="expired-overlay">
+        <div class="expired-box">
+            <h2>Share Expired</h2>
+            <p>This shared model is no longer available. Ephemeral shares expire after 90 days.</p>
+            <p style="margin-top: 16px;">Visit <a href="/">MeshNotes</a> to create your own annotations.</p>
+        </div>
+    </div>
+
+    <!-- Hidden toolbar (keeps initDomReferences happy but invisible) -->
+    <div id="toolbar" style="display:none !important;">
+        <input type="file" id="file-input">
+        <input type="file" id="import-input">
+        <input type="file" id="obj-material-input" multiple>
+        <input type="file" id="ply-texture-input">
+        <button id="btn-load"></button>
+        <button id="btn-texture" disabled></button>
+        <button id="btn-point" disabled></button>
+        <button id="btn-line" disabled></button>
+        <button id="btn-polygon" disabled></button>
+        <button id="btn-surface" disabled></button>
+        <button id="btn-box" disabled></button>
+        <button id="btn-measure" disabled></button>
+        <button id="btn-screenshot" disabled></button>
+        <div id="export-dropdown">
+            <button id="btn-export" disabled></button>
+            <div id="export-dropdown-menu">
+                <button id="btn-export-jsonld"></button>
+                <button id="btn-export-pdf"></button>
+            </div>
+        </div>
+        <button id="btn-import"></button>
+        <button id="btn-settings"></button>
+    </div>
+
+    <div id="container">
+        <div id="viewport">
+            <canvas id="canvas"></canvas>
+
+            <!-- Viewer loading spinner (overlaid on canvas) -->
+            <div id="viewer-loading">
+                <div class="spinner"></div>
+                <div id="viewer-loading-text">Loading shared model...</div>
+            </div>
+
+            <div id="measurement-display" style="display:none;">
+                <div id="measurements-list"></div>
+            </div>
+
+            <div id="brush-display" style="display:none;">
+                <input type="range" id="brush-slider" min="0.1" max="20" value="5" step="0.1">
+                <span id="brush-value"></span>
+            </div>
+
+            <div id="tool-help" style="display:none;">
+                <div id="tool-help-title"><span class="icon"></span><span class="name"></span></div>
+                <div id="tool-help-content"></div>
+            </div>
+
+            <div id="instructions">
+                <strong>Controls:</strong> Left-drag rotate · Right-drag pan · Scroll zoom
+            </div>
+
+            <div id="model-stats">
+                <span id="face-count"></span>
+            </div>
+
+            <div id="viewhelper-container">
+                <canvas id="viewhelper-canvas" width="128" height="128"></canvas>
+            </div>
+
+            <div id="sliders-panel">
+                <div id="sliders-panel-header">
+                    <button id="camera-toggle" title="Toggle Orthographic/Perspective View">Perspective</button>
+                    <button id="flip-toggle" title="Flip model upside down (visual only)">Flip</button>
+                </div>
+                <div id="sliders-panel-content">
+                    <div class="light-mode-row">
+                        <label>Light Source</label>
+                        <button class="light-toggle-btn active" id="light-toggle" title="Toggle light mode">Follows Camera</button>
+                    </div>
+                    <div id="light-direction-row">
+                        <div class="light-sliders-group">
+                            <div class="slider-row">
+                                <label>
+                                    <span>Horizontal</span>
+                                    <span id="light-azimuth-value">0°</span>
+                                </label>
+                                <input type="range" id="light-azimuth-slider" min="0" max="360" value="0">
+                            </div>
+                            <div class="slider-row">
+                                <label>
+                                    <span>Vertical</span>
+                                    <span id="light-elevation-value">45°</span>
+                                </label>
+                                <input type="range" id="light-elevation-slider" min="-90" max="90" value="45">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slider-row">
+                        <label>
+                            <span>Brightness</span>
+                            <span id="brightness-value">100%</span>
+                        </label>
+                        <input type="range" id="brightness-slider" min="0" max="300" value="100">
+                    </div>
+                    <div class="slider-row">
+                        <label>
+                            <span>Model Opacity</span>
+                            <span id="opacity-value">100%</span>
+                        </label>
+                        <input type="range" id="opacity-slider" min="10" max="100" value="100">
+                    </div>
+                </div>
+                <div id="sliders-panel-footer">
+                    <div id="sliders-panel-toggle" title="Minimize panel">▼</div>
+                </div>
+            </div>
+
+            <div id="status"></div>
+            <div id="loading" style="display:none;">Loading model...</div>
+
+            <!-- Hidden popup elements (referenced by DOM init but never shown in viewer) -->
+            <div id="annotation-popup" style="display:none !important;">
+                <h3 id="popup-title"></h3>
+                <input type="text" id="ann-name">
+                <div class="group-select-row">
+                    <select id="ann-group"></select>
+                    <button id="btn-add-group-inline"></button>
+                </div>
+                <div id="inline-new-group-form">
+                    <input type="text" id="inline-group-name">
+                    <input type="color" id="inline-group-color">
+                    <button id="btn-cancel-inline-group"></button>
+                    <button id="btn-save-inline-group"></button>
+                </div>
+                <div id="surface-projection-toggle"><input type="checkbox" id="ann-surface-projection"></div>
+                <div id="entries-container"><div id="entries-list"></div><button id="btn-add-entry"></button></div>
+                <div id="new-entry-form">
+                    <textarea id="ann-description"></textarea>
+                    <input type="text" id="ann-author">
+                    <div id="ann-links"></div>
+                    <input type="text" id="ann-new-link">
+                    <button id="btn-add-link"></button>
+                </div>
+                <button id="btn-popup-save"></button>
+                <button id="btn-popup-cancel"></button>
+                <button id="btn-popup-delete"></button>
+            </div>
+
+            <!-- Hidden dialogs -->
+            <div id="confirm-overlay" style="display:none !important;">
+                <p id="confirm-message"></p>
+                <button id="confirm-cancel"></button>
+                <button id="confirm-ok"></button>
+            </div>
+            <div id="annotation-clear-overlay" style="display:none !important;">
+                <button id="annotation-clear-cancel"></button>
+                <button id="annotation-clear-discard"></button>
+                <button id="annotation-clear-export"></button>
+            </div>
+            <div id="scalebar-confirm-overlay" style="display:none !important;">
+                <button id="scalebar-no-switch"></button>
+                <button id="scalebar-switch"></button>
+            </div>
+            <div id="obj-dialog-overlay" style="display:none !important;">
+                <button id="obj-load-plain"></button>
+                <button id="obj-add-materials"></button>
+            </div>
+            <div id="ply-dialog-overlay" style="display:none !important;">
+                <button id="ply-load-plain"></button>
+                <button id="ply-add-texture"></button>
+            </div>
+            <div id="group-popup" style="display:none !important;">
+                <h3 id="group-popup-title"></h3>
+                <input type="text" id="group-name">
+                <input type="color" id="group-color">
+                <input type="range" id="group-opacity" min="5" max="100" value="100">
+                <span id="group-opacity-value"></span>
+                <button id="btn-group-save"></button>
+                <button id="btn-group-cancel"></button>
+                <button id="btn-group-delete"></button>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <button id="sidebar-toggle" aria-label="Toggle sidebar">&#9664;</button>
+            <div class="sidebar-content">
+                <div class="sidebar-section" style="flex: 1; overflow-y: auto;">
+                    <h2>Annotations</h2>
+
+                    <div id="search-box">
+                        <input type="text" id="search-input" placeholder="Search annotations...">
+                    </div>
+
+                    <div id="model-info-section">
+                        <div class="model-info-item" id="model-info-item">
+                            <div class="model-info-header">
+                                <span class="model-info-icon">📋</span>
+                                <span class="model-info-title">Model Information</span>
+                            </div>
+                            <div class="model-info-subtitle" id="model-info-subtitle">No entries yet</div>
+                        </div>
+                    </div>
+
+                    <div id="groups-container">
+                        <div class="empty-state" id="no-groups">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden modals (referenced by DOM init) -->
+    <div id="about-overlay" style="display:none !important;"><button id="btn-about"></button><button id="about-modal-close"></button></div>
+    <div id="manual-overlay" style="display:none !important;"><button id="btn-manual"></button><button id="manual-modal-close"></button><button id="btn-download-manual"></button></div>
+    <div id="legal-overlay" style="display:none !important;"><button id="btn-legal"></button><button id="legal-modal-close"></button></div>
+    <div id="settings-overlay" style="display:none !important;">
+        <button id="settings-modal-close"></button>
+        <input type="text" id="settings-default-author">
+        <select id="settings-measurement-unit"><option value="units">units</option></select>
+        <input type="text" id="settings-measurement-unit-custom">
+        <input type="color" id="settings-measurement-line-color" value="#AA8101">
+        <input type="color" id="settings-measurement-point-color" value="#FFFFFF">
+        <input type="text" id="settings-pdf-title">
+        <input type="text" id="settings-pdf-institution">
+        <input type="text" id="settings-pdf-project">
+        <input type="color" id="settings-pdf-accent-color" value="#AA8101">
+        <select id="settings-pdf-page-size"><option value="a4">A4</option></select>
+        <select id="settings-pdf-orientation"><option value="portrait">Portrait</option></select>
+        <select id="settings-pdf-dpi"><option value="150">150</option></select>
+        <input type="color" id="settings-mesh-color" value="#888888">
+        <input type="color" id="settings-wireframe-color" value="#AA8101">
+        <button id="settings-reset-all"></button>
+        <input type="range" id="point-size-slider" min="25" max="600" value="100">
+        <span id="point-size-value">×1.0</span>
+        <input type="range" id="text-size-slider" min="25" max="600" value="100">
+        <span id="text-size-value">×1.0</span>
+        <input type="color" id="background-color-picker" value="#041D31">
+        <select id="settings-screenshot-quality"><option value="2">High</option></select>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "three-mesh-bvh": "https://unpkg.com/three-mesh-bvh@0.8.0/src/index.js"
+            }
+        }
+    </script>
+
+    <script type="module" src="js/viewer-main.js"></script>
+</body>
+</html>

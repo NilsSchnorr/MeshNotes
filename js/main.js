@@ -3,7 +3,7 @@ import { state, dom, initDomReferences } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
 import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality } from './core/lighting.js';
-import { setUpdateModelInfoDisplay } from './core/model-loader.js';
+import { setUpdateModelInfoDisplay, loadModel, loadOBJModel, loadPLYModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
 import { setEditingCallbacks, finishSurfacePainting, renderMeasurements } from './annotation-tools/editing.js';
@@ -13,6 +13,10 @@ import { setRenderAnnotations } from './annotation-tools/projection.js';
 import { setupEventListeners, setTool } from './ui/event-listeners.js';
 import { openGroupPopup } from './annotation-tools/groups.js';
 import { initLabelOcclusionUpdates } from './utils/label-occlusion.js';
+import { showStatus, toDisplayCoords } from './utils/helpers.js';
+import { importAnnotations } from './export/import-json.js';
+import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUntilExpiry } from './core/url-params.js';
+import * as THREE from 'three';
 
 // Wire up late-bound references to break circular dependencies
 setUpdateModelInfoDisplay(updateModelInfoDisplay);
@@ -87,6 +91,139 @@ function animate() {
         }
     }
 }
+
+// ============ URL Parameter Auto-Loading ============
+
+/**
+ * Check URL parameters and auto-load shared model + annotations.
+ * Called after init() and loadSavedSettings().
+ */
+async function loadFromUrlParams() {
+    const config = parseUrlParams();
+
+    if (config.mode === 'local') return; // No URL params — normal editor usage
+
+    dom.loading.classList.add('visible');
+
+    try {
+        let shareData;
+
+        if (config.mode === 'share') {
+            shareData = await loadShareFiles(config.shareId);
+
+            // Check expiry
+            if (shareData.manifest && isShareExpired(shareData.manifest)) {
+                dom.loading.classList.remove('visible');
+                showStatus('This share has expired (90-day limit reached)');
+                return;
+            }
+
+            // Show expiry info
+            if (shareData.manifest) {
+                const days = daysUntilExpiry(shareData.manifest);
+                showStatus(`Shared model loaded · expires in ${days} day${days !== 1 ? 's' : ''}`);
+            }
+        } else if (config.mode === 'direct') {
+            shareData = await loadDirectFiles(config.modelUrl, config.annotationsUrl);
+        }
+
+        const { modelFile, materialFiles, annotationFile, format } = shareData;
+        const ext = modelFile.name.split('.').pop().toLowerCase();
+
+        // Load model using existing loaders, bypassing file-input dialogs
+        if (format === 'glb' || ext === 'glb' || ext === 'gltf') {
+            // loadModel handles GLB directly without showing a dialog
+            loadModel(modelFile);
+        } else if (format === 'obj' || ext === 'obj') {
+            // Call loadOBJModel directly with materials, skipping the OBJ dialog
+            loadOBJModel(modelFile, materialFiles, 'z-up');
+        } else if (format === 'ply' || ext === 'ply') {
+            // Find texture file among materials
+            const textureFile = materialFiles.find(f => {
+                const e = f.name.split('.').pop().toLowerCase();
+                return ['jpg', 'jpeg', 'png', 'tif', 'tiff'].includes(e);
+            }) || null;
+            loadPLYModel(modelFile, textureFile, 'z-up');
+        } else {
+            throw new Error(`Unsupported format: ${ext}`);
+        }
+
+        // Import annotations once the model finishes loading
+        if (annotationFile) {
+            waitForModel(() => {
+                importAnnotations(annotationFile);
+
+                // Focus on specific annotation if requested via ?annotation=UUID
+                if (config.focusAnnotation) {
+                    focusOnAnnotation(config.focusAnnotation);
+                }
+            });
+        } else if (config.focusAnnotation) {
+            waitForModel(() => {
+                focusOnAnnotation(config.focusAnnotation);
+            });
+        }
+
+    } catch (error) {
+        console.error('URL parameter loading failed:', error);
+        dom.loading.classList.remove('visible');
+
+        if (error.message === 'expired') {
+            showStatus('This share has expired (90-day limit reached)');
+        } else {
+            showStatus('Failed to load shared model: ' + error.message);
+        }
+    }
+}
+
+/**
+ * Poll for model to finish loading, then run callback.
+ * The existing loaders use async callbacks internally, so we poll
+ * for state.currentModel to become non-null.
+ */
+function waitForModel(callback, maxAttempts = 50) {
+    let attempts = 0;
+    const check = () => {
+        attempts++;
+        if (state.currentModel) {
+            // Small delay to let setupLoadedModel finish completely
+            setTimeout(callback, 100);
+        } else if (attempts < maxAttempts) {
+            setTimeout(check, 200); // Check every 200ms, up to 10 seconds
+        } else {
+            console.warn('Timed out waiting for model to load');
+        }
+    };
+    setTimeout(check, 200);
+}
+
+/**
+ * Navigate camera to focus on a specific annotation by UUID.
+ */
+function focusOnAnnotation(uuid) {
+    const ann = state.annotations.find(a => a.uuid === uuid);
+    if (!ann || !ann.points || ann.points.length === 0) return;
+
+    const center = new THREE.Vector3();
+    ann.points.forEach(p => {
+        const dp = toDisplayCoords(p);
+        center.add(new THREE.Vector3(dp.x, dp.y, dp.z));
+    });
+    center.divideScalar(ann.points.length);
+
+    state.controls.target.copy(center);
+    state.camera.position.set(
+        center.x + state.modelBoundingSize * 0.8,
+        center.y + state.modelBoundingSize * 0.8,
+        center.z + state.modelBoundingSize * 0.8
+    );
+    state.controls.update();
+
+    state.selectedAnnotation = ann.id;
+    updateGroupsList();
+}
+
+// ============ Slider Utilities ============
 
 /**
  * Converts slider value (25-600) to multiplier using exponential scaling.
@@ -286,3 +423,4 @@ window.meshnotesDebug = {
 // Start the application
 init();
 loadSavedSettings();
+loadFromUrlParams();

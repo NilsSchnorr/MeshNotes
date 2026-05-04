@@ -3,9 +3,9 @@
 // Handles three URL modes:
 //   1. Ephemeral share:  ?share=abc123 [&annotation=uuid]
 //   2. Direct URLs:      ?model=URL&annotations=URL [&annotation=uuid]
-//   3. No params:        Normal editor/viewer with local file loading
+//   3. No params:        Normal editor with local file loading
 //
-// Both viewer.html and index.html import this module.
+// Both index.html (editor) and viewer.html (future) import this module.
 
 const SHARE_API_BASE = '/api/share';
 
@@ -236,26 +236,26 @@ export async function loadDirectFiles(modelUrl, annotationsUrl) {
 }
 
 /**
- * Build a viewer URL for an ephemeral share.
+ * Build a share URL for an ephemeral share.
+ * Points to the editor (index.html) — the viewer is a future addition.
  * 
  * @param {string} shareId 
  * @returns {string}
  */
 export function buildShareUrl(shareId) {
-    const base = `${window.location.origin}/viewer.html`;
-    return `${base}?share=${shareId}`;
+    return `${window.location.origin}/?share=${shareId}`;
 }
 
 /**
- * Build a viewer URL for a direct/DOI share.
+ * Build a share URL for a direct/DOI share.
+ * Points to the editor (index.html) — the viewer is a future addition.
  * 
  * @param {string} modelUrl 
  * @param {string|null} annotationsUrl 
  * @returns {string}
  */
 export function buildDirectUrl(modelUrl, annotationsUrl) {
-    const base = `${window.location.origin}/viewer.html`;
-    let url = `${base}?model=${encodeURIComponent(modelUrl)}`;
+    let url = `${window.location.origin}/?model=${encodeURIComponent(modelUrl)}`;
     if (annotationsUrl) {
         url += `&annotations=${encodeURIComponent(annotationsUrl)}`;
     }
@@ -264,14 +264,12 @@ export function buildDirectUrl(modelUrl, annotationsUrl) {
 
 /**
  * Build an editor URL from the current viewer URL params.
- * Used by the "Open in Editor" button in the viewer.
+ * Used by the "Open in Editor" button in the viewer (future).
  * 
  * @returns {string}
  */
 export function buildEditorUrl() {
-    // Keep the same query parameters, just change the page
-    const base = `${window.location.origin}/index.html`;
-    return `${base}${window.location.search}`;
+    return `${window.location.origin}/${window.location.search}`;
 }
 
 /**
