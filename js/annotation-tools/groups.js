@@ -248,6 +248,20 @@ function renderAnnotationItem(ann) {
     const icons = { point: '📍', line: '📏', polygon: '⬡', surface: '🎨', box: '📦' };
     const entryCount = (ann.entries && ann.entries.length) || 0;
     const entryText = entryCount === 1 ? '1 entry' : `${entryCount} entries`;
+
+    let previewHtml = '';
+    if (entryCount > 0) {
+        const newest = ann.entries[entryCount - 1];
+        const desc = (newest.description || '').trim();
+        if (desc) {
+            const words = desc.split(/\s+/);
+            const preview = words.length > 4
+                ? words.slice(0, 4).join(' ') + '\u2026'
+                : desc;
+            previewHtml = ` — ${escapeHtml(preview)}`;
+        }
+    }
+
     return `
         <div class="annotation-item ${state.selectedAnnotation === ann.id ? 'selected' : ''}" data-id="${ann.id}">
             <div class="header">
@@ -255,7 +269,7 @@ function renderAnnotationItem(ann) {
                 <span class="name">${escapeHtml(ann.name)}</span>
                 <button class="annotation-edit-btn" data-action="edit-annotation" title="Edit annotation">✏️</button>
             </div>
-            <div class="description">${entryText}</div>
+            <div class="description">${entryText}${previewHtml}</div>
         </div>
     `;
 }
