@@ -187,7 +187,10 @@ function handleModelLoad(file) {
 
 export function setupEventListeners() {
     // File loading
-    dom.btnLoad.addEventListener('click', () => dom.fileInput.click());
+    dom.btnLoad.addEventListener('click', () => {
+        dom.importDropdown.classList.remove('open');
+        dom.fileInput.click();
+    });
     dom.fileInput.addEventListener('change', (e) => {
         if (e.target.files[0]) handleModelLoad(e.target.files[0]);
         dom.fileInput.value = '';
@@ -280,6 +283,7 @@ export function setupEventListeners() {
     dom.btnExport.addEventListener('click', (e) => {
         e.stopPropagation();
         dom.exportDropdown.classList.toggle('open');
+        dom.importDropdown.classList.remove('open');
     });
     dom.btnExportJsonld.addEventListener('click', () => {
         dom.exportDropdown.classList.remove('open');
@@ -293,18 +297,29 @@ export function setupEventListeners() {
         dom.exportDropdown.classList.remove('open');
         downloadModelFiles();
     });
-    // Close dropdown when clicking outside
+    // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
         if (!dom.exportDropdown.contains(e.target)) {
             dom.exportDropdown.classList.remove('open');
         }
+        if (!dom.importDropdown.contains(e.target)) {
+            dom.importDropdown.classList.remove('open');
+        }
     });
-    dom.btnImport.addEventListener('click', () => dom.importInput.click());
+    dom.btnImport.addEventListener('click', () => {
+        dom.importDropdown.classList.remove('open');
+        dom.importInput.click();
+    });
     dom.importInput.addEventListener('change', (e) => {
         if (e.target.files[0]) importAnnotations(e.target.files[0]);
     });
 
     // Share button and dialog
+    dom.btnImportMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.importDropdown.classList.toggle('open');
+        dom.exportDropdown.classList.remove('open');
+    });
     dom.btnShare.addEventListener('click', shareModel);
     document.getElementById('share-modal-close').addEventListener('click', closeShareDialog);
     document.getElementById('share-copy-btn').addEventListener('click', copyShareLink);

@@ -896,7 +896,13 @@
         <input type="file" id="obj-material-input" accept=".mtl,.jpg,.jpeg,.png,.tif,.tiff" multiple>
         <input type="file" id="ply-texture-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
         
-        <button class="tool-btn" id="btn-load" title="Load 3D Model (GLB, GLTF, OBJ, PLY)">📂 Load Model</button>
+        <div class="import-dropdown" id="import-dropdown">
+            <button class="tool-btn" id="btn-import-menu" title="Import model or annotations">📂 Import ▾</button>
+            <div class="import-dropdown-menu" id="import-dropdown-menu">
+                <button class="import-dropdown-item" id="btn-load">🌐 3D Model (.glb, .obj, .ply)</button>
+                <button class="import-dropdown-item" id="btn-import">📄 Annotations (.jsonld)</button>
+            </div>
+        </div>
         <button class="tool-btn" id="btn-texture" disabled title="Toggle Texture">🖼️ Texture</button>
         
         <div class="tool-separator"></div>
@@ -919,10 +925,6 @@
                 <button class="export-dropdown-item" id="btn-export-model">📦 Model Files</button>
             </div>
         </div>
-        <button class="tool-btn" id="btn-import" title="Import JSON-LD annotations">📥 Import</button>
-        
-        <div class="tool-separator"></div>
-        
         <button class="tool-btn" id="btn-share" title="Share model and annotations via link">📤 Share</button>
         
         <button id="btn-settings" title="Settings">⚙️ Settings</button>

@@ -176,6 +176,8 @@ export function initDomReferences() {
 
     // Toolbar buttons
     dom.btnLoad = document.getElementById('btn-load');
+    dom.btnImportMenu = document.getElementById('btn-import-menu');
+    dom.importDropdown = document.getElementById('import-dropdown');
     dom.btnTexture = document.getElementById('btn-texture');
     dom.btnPoint = document.getElementById('btn-point');
     dom.btnLine = document.getElementById('btn-line');
