@@ -272,7 +272,11 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     dom.btnMeasure.disabled = false;
     dom.btnScreenshot.disabled = false;
     dom.btnExport.disabled = false;
-    dom.btnShare.disabled = false;
+    // Enable share generate buttons (Share dialog itself is always accessible)
+    const shareGenBtn = document.getElementById('share-generate-btn');
+    const longtermGenBtn = document.getElementById('longterm-generate-btn');
+    if (shareGenBtn) shareGenBtn.disabled = false;
+    if (longtermGenBtn) longtermGenBtn.disabled = false;
     state.displayMode = 'texture';
     updateTextureButtonLabel();
 

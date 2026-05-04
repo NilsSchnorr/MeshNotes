@@ -2433,6 +2433,19 @@
             color: #000;
         }
 
+        .share-action-btn:disabled {
+            background: var(--color-input-bg);
+            border-color: var(--color-blue);
+            color: var(--color-text-muted);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .share-action-btn:disabled:hover {
+            background: var(--color-input-bg);
+            color: var(--color-text-muted);
+        }
+
         #share-progress {
             text-align: center;
             padding: 20px 0;

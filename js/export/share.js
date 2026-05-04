@@ -165,18 +165,9 @@ export function toggleHistory() {
 /**
  * Opens the share dialog. Does NOT upload anything yet —
  * the user must click "Generate Link" to trigger the upload.
+ * Always opens, even without a model loaded, so users can access link history.
  */
 export function shareModel() {
-    if (!state.currentModel) {
-        showStatus('No model loaded to share');
-        return;
-    }
-
-    if (!state.loadedModelFiles || state.loadedModelFiles.length === 0) {
-        showStatus('No model files available — reload the model and try again');
-        return;
-    }
-
     const dialog = document.getElementById('share-overlay');
     const choiceSection = document.getElementById('share-choice');
     const progressSection = document.getElementById('share-progress');
