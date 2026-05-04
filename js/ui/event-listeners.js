@@ -14,7 +14,7 @@ import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
 import { importAnnotations } from '../export/import-json.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
-import { shareModel, copyShareLink, closeShareDialog, showLongTermShareDialog, generateLongTermLink } from '../export/share.js';
+import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink } from '../export/share.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js';
 
@@ -308,6 +308,7 @@ export function setupEventListeners() {
     dom.btnShare.addEventListener('click', shareModel);
     document.getElementById('share-modal-close').addEventListener('click', closeShareDialog);
     document.getElementById('share-copy-btn').addEventListener('click', copyShareLink);
+    document.getElementById('share-generate-btn').addEventListener('click', generateEphemeralLink);
     document.getElementById('share-overlay').addEventListener('click', (e) => {
         if (e.target.id === 'share-overlay') closeShareDialog();
     });
@@ -316,8 +317,7 @@ export function setupEventListeners() {
     document.getElementById('share-mode-ephemeral').addEventListener('click', () => {
         document.getElementById('share-mode-ephemeral').classList.add('active');
         document.getElementById('share-mode-longterm').classList.remove('active');
-        closeShareDialog();
-        shareModel();
+        showEphemeralShareDialog();
     });
     document.getElementById('share-mode-longterm').addEventListener('click', () => {
         document.getElementById('share-mode-longterm').classList.add('active');

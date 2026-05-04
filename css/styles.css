@@ -2394,6 +2394,26 @@
 
         #share-modal-content {
             padding: 20px;
+            color: var(--color-text-muted);
+        }
+
+        #share-modal-content p {
+            color: var(--color-text-muted);
+            line-height: 1.5;
+        }
+
+        #share-modal-content strong {
+            color: var(--color-text-light);
+        }
+
+        .share-privacy-note {
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: rgba(255, 180, 0, 0.08);
+            border: 1px solid rgba(255, 180, 0, 0.25);
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--color-gold) !important;
         }
 
         #share-progress {

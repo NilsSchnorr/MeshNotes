@@ -11,9 +11,10 @@ import { buildShareUrl, buildDirectUrl } from '../core/url-params.js';
 const SHARE_API_URL = '/api/share';
 
 /**
- * Main share function. Uploads model + annotations to R2 and shows the share dialog.
+ * Opens the share dialog. Does NOT upload anything yet —
+ * the user must click "Generate Link" to trigger the upload.
  */
-export async function shareModel() {
+export function shareModel() {
     if (!state.currentModel) {
         showStatus('No model loaded to share');
         return;
@@ -25,6 +26,32 @@ export async function shareModel() {
     }
 
     const dialog = document.getElementById('share-overlay');
+    const choiceSection = document.getElementById('share-choice');
+    const progressSection = document.getElementById('share-progress');
+    const resultSection = document.getElementById('share-result');
+    const errorSection = document.getElementById('share-error');
+
+    // Reset to choice state
+    choiceSection.style.display = 'block';
+    progressSection.style.display = 'none';
+    resultSection.style.display = 'none';
+    errorSection.style.display = 'none';
+
+    // Reset to ephemeral mode
+    document.getElementById('share-mode-ephemeral').classList.add('active');
+    document.getElementById('share-mode-longterm').classList.remove('active');
+    document.getElementById('share-ephemeral-section').style.display = 'block';
+    document.getElementById('share-longterm').style.display = 'none';
+
+    dialog.classList.add('visible');
+}
+
+/**
+ * Uploads model + annotations to R2 and shows the share link.
+ * Called when the user clicks "Generate Link" in the ephemeral share section.
+ */
+export async function generateEphemeralLink() {
+    const choiceSection = document.getElementById('share-choice');
     const progressSection = document.getElementById('share-progress');
     const resultSection = document.getElementById('share-result');
     const errorSection = document.getElementById('share-error');
@@ -33,11 +60,11 @@ export async function shareModel() {
     const shareExpiry = document.getElementById('share-expiry');
     const errorMessage = document.getElementById('share-error-message');
 
-    // Show dialog in progress state
+    // Switch to progress state
+    choiceSection.style.display = 'none';
     progressSection.style.display = 'block';
     resultSection.style.display = 'none';
     errorSection.style.display = 'none';
-    dialog.classList.add('visible');
 
     try {
         // Build FormData with all files
@@ -58,7 +85,7 @@ export async function shareModel() {
         }
 
         // Upload to R2
-        progressText.textContent = 'Uploading to share server...';
+        progressText.textContent = 'Uploading to meshnotes.org...';
         const response = await fetch(SHARE_API_URL, {
             method: 'POST',
             body: formData
@@ -115,20 +142,19 @@ export function closeShareDialog() {
 }
 
 /**
- * Show the long-term sharing dialog where users enter their own CORS-friendly URLs.
+ * Switch to the long-term sharing section within the dialog.
  */
 export function showLongTermShareDialog() {
-    const dialog = document.getElementById('share-overlay');
-    const progressSection = document.getElementById('share-progress');
-    const resultSection = document.getElementById('share-result');
-    const errorSection = document.getElementById('share-error');
-    const longTermSection = document.getElementById('share-longterm');
+    document.getElementById('share-ephemeral-section').style.display = 'none';
+    document.getElementById('share-longterm').style.display = 'block';
+}
 
-    progressSection.style.display = 'none';
-    resultSection.style.display = 'none';
-    errorSection.style.display = 'none';
-    longTermSection.style.display = 'block';
-    dialog.classList.add('visible');
+/**
+ * Switch to the ephemeral sharing section within the dialog.
+ */
+export function showEphemeralShareDialog() {
+    document.getElementById('share-ephemeral-section').style.display = 'block';
+    document.getElementById('share-longterm').style.display = 'none';
 }
 
 /**
@@ -145,14 +171,14 @@ export function generateLongTermLink() {
 
     const url = buildDirectUrl(modelUrl, annotationsUrl || null);
 
+    const choiceSection = document.getElementById('share-choice');
+    const resultSection = document.getElementById('share-result');
     const shareLink = document.getElementById('share-link');
     const shareExpiry = document.getElementById('share-expiry');
-    const longTermSection = document.getElementById('share-longterm');
-    const resultSection = document.getElementById('share-result');
 
     shareLink.value = url;
     shareExpiry.textContent = 'Permanent link — valid as long as the hosted files are available';
 
-    longTermSection.style.display = 'none';
+    choiceSection.style.display = 'none';
     resultSection.style.display = 'block';
 }
