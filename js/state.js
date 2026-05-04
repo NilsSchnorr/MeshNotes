@@ -191,6 +191,7 @@ export function initDomReferences() {
     dom.exportDropdown = document.getElementById('export-dropdown');
     dom.exportDropdownMenu = document.getElementById('export-dropdown-menu');
     dom.btnImport = document.getElementById('btn-import');
+    dom.btnShare = document.getElementById('btn-share');
     dom.btnAddGroup = document.getElementById('btn-add-group');
 
     // Brush controls

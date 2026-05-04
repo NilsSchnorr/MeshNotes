@@ -4,13 +4,11 @@ import { generateUUID, getModelMimeType, showStatus } from '../utils/helpers.js'
 import { convertToW3CAnnotation } from './w3c-format.js';
 
 /**
- * Exports all annotations as a W3C Web Annotation Collection (JSON-LD).
- * Includes group definitions (as CssStylesheet), model info, and all annotations
- * converted to W3C format. Downloads as a .json file.
- * @see https://www.w3.org/TR/annotation-model/#collections
+ * Builds the W3C Web Annotation Collection JSON string.
+ * Reusable by both the download export and the share upload.
+ * @returns {string} Clean JSON-LD string
  */
-export function exportAnnotations() {
-    // Create W3C Web Annotation Collection
+export function buildAnnotationJSON() {
     const collectionId = `urn:meshnotes:collection:${generateUUID()}`;
 
     // Convert groups to stylesheet
@@ -115,12 +113,29 @@ export function exportAnnotations() {
     };
 
     // Clean up undefined values
-    const cleanJSON = JSON.stringify(collection, (key, value) => {
+    return JSON.stringify(collection, (key, value) => {
         if (value === undefined) return undefined;
         return value;
     }, 2);
+}
 
-    const blob = new Blob([cleanJSON], { type: 'application/ld+json' });
+/**
+ * Builds the annotation JSON-LD as a Blob (for upload/sharing).
+ * @returns {Blob}
+ */
+export function buildAnnotationBlob() {
+    const json = buildAnnotationJSON();
+    return new Blob([json], { type: 'application/ld+json' });
+}
+
+/**
+ * Exports all annotations as a W3C Web Annotation Collection (JSON-LD).
+ * Downloads as a .jsonld file.
+ * @see https://www.w3.org/TR/annotation-model/#collections
+ */
+export function exportAnnotations() {
+    const json = buildAnnotationJSON();
+    const blob = new Blob([json], { type: 'application/ld+json' });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement('a');

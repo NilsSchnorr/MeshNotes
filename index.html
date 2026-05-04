@@ -823,6 +823,56 @@
         </div>
     </div>
 
+    <!-- Share Dialog -->
+    <div id="share-overlay">
+        <div id="share-modal">
+            <div id="share-modal-header">
+                <h2>📤 Share</h2>
+                <button id="share-modal-close">✕</button>
+            </div>
+            <div id="share-modal-content">
+                <!-- Progress state -->
+                <div id="share-progress">
+                    <div class="share-spinner"></div>
+                    <p id="share-progress-text">Uploading...</p>
+                </div>
+
+                <!-- Result state -->
+                <div id="share-result" style="display:none;">
+                    <p style="margin-bottom: 8px;"><strong>Share link created!</strong></p>
+                    <div class="share-link-row">
+                        <input type="text" id="share-link" readonly>
+                        <button id="share-copy-btn">📋 Copy</button>
+                    </div>
+                    <p id="share-expiry" style="margin-top: 8px; font-size: 12px; color: #888;"></p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Anyone with this link can open the model and annotations in MeshNotes.</p>
+                </div>
+
+                <!-- Error state -->
+                <div id="share-error" style="display:none;">
+                    <p style="color: #ff6b6b;"><strong>Upload failed</strong></p>
+                    <p id="share-error-message" style="margin-top: 8px; font-size: 13px; color: #ccc;"></p>
+                </div>
+
+                <!-- Long-term sharing (Phase 6) -->
+                <div id="share-longterm" style="display:none;">
+                    <p style="margin-bottom: 12px;">Enter CORS-friendly URLs for your model and annotation files (e.g., from Propylaeum@heiDATA or another repository):</p>
+                    <label for="longterm-model-url">Model URL *</label>
+                    <input type="text" id="longterm-model-url" placeholder="https://heidata.uni-heidelberg.de/api/access/datafile/...">
+                    <label for="longterm-annotations-url" style="margin-top: 8px;">Annotations URL</label>
+                    <input type="text" id="longterm-annotations-url" placeholder="https://heidata.uni-heidelberg.de/api/access/datafile/...">
+                    <button id="longterm-generate-btn" class="btn-save" style="margin-top: 12px;">Generate Permanent Link</button>
+                </div>
+
+                <!-- Share mode toggle -->
+                <div class="share-mode-toggle" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #1A5A8A;">
+                    <button id="share-mode-ephemeral" class="share-mode-btn active">Quick Share (90 days)</button>
+                    <button id="share-mode-longterm" class="share-mode-btn">Permanent (own hosting)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toolbar">
         <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply">
         <input type="file" id="import-input" accept=".json,.jsonld">
@@ -853,6 +903,10 @@
             </div>
         </div>
         <button class="tool-btn" id="btn-import" title="Import JSON-LD annotations">📥 Import</button>
+        
+        <div class="tool-separator"></div>
+        
+        <button class="tool-btn" id="btn-share" disabled title="Share model and annotations via link">📤 Share</button>
         
         <button id="btn-settings" title="Settings">⚙️ Settings</button>
     </div>

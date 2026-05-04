@@ -14,6 +14,7 @@ import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
 import { importAnnotations } from '../export/import-json.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
+import { shareModel, copyShareLink, closeShareDialog, showLongTermShareDialog, generateLongTermLink } from '../export/share.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js';
 
@@ -302,6 +303,28 @@ export function setupEventListeners() {
     dom.importInput.addEventListener('change', (e) => {
         if (e.target.files[0]) importAnnotations(e.target.files[0]);
     });
+
+    // Share button and dialog
+    dom.btnShare.addEventListener('click', shareModel);
+    document.getElementById('share-modal-close').addEventListener('click', closeShareDialog);
+    document.getElementById('share-copy-btn').addEventListener('click', copyShareLink);
+    document.getElementById('share-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'share-overlay') closeShareDialog();
+    });
+
+    // Share mode toggle (ephemeral vs long-term)
+    document.getElementById('share-mode-ephemeral').addEventListener('click', () => {
+        document.getElementById('share-mode-ephemeral').classList.add('active');
+        document.getElementById('share-mode-longterm').classList.remove('active');
+        closeShareDialog();
+        shareModel();
+    });
+    document.getElementById('share-mode-longterm').addEventListener('click', () => {
+        document.getElementById('share-mode-longterm').classList.add('active');
+        document.getElementById('share-mode-ephemeral').classList.remove('active');
+        showLongTermShareDialog();
+    });
+    document.getElementById('longterm-generate-btn').addEventListener('click', generateLongTermLink);
 
     // Brush size slider
     dom.brushSlider.addEventListener('input', (e) => {
@@ -711,6 +734,12 @@ export function setupEventListeners() {
 
             if (dom.settingsOverlay.classList.contains('visible')) {
                 dom.settingsOverlay.classList.remove('visible');
+                return;
+            }
+
+            const shareOverlay = document.getElementById('share-overlay');
+            if (shareOverlay && shareOverlay.classList.contains('visible')) {
+                closeShareDialog();
                 return;
             }
 

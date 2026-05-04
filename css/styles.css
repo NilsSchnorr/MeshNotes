@@ -2334,6 +2334,164 @@
             display: flex;
         }
 
+        /* Share Dialog */
+        #share-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #share-overlay.visible {
+            display: flex;
+        }
+
+        #share-modal {
+            background: var(--color-blue-dark);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px var(--color-overlay-light);
+        }
+
+        #share-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-blue);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #share-modal-header h2 {
+            font-size: 16px;
+            color: var(--color-text-light);
+        }
+
+        #share-modal-close {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        #share-modal-close:hover {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
+        #share-modal-content {
+            padding: 20px;
+        }
+
+        #share-progress {
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .share-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid var(--color-blue);
+            border-top: 3px solid var(--color-gold);
+            border-radius: 50%;
+            animation: share-spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes share-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .share-link-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .share-link-row input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--color-input-bg);
+            border: 1px solid var(--color-blue);
+            color: var(--color-text-light);
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .share-link-row button {
+            padding: 8px 16px;
+            background: var(--color-gold);
+            border: none;
+            color: #000;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .share-link-row button:hover {
+            opacity: 0.9;
+        }
+
+        .share-mode-toggle {
+            display: flex;
+            gap: 8px;
+        }
+
+        .share-mode-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--color-input-bg);
+            border: 1px solid var(--color-blue);
+            color: var(--color-text-muted);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .share-mode-btn.active {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+            border-color: var(--color-gold);
+        }
+
+        .share-mode-btn:hover {
+            border-color: var(--color-gold);
+        }
+
+        #share-longterm label {
+            display: block;
+            font-size: 13px;
+            color: var(--color-text-muted);
+            margin-bottom: 4px;
+        }
+
+        #share-longterm input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--color-input-bg);
+            border: 1px solid var(--color-blue);
+            color: var(--color-text-light);
+            border-radius: 4px;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
         #settings-modal {
             position: absolute;
             background: var(--color-blue-dark);

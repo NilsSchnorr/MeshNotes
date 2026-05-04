@@ -272,6 +272,7 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     dom.btnMeasure.disabled = false;
     dom.btnScreenshot.disabled = false;
     dom.btnExport.disabled = false;
+    dom.btnShare.disabled = false;
     state.displayMode = 'texture';
     updateTextureButtonLabel();
 
