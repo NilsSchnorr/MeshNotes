@@ -188,7 +188,7 @@ function handleModelLoad(file) {
 export function setupEventListeners() {
     // File loading
     dom.btnLoad.addEventListener('click', () => {
-        document.getElementById('import-dropdown-menu').style.display = 'none';
+        dom.importDropdown.classList.remove('open');
         dom.fileInput.click();
     });
     dom.fileInput.addEventListener('change', (e) => {
@@ -303,11 +303,11 @@ export function setupEventListeners() {
             dom.exportDropdown.classList.remove('open');
         }
         if (!dom.importDropdown.contains(e.target)) {
-            document.getElementById('import-dropdown-menu').style.display = 'none';
+            dom.importDropdown.classList.remove('open');
         }
     });
     dom.btnImport.addEventListener('click', () => {
-        document.getElementById('import-dropdown-menu').style.display = 'none';
+        dom.importDropdown.classList.remove('open');
         dom.importInput.click();
     });
     dom.importInput.addEventListener('change', (e) => {
@@ -317,9 +317,7 @@ export function setupEventListeners() {
     // Share button and dialog
     dom.btnImportMenu.addEventListener('click', (e) => {
         e.stopPropagation();
-        const menu = document.getElementById('import-dropdown-menu');
-        const isOpen = menu.style.display === 'block';
-        menu.style.display = isOpen ? 'none' : 'block';
+        dom.importDropdown.classList.toggle('open');
         dom.exportDropdown.classList.remove('open');
     });
     dom.btnShare.addEventListener('click', shareModel);
