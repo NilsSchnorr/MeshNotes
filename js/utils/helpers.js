@@ -26,7 +26,20 @@ export function escapeHtml(text) {
     return div.innerHTML;
 }
 
-export function showStatus(message) {
+// Status hold — prevents other showStatus calls from overwriting for a duration
+let statusHoldUntil = 0;
+
+export function showStatus(message, holdSeconds = 0) {
+    const now = Date.now();
+    
+    // If a hold is active and this call isn't setting a new hold, skip it
+    if (holdSeconds === 0 && now < statusHoldUntil) return;
+    
+    // Set hold if requested
+    if (holdSeconds > 0) {
+        statusHoldUntil = now + holdSeconds * 1000;
+    }
+    
     dom.status.textContent = message;
     dom.status.classList.add('visible');
     setTimeout(() => {

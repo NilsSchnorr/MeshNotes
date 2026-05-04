@@ -118,10 +118,10 @@ async function loadFromUrlParams() {
                 return;
             }
 
-            // Show expiry info
+            // Show expiry info (hold for 10 seconds so it's readable)
             if (shareData.manifest) {
                 const days = daysUntilExpiry(shareData.manifest);
-                showStatus(`Shared model loaded · expires in ${days} day${days !== 1 ? 's' : ''}`);
+                showStatus(`Shared model loaded · expires in ${days} day${days !== 1 ? 's' : ''}`, 10);
             }
         } else if (config.mode === 'direct') {
             shareData = await loadDirectFiles(config.modelUrl, config.annotationsUrl);
