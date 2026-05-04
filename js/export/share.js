@@ -279,7 +279,13 @@ export async function generateEphemeralLink() {
         console.error('Share failed:', error);
         progressSection.style.display = 'none';
         errorSection.style.display = 'block';
-        errorMessage.textContent = error.message;
+
+        // Detect file-too-large errors (Cloudflare returns 403 for bodies over 100MB)
+        if (error.message.includes('413') || error.message.includes('403')) {
+            errorMessage.textContent = 'Your model exceeds the 100 MB upload limit. Try reducing the file size (e.g., Draco compression for GLB, or decimation in your 3D software) before sharing.';
+        } else {
+            errorMessage.textContent = error.message;
+        }
     }
 }
 
