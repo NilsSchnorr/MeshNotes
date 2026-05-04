@@ -225,6 +225,16 @@ export async function generateEphemeralLink() {
     errorSection.style.display = 'none';
 
     try {
+        // Pre-check total file size
+        const totalBytes = state.loadedModelFiles.reduce((sum, f) => sum + f.size, 0);
+        const totalMB = totalBytes / (1024 * 1024);
+        if (totalMB > 100) {
+            choiceSection.style.display = 'none';
+            errorSection.style.display = 'block';
+            errorMessage.textContent = `Your model files total ${totalMB.toFixed(1)} MB, which exceeds the 100 MB upload limit. Try reducing the file size (e.g., Draco compression for GLB, or decimation in your 3D software) before sharing.`;
+            return;
+        }
+
         // Build FormData with all files
         const formData = new FormData();
 
@@ -280,9 +290,17 @@ export async function generateEphemeralLink() {
         progressSection.style.display = 'none';
         errorSection.style.display = 'block';
 
-        // Detect file-too-large errors (Cloudflare returns 403 for bodies over 100MB)
-        if (error.message.includes('413') || error.message.includes('403')) {
-            errorMessage.textContent = 'Your model exceeds the 100 MB upload limit. Try reducing the file size (e.g., Draco compression for GLB, or decimation in your 3D software) before sharing.';
+        // Detect file-too-large errors
+        // Cloudflare returns 403 for bodies over 100MB at the platform level,
+        // or may drop the connection entirely resulting in "Failed to fetch"
+        const msg = error.message || '';
+        if (msg.includes('413') || msg.includes('403') || msg.includes('Failed to fetch')) {
+            // Calculate total size for the error message
+            let totalMB = 0;
+            if (state.loadedModelFiles) {
+                totalMB = state.loadedModelFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+            }
+            errorMessage.textContent = `Upload failed — your files are ${totalMB.toFixed(1)} MB, which likely exceeds the 100 MB upload limit. Try reducing the file size (e.g., Draco compression for GLB, or decimation in your 3D software) before sharing.`;
         } else {
             errorMessage.textContent = error.message;
         }
