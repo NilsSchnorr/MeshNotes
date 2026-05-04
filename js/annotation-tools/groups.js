@@ -196,6 +196,19 @@ export function initGroupsEventDelegation() {
     let clickTimeout = null;
     
     dom.groupsContainer.addEventListener('click', (e) => {
+        // Edit button: open annotation popup immediately, no delay
+        const editBtn = e.target.closest('[data-action="edit-annotation"]');
+        if (editBtn) {
+            const item = editBtn.closest('.annotation-item');
+            if (!item) return;
+            const id = parseInt(item.dataset.id);
+            const ann = state.annotations.find(a => a.id === id);
+            if (ann && _openAnnotationPopupForEdit) {
+                _openAnnotationPopupForEdit(ann);
+            }
+            return;
+        }
+
         const item = e.target.closest('.annotation-item');
         if (!item) return;
         
@@ -240,6 +253,7 @@ function renderAnnotationItem(ann) {
             <div class="header">
                 <span class="type-icon">${icons[ann.type] || '📍'}</span>
                 <span class="name">${escapeHtml(ann.name)}</span>
+                <button class="annotation-edit-btn" data-action="edit-annotation" title="Edit annotation">✏️</button>
             </div>
             <div class="description">${entryText}</div>
         </div>
