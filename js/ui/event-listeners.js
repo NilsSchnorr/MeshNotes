@@ -92,6 +92,50 @@ function hideAnnotationClearDialog() {
 }
 
 /**
+ * Downloads all model files (model + materials/textures) to the user's computer.
+ * For OBJ: downloads OBJ + MTL + texture files.
+ * For PLY: downloads PLY + texture file if present.
+ * For GLB: downloads the single GLB file.
+ */
+function downloadModelFiles() {
+    if (!state.loadedModelFiles || state.loadedModelFiles.length === 0) {
+        showStatus('No model files to export');
+        return;
+    }
+
+    const files = state.loadedModelFiles;
+    let downloadIndex = 0;
+
+    function downloadNext() {
+        if (downloadIndex >= files.length) {
+            showStatus(`Downloaded ${files.length} model file${files.length > 1 ? 's' : ''}`);
+            return;
+        }
+
+        const file = files[downloadIndex];
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        downloadIndex++;
+
+        // Small delay between downloads so the browser doesn't block them
+        if (downloadIndex < files.length) {
+            setTimeout(downloadNext, 300);
+        } else {
+            downloadNext();
+        }
+    }
+
+    downloadNext();
+}
+
+/**
  * Wraps loadModel() with a check for existing annotations.
  * If annotations exist, prompts the user to export, clear, or cancel.
  */
@@ -243,6 +287,10 @@ export function setupEventListeners() {
     dom.btnExportPdf.addEventListener('click', () => {
         dom.exportDropdown.classList.remove('open');
         exportPdfReport();
+    });
+    dom.btnExportModel.addEventListener('click', () => {
+        dom.exportDropdown.classList.remove('open');
+        downloadModelFiles();
     });
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {

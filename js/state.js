@@ -38,6 +38,7 @@ export const state = {
     modelBoundingSize: 1,
     modelUpAxis: 'z-up', // 'y-up' or 'z-up'
     webglContextLost: false,
+    loadedModelFiles: [],       // Original File objects for model export
 
     // UI Multipliers
     pointSizeMultiplier: 1.0,
@@ -186,6 +187,7 @@ export function initDomReferences() {
     dom.btnExport = document.getElementById('btn-export');
     dom.btnExportJsonld = document.getElementById('btn-export-jsonld');
     dom.btnExportPdf = document.getElementById('btn-export-pdf');
+    dom.btnExportModel = document.getElementById('btn-export-model');
     dom.exportDropdown = document.getElementById('export-dropdown');
     dom.exportDropdownMenu = document.getElementById('export-dropdown-menu');
     dom.btnImport = document.getElementById('btn-import');

@@ -24,6 +24,9 @@ export function setUpdateModelInfoDisplay(fn) {
 export function loadModel(file) {
     const ext = file.name.split('.').pop().toLowerCase();
 
+    // Store file for model export
+    state.loadedModelFiles = [file];
+
     if (ext === 'obj') {
         state.pendingObjFile = file;
         dom.objDialogOverlay.classList.add('visible');
@@ -302,6 +305,9 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
 }
 
 export function loadOBJModel(objFile, materialFiles, upAxis) {
+    // Store files for model export
+    state.loadedModelFiles = [objFile, ...(materialFiles || [])];
+
     dom.loading.classList.add('visible');
     state.modelFileName = objFile.name;
 
@@ -437,6 +443,9 @@ export function loadOBJPlain(objUrl, textureUrlMap, fileName, upAxis) {
 }
 
 export function loadPLYModel(plyFile, textureFile, upAxis) {
+    // Store files for model export
+    state.loadedModelFiles = [plyFile, ...(textureFile ? [textureFile] : [])];
+
     dom.loading.classList.add('visible');
     state.modelFileName = plyFile.name;
     state.modelInfo = { entries: [] };
