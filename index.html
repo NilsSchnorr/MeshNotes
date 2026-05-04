@@ -38,8 +38,9 @@
                         draggable points for editing, multiple display modes, and <strong>W3C Web Annotation</strong> compliant export/import for interoperability and team collaboration.
                     </p>
                     <p>
-                        The tool runs entirely in your browser — no data is uploaded to any server. 
-                        Your data stays on your computer unless you share the exported file. The export format follows the 
+                        The tool runs entirely in your browser — your 3D models and annotations stay on your computer by default. 
+                        The optional <strong>Share</strong> feature can upload files to meshnotes.org for 90 days to generate a shareable link, 
+                        but no data leaves your machine unless you explicitly choose to share. The export format follows the 
                         <a href="https://www.w3.org/TR/annotation-model/" target="_blank">W3C Web Annotation Data Model</a>, 
                         ensuring compatibility with IIIF-based systems and other annotation tools.
                     </p>
@@ -79,12 +80,12 @@
                 <section>
                     <h3>Quick Start</h3>
                     <div style="background: #041D31; padding: 16px; border-radius: 6px;">
-                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Load Model</strong> and select a 3D model file (.glb, .gltf, .obj, or .ply format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files.</p>
+                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Import ▾</strong> and select <strong>3D Model</strong> to open a 3D model file (.glb, .gltf, .obj, or .ply format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files.</p>
                         <p style="margin-bottom: 12px;"><strong>2. Add annotations</strong> — Select a tool (Point, Line, Polygon, or Surface) and click on the model. Double-click to finish lines/polygons/surfaces.</p>
                         <p style="margin-bottom: 12px;"><strong>3. Navigate annotations</strong> — Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing.</p>
                         <p style="margin-bottom: 12px;"><strong>4. Adjust annotations</strong> — When no tool is active, drag any annotation point to reposition it. Use groups to organize and color-code your work.</p>
                         <p style="margin-bottom: 12px;"><strong>5. Take measurements</strong> — Use the Measure tool to click two points and get the distance. Hold <strong>Ctrl</strong> while clicking to measure paths through multiple points. Press Escape to clear.</p>
-                        <p style="margin-bottom: 0;"><strong>6. Export your work</strong> — Click <strong>Export</strong> and choose <strong>JSON-LD</strong> to save annotations for backup or team sharing, or <strong>PDF Report</strong> to generate a documentation report with screenshots.</p>
+                        <p style="margin-bottom: 0;"><strong>6. Export or share your work</strong> — Click <strong>Export ▾</strong> to save annotations as <strong>JSON-LD</strong> for backup or team sharing, or to generate a <strong>PDF Report</strong>. Click <strong>Share</strong> to upload your model and annotations to meshnotes.org and generate a link that anyone can open directly in MeshNotes (expires after 90 days).</p>
                     </div>
                     <p style="margin-top: 12px; font-size: 13px; color: #aaa;">📱 <strong>Tablet users:</strong> MeshNotes works great on iPad with Apple Pencil. Use your stylus to annotate and your fingers to navigate. See the <em>Tablet &amp; Stylus Support</em> section below for details.
                     </p>
@@ -98,7 +99,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Load Model</strong> to open a 3D model file. The tool supports <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, and <code>.ply</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
+                            <p>Click <strong>Import ▾</strong> and select <strong>3D Model</strong> to open a 3D model file. The tool supports <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, and <code>.ply</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
                             
                             <p style="margin-top: 10px;"><strong>PLY Files:</strong> When loading a PLY file, you will be asked whether to add a texture image. If your PLY contains UV coordinates, the texture will be mapped onto the model. PLY files with vertex colors are loaded automatically without requiring a separate texture.</p>
                             
@@ -327,8 +328,31 @@
                         </div>
                         <div class="manual-item-content">
                             <p><strong>JSON-LD Export:</strong> Click <strong>Export ▾</strong> and choose <strong>JSON-LD (.jsonld)</strong> to download all annotations in <strong>W3C Web Annotation</strong> format. This standard format ensures interoperability with other annotation tools and IIIF-compatible viewers. The export includes all entries, timestamps, metadata, groups, and model information.</p>
-                            <p style="margin-top: 10px;"><strong>Import:</strong> Click <strong>Import</strong> to load annotations from a .json or .jsonld file. MeshNotes supports both the new W3C format and legacy MeshNotes files for backward compatibility. Imported annotations merge with existing ones — groups with the same name are combined.</p>
+                            <p style="margin-top: 10px;"><strong>Model Files Export:</strong> Click <strong>Export ▾</strong> and choose <strong>Model Files</strong> to download the original model files (including material and texture files for OBJ and PLY models). This is useful when you received a model via a share link and want to save it to your computer.</p>
+                            <p style="margin-top: 10px;"><strong>Import:</strong> Click <strong>Import ▾</strong> and choose <strong>Annotations (.jsonld)</strong> to load annotations from a .json or .jsonld file. MeshNotes supports both the new W3C format and legacy MeshNotes files for backward compatibility. Imported annotations merge with existing ones — groups with the same name are combined.</p>
                             <p style="margin-top: 10px; font-size: 12px; color: #888;">The W3C Web Annotation Data Model is a standard for interoperable annotations. Learn more at <a href="https://www.w3.org/TR/annotation-model/" target="_blank">w3.org/TR/annotation-model</a></p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
+                            <span>Sharing</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Click <strong>Share</strong> in the toolbar to open the sharing dialog. MeshNotes offers two sharing modes:</p>
+
+                            <p style="margin-top: 10px;"><strong>Quick Share (90 days):</strong> Uploads your model and annotations to meshnotes.org and generates a link. Anyone with the link can open the model and annotations directly in MeshNotes — no file download or manual import needed. Quick Share links expire after 90 days. Click <strong>Generate Link</strong> to upload. Maximum file size: 100 MB.</p>
+
+                            <p style="margin-top: 10px;"><strong>Permanent (own hosting):</strong> For long-term, citable sharing, upload your model and annotation files to a CORS-friendly repository (e.g., <a href="https://heidata.uni-heidelberg.de" target="_blank">Propylaeum@heiDATA</a>) and enter the URLs in the dialog. MeshNotes generates a permanent link that loads the files from your repository. These links remain valid as long as the hosted files are available and can be cited with a DOI.</p>
+
+                            <p style="margin-top: 10px;"><strong>Previously generated links:</strong> The Share dialog keeps a history of all links you have generated, showing the model name, creation date, and time remaining until expiry. You can copy any previous link or remove entries from the list. This history is stored in your browser’s local storage.</p>
+
+                            <p style="margin-top: 10px;"><strong>Recipient workflow:</strong> When someone opens a share link, the model and annotations load automatically in MeshNotes. The recipient can view, edit, and add their own annotations. To save the work, they can export the annotations as JSON-LD, download the model files via <strong>Export ▾ → Model Files</strong>, or re-share with a new link.</p>
+
+                            <div class="limitation-note" style="margin-top: 12px;">
+                                <strong>⚠️ Data privacy note:</strong> When using Quick Share, your model file and annotations are uploaded to meshnotes.org (hosted on Cloudflare). Your data is no longer fully offline after sharing. If data confidentiality is important, use the offline file exchange workflow instead (see <em>Collaborative Workflow</em> below).
+                            </div>
                         </div>
                     </div>
 
@@ -338,7 +362,11 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>MeshNotes is designed for teams working on the same 3D model. Multiple people can annotate independently and then merge their work through JSON import/export — no server or shared account required.</p>
+                            <p>MeshNotes is designed for teams working on the same 3D model. There are two ways to collaborate:</p>
+
+                            <p style="margin-top: 10px;"><strong>Online collaboration (Quick Share):</strong> Use the <strong>Share</strong> button to upload your annotated model and send the link to collaborators. They open the link, see your model and annotations, add their own work, and re-share with a new link. Each share creates a new snapshot — there is no real-time editing, but the workflow is fast and requires no file management. See the <em>Sharing</em> section above for details.</p>
+
+                            <p style="margin-top: 10px;"><strong>Offline collaboration (file exchange):</strong> For fully offline workflows or when data confidentiality is important, use JSON-LD export/import. Multiple people can annotate independently and then merge their work — no server or shared account required.</p>
 
                             <p style="margin-top: 10px;"><strong>How it works:</strong> Every annotation and every entry within an annotation is assigned a unique ID (UUID) when created. When you import a JSON file, MeshNotes compares these IDs to determine what is new and what already exists:</p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
@@ -497,7 +525,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Use the opacity slider to see annotations on the back side of the model. Group annotations by excavation phase, feature type, or team member for better organization. Export frequently to back up your work. The tool runs entirely in your browser — your data stays on your computer unless you share the exported JSON file.</p>
+                            <p>Use the opacity slider to see annotations on the back side of the model. Group annotations by excavation phase, feature type, or team member for better organization. Export frequently to back up your work. The tool runs entirely in your browser — your data stays on your computer unless you explicitly use the Share feature to generate a link.</p>
                         </div>
                     </div>
 
@@ -507,7 +535,8 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>MeshNotes runs entirely in your web browser. No data is uploaded to any server — your 3D models, annotations, and all other data remain on your computer at all times. The tool does not use cookies, analytics, tracking, or any external services.</p>
+                            <p>MeshNotes runs entirely in your web browser. Your 3D models, annotations, and all other data remain on your computer by default. The tool does not use cookies, analytics, tracking, or any external services for its core functionality.</p>
+                            <p style="margin-top: 10px;"><strong>Sharing (optional):</strong> The <strong>Share</strong> feature allows you to upload your model and annotations to meshnotes.org to generate a shareable link. This upload is hosted on Cloudflare infrastructure and files are automatically deleted after 90 days. <strong>No data leaves your computer unless you explicitly click "Generate Link" in the Share dialog.</strong> If data confidentiality is critical, use the offline JSON-LD export/import workflow instead.</p>
                             <p style="margin-top: 10px;">When hosted on GitHub Pages, the application files are downloaded once, after which all processing happens locally. For offline use, you can clone or download the <a href="https://github.com/NilsSchnorr/MeshNotes" target="_blank">GitHub repository</a> and run a local web server (e.g., <code>python -m http.server</code> or VS Code Live Server). Note that opening <code>index.html</code> directly via <code>file://</code> won't work due to browser security restrictions on ES modules.</p>
                             <p style="margin-top: 10px;">Exported JSON and PDF files are generated locally in your browser and saved directly to your downloads folder. Sharing annotation data with collaborators is always an explicit action on your part — you decide when and with whom to share your exported files. This makes MeshNotes suitable for documenting sensitive or unpublished archaeological sites where data confidentiality is important.</p>
                         </div>
@@ -745,7 +774,10 @@
                     Phone: +49 681 302-3315</p>
                     
                     <h4>No Cookies, No Tracking, No Analytics</h4>
-                    <p>MeshNotes does not use cookies, analytics, tracking, or any external services. All 3D model processing and annotation work happens entirely in your browser. No user data is transmitted to any server. Local browser storage (localStorage) is used exclusively to save your display preferences (e.g., background color, point size) and is not shared with anyone.</p>
+                    <p>MeshNotes does not use cookies, analytics, tracking, or any external services for its core functionality. All 3D model processing and annotation work happens entirely in your browser. No user data is transmitted to any server during normal use. Local browser storage (localStorage) is used exclusively to save your display preferences (e.g., background color, point size) and share link history, and is not shared with anyone.</p>
+                    
+                    <h4>Sharing Feature &amp; Cloudflare Hosting</h4>
+                    <p>The optional <strong>Share</strong> feature allows users to upload model files and annotations to meshnotes.org to generate a shareable link. This upload is processed and stored using <strong>Cloudflare Workers and R2 object storage</strong>, services provided by Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA. Uploaded files are automatically deleted after 90 days. No data is uploaded unless the user explicitly clicks "Generate Link" in the Share dialog. When uploading, Cloudflare may process the user's IP address and request metadata. This processing is based on our legitimate interest in providing the sharing functionality (Art. 6(1)(f) GDPR). Cloudflare's handling of data is described in their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank">Privacy Policy</a>. Data transfers to the US are covered by the <strong>EU-US Data Privacy Framework</strong>.</p>
                     
                     <h4>Hosting via GitHub Pages</h4>
                     <p>This tool is hosted on GitHub Pages, a service provided by GitHub Inc., 88 Colin P Kelly Jr St, San Francisco, CA 94107, USA. When you access this website, GitHub’s servers automatically process your IP address, the requested page, your browser type, and your operating system in server logs. This processing is necessary for delivering the website and is based on our legitimate interest in providing this tool (Art. 6(1)(f) GDPR).</p>
@@ -802,7 +834,10 @@
                     Telefon: +49 681 302-3315</p>
                     
                     <h4>Keine Cookies, kein Tracking, keine Analyse</h4>
-                    <p>MeshNotes verwendet keine Cookies, Analysedienste, Tracking oder sonstige externe Dienste. Die gesamte Verarbeitung von 3D-Modellen und Annotationen erfolgt ausschließlich in Ihrem Browser. Es werden keine Nutzerdaten an einen Server übermittelt. Der lokale Browserspeicher (localStorage) wird ausschließlich zur Speicherung Ihrer Anzeigeeinstellungen (z.B. Hintergrundfarbe, Punktgröße) verwendet und nicht an Dritte weitergegeben.</p>
+                    <p>MeshNotes verwendet keine Cookies, Analysedienste, Tracking oder sonstige externe Dienste für seine Kernfunktionalität. Die gesamte Verarbeitung von 3D-Modellen und Annotationen erfolgt ausschließlich in Ihrem Browser. Es werden im normalen Betrieb keine Nutzerdaten an einen Server übermittelt. Der lokale Browserspeicher (localStorage) wird ausschließlich zur Speicherung Ihrer Anzeigeeinstellungen (z.B. Hintergrundfarbe, Punktgröße) und des Teilen-Verlaufs verwendet und nicht an Dritte weitergegeben.</p>
+                    
+                    <h4>Teilen-Funktion &amp; Cloudflare-Hosting</h4>
+                    <p>Die optionale <strong>Teilen</strong>-Funktion ermöglicht es, Modelldateien und Annotationen auf meshnotes.org hochzuladen, um einen teilbaren Link zu erzeugen. Dieser Upload wird über <strong>Cloudflare Workers und R2 Object Storage</strong> verarbeitet und gespeichert, Dienste der Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA. Hochgeladene Dateien werden nach 90 Tagen automatisch gelöscht. Es werden keine Daten hochgeladen, es sei denn, der Nutzer klickt ausdrücklich auf „Link generieren“ im Teilen-Dialog. Beim Hochladen kann Cloudflare die IP-Adresse und Anfrage-Metadaten des Nutzers verarbeiten. Diese Verarbeitung erfolgt auf Grundlage unseres berechtigten Interesses an der Bereitstellung der Teilen-Funktionalität (Art. 6 Abs. 1 lit. f DSGVO). Cloudflares Umgang mit Daten ist in deren <a href="https://www.cloudflare.com/de-de/privacypolicy/" target="_blank">Datenschutzerklärung</a> beschrieben. Die Datenübermittlung in die USA ist durch das <strong>EU-US Data Privacy Framework</strong> abgedeckt.</p>
                     
                     <h4>Hosting durch GitHub Pages</h4>
                     <p>Dieses Tool wird auf GitHub Pages gehostet, einem Dienst der GitHub Inc., 88 Colin P Kelly Jr St, San Francisco, CA 94107, USA. Beim Zugriff auf diese Website verarbeiten die Server von GitHub automatisch Ihre IP-Adresse, die aufgerufene Seite, Ihren Browsertyp und Ihr Betriebssystem in Server-Logs. Diese Verarbeitung ist für die Auslieferung der Website erforderlich und erfolgt auf Grundlage unseres berechtigten Interesses an der Bereitstellung dieses Tools (Art. 6 Abs. 1 lit. f DSGVO).</p>

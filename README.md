@@ -29,9 +29,10 @@ Key features include:
 - **Display controls** — adjust brightness, model opacity, point size, text size, and background color (presets or custom)
 - **Light controls** — camera-linked or fixed direction lighting with horizontal/vertical control for raking light analysis
 - **Settings** — configure default author name, measurement units and colors, screenshot quality, PDF export options, display colors, and background color
+- **Sharing** — share annotated models via link (90-day ephemeral links hosted on meshnotes.org, or permanent links via your own CORS-friendly repository with DOI)
 - **Tablet support** — optimized for iPad with Apple Pencil: stylus for annotation, fingers for navigation, collapsible sidebar
 
-The tool runs entirely in your browser — your data stays on your computer unless you share the exported JSON-LD file.
+The tool runs entirely in your browser — your 3D models and annotations stay on your computer by default. The optional **Share** feature uploads files to meshnotes.org for 90 days to generate a shareable link; no data leaves your machine unless you explicitly use it.
 
 
 ## Getting Started
@@ -40,9 +41,9 @@ The tool runs entirely in your browser — your data stays on your computer unle
    
    **Or run locally:** Clone/download this repository and serve it with a local web server (e.g., `python -m http.server` or VS Code Live Server). Opening `index.html` directly via `file://` won't work due to browser security restrictions on ES modules.
 
-2. Click **Load Model** to open a 3D model (`.glb`, `.gltf`, `.obj`, or `.ply` format)
+2. Click **Import ▾** → **3D Model** to open a 3D model (`.glb`, `.gltf`, `.obj`, or `.ply` format)
 3. Use the toolbar to add annotations
-4. Export your work as JSON-LD for backup/saving or team collaboration
+4. Export your work as JSON-LD, generate a PDF report, or click **Share** to create a shareable link
 
 
 ## Supported File Formats
@@ -89,14 +90,22 @@ Ensure your model is oriented correctly (typically Y-up or Z-up) before exportin
 
 ## Team Collaboration
 
-MeshNotes supports collaborative workflows through its UUID-based merging system:
+MeshNotes supports two collaboration workflows:
+
+### Online Sharing (Quick Share)
+
+Click **Share** in the toolbar to upload your model and annotations to meshnotes.org. You receive a link that anyone can open to view and continue working on the model — no file exchange needed. Shared links expire after 90 days. Recipients can download the model and annotations to their own machine, edit them, and re-share with a new link. For permanent, citable links, upload your files to a CORS-friendly repository (e.g., Propylaeum@heiDATA) and use the "Permanent" option in the Share dialog.
+
+### Offline File Exchange
+
+For fully offline workflows, export annotations as JSON-LD and share the file manually (e.g., via email or cloud storage). MeshNotes supports collaborative merging through its UUID-based system:
 
 1. Load the model and create annotations, then export as JSON-LD
 2. Share the JSON-LD file with team members
 3. Team members import your JSON-LD, add their own annotations, and export
 4. When you import their JSON-LD, new annotations and entries are merged with your existing work — duplicates are detected by UUID and entries with newer timestamps take precedence
 
-This allows multiple people to work on the same model independently, then combine their annotations without losing or duplicating work.
+Both workflows allow multiple people to work on the same model independently, then combine their annotations without losing or duplicating work.
 
 
 ## Export Format
