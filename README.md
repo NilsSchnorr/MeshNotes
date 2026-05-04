@@ -2,7 +2,7 @@
 
 A browser-based tool for annotating 3D models with points, lines, polygons, surfaces, and boxes — designed for cultural heritage documentation.
 
-Use the deployed version at: https://nilsschnorr.github.io/MeshNotes/ — or clone/download the repository to run it locally with a web server.
+Use the deployed version at: https://meshnotes.org — or clone/download the repository to run it locally with a web server.
 
 
 ## About
@@ -37,7 +37,7 @@ The tool runs entirely in your browser — your 3D models and annotations stay o
 
 ## Getting Started
 
-1. **Use the deployed version** at https://nilsschnorr.github.io/MeshNotes/ (recommended)
+1. **Use the deployed version** at https://meshnotes.org (recommended)
    
    **Or run locally:** Clone/download this repository and serve it with a local web server (e.g., `python -m http.server` or VS Code Live Server). Opening `index.html` directly via `file://` won't work due to browser security restrictions on ES modules.
 

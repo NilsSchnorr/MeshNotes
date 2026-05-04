@@ -6,15 +6,16 @@ version: 0.9.0
 date-released: "2026-04-17"
 license: Apache-2.0
 repository-code: "https://github.com/NilsSchnorr/MeshNotes"
-url: "https://nilsschnorr.github.io/MeshNotes/"
+url: "https://meshnotes.org"
 abstract: >-
   MeshNotes is a free, browser-based tool for annotating 3D models with
   points, lines, polygons, surfaces, and boxes, designed for archaeological
   and cultural heritage documentation. It exports annotations in the W3C
   Web Annotation Data Model (JSON-LD), supporting interoperability with
-  IIIF-based systems and alignment with NFDI4Objects standards. All data
-  processing runs locally in the browser — no server, no upload, no
-  tracking.
+  IIIF-based systems and alignment with NFDI4Objects standards. All core
+  data processing runs locally in the browser. An optional sharing feature
+  allows uploading models to meshnotes.org to generate temporary shareable
+  links.
 keywords:
   - 3D annotation
   - archaeology
