@@ -229,6 +229,7 @@ export async function generateEphemeralLink() {
         const totalBytes = state.loadedModelFiles.reduce((sum, f) => sum + f.size, 0);
         const totalMB = totalBytes / (1024 * 1024);
         if (totalMB > 100) {
+            progressSection.style.display = 'none';
             choiceSection.style.display = 'none';
             errorSection.style.display = 'block';
             errorMessage.textContent = `Your model files total ${totalMB.toFixed(1)} MB, which exceeds the 100 MB upload limit. Try reducing the file size (e.g., Draco compression for GLB, or decimation in your 3D software) before sharing.`;
