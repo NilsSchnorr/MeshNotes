@@ -94,12 +94,13 @@ export function renderHistory() {
         }
 
         const createdDate = new Date(entry.createdAt).toLocaleDateString();
+        const createdTime = new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         return `
             <div class="share-history-item ${isExpired ? 'expired' : ''}">
                 <div class="share-history-info">
                     <span class="share-history-model">${escapeHtml(entry.modelName || 'Unknown model')}</span>
-                    <span class="share-history-date">${createdDate}</span>
+                    <span class="share-history-date">${createdDate} · ${createdTime}</span>
                     <span class="share-history-status ${statusClass}">${statusText}</span>
                 </div>
                 <div class="share-history-actions">
