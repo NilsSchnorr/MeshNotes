@@ -94,7 +94,11 @@ MeshNotes supports two collaboration workflows:
 
 ### Online Sharing (Quick Share)
 
-Click **Share** in the toolbar to upload your model and annotations to meshnotes.org. You receive a link that anyone can open to view and continue working on the model — no file exchange needed. Shared links expire after 90 days. Recipients can download the model and annotations to their own machine, edit them, and re-share with a new link. For permanent, citable links, upload your files to a CORS-friendly repository (e.g., Propylaeum@heiDATA) and use the "Permanent" option in the Share dialog.
+Click **Share** in the toolbar to upload your model and annotations to meshnotes.org. You receive a link that anyone can open to view and continue working on the model — no file exchange needed. Shared links expire after 90 days. Recipients can download the model and annotations to their own machine, edit them, and re-share with a new link.
+
+### Permanent Sharing (own hosting / DOI)
+
+For permanent, citable sharing, upload your files to a CORS-friendly repository (e.g., Propylaeum@heiDATA, Figshare, or any Dataverse-based repository) and use the "Permanent (own hosting)" option in the Share dialog. Enter the URLs for your model and annotation files, select the model format, and MeshNotes generates a permanent link. These links do not expire — they work as long as the hosted files remain available. Because the files live in a DOI-minting repository, you can cite them in publications.
 
 ### Offline File Exchange
 

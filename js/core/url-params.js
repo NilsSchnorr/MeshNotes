@@ -191,14 +191,29 @@ export async function loadShareFiles(shareId) {
  * @returns {Promise<Object>} same shape as loadShareFiles return value
  */
 export async function loadDirectFiles(modelUrl, annotationsUrl) {
-    // Determine format from URL
+    // Determine format from URL or ?format= parameter
+    const params = new URLSearchParams(window.location.search);
+    const formatParam = params.get('format');
+    
     const modelFilename = modelUrl.split('/').pop().split('?')[0];
-    const ext = modelFilename.split('.').pop().toLowerCase();
-    const format = ['glb', 'gltf'].includes(ext) ? 'glb' : ext;
+    const urlExt = modelFilename.includes('.') ? modelFilename.split('.').pop().toLowerCase() : '';
+    
+    // Priority: explicit format param > URL extension > default to glb
+    let format;
+    if (formatParam && ['glb', 'gltf', 'obj', 'ply'].includes(formatParam)) {
+        format = formatParam === 'gltf' ? 'glb' : formatParam;
+    } else if (urlExt && ['glb', 'gltf', 'obj', 'ply'].includes(urlExt)) {
+        format = ['glb', 'gltf'].includes(urlExt) ? 'glb' : urlExt;
+    } else {
+        format = 'glb'; // Default assumption
+    }
+    
+    // Use a meaningful filename if the URL doesn't have one
+    const filename = urlExt ? modelFilename : `model.${format === 'glb' ? 'glb' : format}`;
 
     // Fetch model
     const modelBlob = await fetchDirectFile(modelUrl);
-    const modelFile = blobToFile(modelBlob, modelFilename);
+    const modelFile = blobToFile(modelBlob, filename);
 
     // Fetch annotations if provided
     let annotationFile = null;
@@ -209,7 +224,6 @@ export async function loadDirectFiles(modelUrl, annotationsUrl) {
     }
 
     // For OBJ, check for optional mtl/texture params
-    const params = new URLSearchParams(window.location.search);
     const materialFiles = [];
 
     const mtlUrl = params.get('mtl');
@@ -252,12 +266,16 @@ export function buildShareUrl(shareId) {
  * 
  * @param {string} modelUrl 
  * @param {string|null} annotationsUrl 
+ * @param {string|null} format - 'glb', 'obj', or 'ply' (needed when URL has no file extension)
  * @returns {string}
  */
-export function buildDirectUrl(modelUrl, annotationsUrl) {
+export function buildDirectUrl(modelUrl, annotationsUrl, format) {
     let url = `${window.location.origin}/?model=${encodeURIComponent(modelUrl)}`;
     if (annotationsUrl) {
         url += `&annotations=${encodeURIComponent(annotationsUrl)}`;
+    }
+    if (format) {
+        url += `&format=${format}`;
     }
     return url;
 }

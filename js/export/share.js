@@ -346,13 +346,14 @@ export function showEphemeralShareDialog() {
 export function generateLongTermLink() {
     const modelUrl = document.getElementById('longterm-model-url').value.trim();
     const annotationsUrl = document.getElementById('longterm-annotations-url').value.trim();
+    const modelFormat = document.getElementById('longterm-model-format').value;
 
     if (!modelUrl) {
         showStatus('Please enter a model URL');
         return;
     }
 
-    const url = buildDirectUrl(modelUrl, annotationsUrl || null);
+    const url = buildDirectUrl(modelUrl, annotationsUrl || null, modelFormat);
 
     const choiceSection = document.getElementById('share-choice');
     const resultSection = document.getElementById('share-result');
