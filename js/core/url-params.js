@@ -86,7 +86,7 @@ export async function fetchShareManifest(shareId) {
  * @returns {Promise<Blob>}
  */
 export async function fetchShareFile(shareId, filename) {
-    const url = `${SHARE_API_BASE}/${shareId}/${filename}`;
+    const url = `${SHARE_API_BASE}/${shareId}/${encodeURIComponent(filename)}`;
     const response = await fetch(url);
 
     if (!response.ok) {

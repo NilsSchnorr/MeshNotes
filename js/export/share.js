@@ -4,11 +4,163 @@
 // Share links expire after 90 days (enforced by R2 lifecycle rules).
 
 import { state, dom } from '../state.js';
-import { showStatus } from '../utils/helpers.js';
+import { showStatus, escapeHtml } from '../utils/helpers.js';
 import { buildAnnotationBlob } from './export-json.js';
 import { buildShareUrl, buildDirectUrl } from '../core/url-params.js';
 
 const SHARE_API_URL = '/api/share';
+const HISTORY_STORAGE_KEY = 'meshnotes_shareHistory';
+
+// ============ Share History (localStorage) ============
+
+/**
+ * Load share history from localStorage.
+ * @returns {Array} Array of {url, modelName, createdAt, expiresAt, type}
+ */
+function loadHistory() {
+    try {
+        const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Save share history to localStorage.
+ */
+function saveHistory(history) {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+}
+
+/**
+ * Add a new entry to share history.
+ */
+function addToHistory(entry) {
+    const history = loadHistory();
+    // Add newest first
+    history.unshift(entry);
+    // Keep max 50 entries
+    if (history.length > 50) history.length = 50;
+    saveHistory(history);
+}
+
+/**
+ * Remove a history entry by index.
+ */
+export function removeHistoryEntry(index) {
+    const history = loadHistory();
+    history.splice(index, 1);
+    saveHistory(history);
+    renderHistory();
+}
+
+/**
+ * Render the share history list into the dialog.
+ */
+export function renderHistory() {
+    const container = document.getElementById('share-history-list');
+    if (!container) return;
+
+    const history = loadHistory();
+
+    if (history.length === 0) {
+        container.innerHTML = '<p class="share-history-empty">No previously generated links.</p>';
+        return;
+    }
+
+    const now = new Date();
+
+    container.innerHTML = history.map((entry, index) => {
+        const expiresAt = entry.expiresAt ? new Date(entry.expiresAt) : null;
+        const isExpired = expiresAt && expiresAt < now;
+        const isPermanent = entry.type === 'permanent';
+
+        let statusText;
+        let statusClass;
+        if (isPermanent) {
+            statusText = 'Permanent';
+            statusClass = 'permanent';
+        } else if (isExpired) {
+            statusText = 'Expired';
+            statusClass = 'expired';
+        } else if (expiresAt) {
+            const daysLeft = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+            statusText = `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
+            statusClass = daysLeft <= 7 ? 'expiring-soon' : 'active';
+        } else {
+            statusText = 'Unknown';
+            statusClass = 'unknown';
+        }
+
+        const createdDate = new Date(entry.createdAt).toLocaleDateString();
+
+        return `
+            <div class="share-history-item ${isExpired ? 'expired' : ''}">
+                <div class="share-history-info">
+                    <span class="share-history-model">${escapeHtml(entry.modelName || 'Unknown model')}</span>
+                    <span class="share-history-date">${createdDate}</span>
+                    <span class="share-history-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="share-history-actions">
+                    <button class="share-history-copy" data-url="${escapeHtml(entry.url)}" title="Copy link">📋</button>
+                    <button class="share-history-delete" data-index="${index}" title="Remove from list">✕</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Attach event listeners via delegation
+    container.addEventListener('click', handleHistoryClick);
+}
+
+/**
+ * Handle clicks inside the history list (delegation).
+ */
+function handleHistoryClick(e) {
+    const copyBtn = e.target.closest('.share-history-copy');
+    if (copyBtn) {
+        const url = copyBtn.dataset.url;
+        navigator.clipboard.writeText(url).then(() => {
+            showStatus('Link copied to clipboard');
+        }).catch(() => {
+            // Fallback
+            const temp = document.createElement('input');
+            temp.value = url;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showStatus('Link copied to clipboard');
+        });
+        return;
+    }
+
+    const deleteBtn = e.target.closest('.share-history-delete');
+    if (deleteBtn) {
+        const index = parseInt(deleteBtn.dataset.index);
+        removeHistoryEntry(index);
+        return;
+    }
+}
+
+/**
+ * Toggle the history section visibility.
+ */
+export function toggleHistory() {
+    const section = document.getElementById('share-history');
+    const toggle = document.getElementById('share-history-toggle');
+    if (!section || !toggle) return;
+
+    const isVisible = section.classList.toggle('visible');
+    toggle.classList.toggle('expanded', isVisible);
+
+    if (isVisible) {
+        renderHistory();
+    }
+}
+
+// ============ Share Dialog ============
 
 /**
  * Opens the share dialog. Does NOT upload anything yet —
@@ -42,6 +194,12 @@ export function shareModel() {
     document.getElementById('share-mode-longterm').classList.remove('active');
     document.getElementById('share-ephemeral-section').style.display = 'block';
     document.getElementById('share-longterm').style.display = 'none';
+
+    // Collapse history
+    const historySection = document.getElementById('share-history');
+    const historyToggle = document.getElementById('share-history-toggle');
+    if (historySection) historySection.classList.remove('visible');
+    if (historyToggle) historyToggle.classList.remove('expanded');
 
     dialog.classList.add('visible');
 }
@@ -106,6 +264,15 @@ export async function generateEphemeralLink() {
         progressSection.style.display = 'none';
         resultSection.style.display = 'block';
 
+        // Save to history
+        addToHistory({
+            url,
+            modelName: state.modelFileName || 'Unknown model',
+            createdAt: new Date().toISOString(),
+            expiresAt: result.expiresAt,
+            type: 'ephemeral'
+        });
+
         showStatus('Share link created');
 
     } catch (error) {
@@ -127,7 +294,6 @@ export function copyShareLink() {
     navigator.clipboard.writeText(shareLink.value).then(() => {
         showStatus('Link copied to clipboard');
     }).catch(() => {
-        // Fallback for older browsers
         document.execCommand('copy');
         showStatus('Link copied to clipboard');
     });
@@ -181,4 +347,13 @@ export function generateLongTermLink() {
 
     choiceSection.style.display = 'none';
     resultSection.style.display = 'block';
+
+    // Save to history
+    addToHistory({
+        url,
+        modelName: state.modelFileName || 'Direct link',
+        createdAt: new Date().toISOString(),
+        expiresAt: null,
+        type: 'permanent'
+    });
 }

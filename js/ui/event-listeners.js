@@ -14,7 +14,7 @@ import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
 import { importAnnotations } from '../export/import-json.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
-import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink } from '../export/share.js';
+import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink, toggleHistory } from '../export/share.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js';
 
@@ -325,6 +325,7 @@ export function setupEventListeners() {
         showLongTermShareDialog();
     });
     document.getElementById('longterm-generate-btn').addEventListener('click', generateLongTermLink);
+    document.getElementById('share-history-toggle').addEventListener('click', toggleHistory);
 
     // Brush size slider
     dom.brushSlider.addEventListener('input', (e) => {

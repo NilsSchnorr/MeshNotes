@@ -2416,6 +2416,23 @@
             color: var(--color-gold) !important;
         }
 
+        .share-action-btn {
+            padding: 12px 20px;
+            background: var(--color-blue);
+            border: 2px solid var(--color-gold);
+            color: var(--color-text-light);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .share-action-btn:hover {
+            background: var(--color-gold);
+            color: #000;
+        }
+
         #share-progress {
             text-align: center;
             padding: 20px 0;
@@ -2510,6 +2527,126 @@
             border-radius: 4px;
             font-size: 13px;
             box-sizing: border-box;
+        }
+
+        /* Share History */
+        .share-history-toggle {
+            margin-top: 16px;
+            padding: 8px 0;
+            color: var(--color-text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s;
+        }
+
+        .share-history-toggle:hover {
+            color: var(--color-text-light);
+        }
+
+        .share-history-toggle .toggle-arrow {
+            display: inline-block;
+            transition: transform 0.2s;
+            font-size: 10px;
+        }
+
+        .share-history-toggle.expanded .toggle-arrow {
+            transform: rotate(90deg);
+        }
+
+        .share-history {
+            display: none;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .share-history.visible {
+            display: block;
+        }
+
+        .share-history-empty {
+            font-size: 12px;
+            color: var(--color-text-muted) !important;
+            padding: 8px 0;
+        }
+
+        .share-history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            background: var(--color-input-bg);
+            gap: 8px;
+        }
+
+        .share-history-item.expired {
+            opacity: 0.5;
+        }
+
+        .share-history-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .share-history-model {
+            font-size: 13px;
+            color: var(--color-text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .share-history-date {
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        .share-history-status {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .share-history-status.active {
+            color: #4CAF50;
+        }
+
+        .share-history-status.expiring-soon {
+            color: var(--color-gold);
+        }
+
+        .share-history-status.expired {
+            color: #ff6b6b;
+        }
+
+        .share-history-status.permanent {
+            color: #64B5F6;
+        }
+
+        .share-history-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .share-history-actions button {
+            background: none;
+            border: 1px solid var(--color-blue);
+            color: var(--color-text-muted);
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 4px 6px;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .share-history-actions button:hover {
+            background: var(--color-blue);
+            color: var(--color-text-light);
         }
 
         #settings-modal {

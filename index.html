@@ -841,8 +841,16 @@
                     <!-- Quick share section -->
                     <div id="share-ephemeral-section">
                         <p style="margin-top: 16px;">Uploads your model and annotations to meshnotes.org for 90 days. Anyone with the link can open them in MeshNotes.</p>
-                        <p class="share-privacy-note">⚠️ By clicking <strong>Generate Link</strong>, your model file and annotations will be uploaded to meshnotes.org. Your data will no longer be fully offline.</p>
-                        <button id="share-generate-btn" class="btn-save" style="margin-top: 12px; width: 100%;">Generate Link</button>
+                        <p class="share-privacy-note">⚠️ By clicking <strong>Generate Link</strong>, your model file and annotations will be uploaded to meshnotes.org. Your data will no longer be fully offline. Maximum file size: 100 MB.</p>
+                        <button id="share-generate-btn" class="share-action-btn" style="margin-top: 12px; width: 100%;">Generate Link</button>
+
+                        <!-- Previously generated links -->
+                        <div id="share-history-toggle" class="share-history-toggle">
+                            <span class="toggle-arrow">▶</span> Previously generated links
+                        </div>
+                        <div id="share-history" class="share-history">
+                            <div id="share-history-list"></div>
+                        </div>
                     </div>
 
                     <!-- Long-term sharing section -->
@@ -852,7 +860,7 @@
                         <input type="text" id="longterm-model-url" placeholder="https://heidata.uni-heidelberg.de/api/access/datafile/...">
                         <label for="longterm-annotations-url" style="margin-top: 8px;">Annotations URL</label>
                         <input type="text" id="longterm-annotations-url" placeholder="https://heidata.uni-heidelberg.de/api/access/datafile/...">
-                        <button id="longterm-generate-btn" class="btn-save" style="margin-top: 12px; width: 100%;">Generate Permanent Link</button>
+                        <button id="longterm-generate-btn" class="share-action-btn" style="margin-top: 12px; width: 100%;">Generate Permanent Link</button>
                     </div>
                 </div>
 
