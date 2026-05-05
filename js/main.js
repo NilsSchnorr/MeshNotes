@@ -358,6 +358,20 @@ function loadSavedSettings() {
         dom.settingsPdfDpi.value = savedPdfDpi;
     }
     
+    const savedPdfCameraDistance = localStorage.getItem('meshnotes_pdfCameraDistance');
+    if (savedPdfCameraDistance) {
+        state.pdfCameraDistance = parseFloat(savedPdfCameraDistance);
+        dom.settingsPdfCameraDistance.value = savedPdfCameraDistance;
+        dom.settingsPdfCameraDistanceValue.textContent = `×${parseFloat(savedPdfCameraDistance).toFixed(1)}`;
+    }
+    
+    const savedPdfCameraAngle = localStorage.getItem('meshnotes_pdfCameraAngle');
+    if (savedPdfCameraAngle) {
+        state.pdfCameraAngle = parseInt(savedPdfCameraAngle);
+        dom.settingsPdfCameraAngle.value = savedPdfCameraAngle;
+        dom.settingsPdfCameraAngleValue.textContent = `${savedPdfCameraAngle}°`;
+    }
+    
     // Screenshot quality
     const savedScreenshotQuality = localStorage.getItem('meshnotes_screenshotQuality');
     if (savedScreenshotQuality) {

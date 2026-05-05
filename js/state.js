@@ -62,6 +62,8 @@ export const state = {
     pdfPageSize: 'a4',
     pdfOrientation: 'portrait',
     pdfDpi: 150,
+    pdfCameraDistance: 1.0,
+    pdfCameraAngle: 60,
 
     // Screenshot settings
     screenshotQuality: 2, // Multiplier: 1 = standard, 2 = high, 4 = ultra
@@ -330,6 +332,10 @@ export function initDomReferences() {
     dom.settingsPdfPageSize = document.getElementById('settings-pdf-page-size');
     dom.settingsPdfOrientation = document.getElementById('settings-pdf-orientation');
     dom.settingsPdfDpi = document.getElementById('settings-pdf-dpi');
+    dom.settingsPdfCameraDistance = document.getElementById('settings-pdf-camera-distance');
+    dom.settingsPdfCameraDistanceValue = document.getElementById('settings-pdf-camera-distance-value');
+    dom.settingsPdfCameraAngle = document.getElementById('settings-pdf-camera-angle');
+    dom.settingsPdfCameraAngleValue = document.getElementById('settings-pdf-camera-angle-value');
     dom.settingsMeshColor = document.getElementById('settings-mesh-color');
     dom.settingsWireframeColor = document.getElementById('settings-wireframe-color');
     dom.settingsResetAll = document.getElementById('settings-reset-all');

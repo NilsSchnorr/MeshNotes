@@ -516,10 +516,11 @@ async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layou
     const box = new THREE.Box3().setFromObject(state.currentModel);
     const modelSize = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(modelSize.x, modelSize.y, modelSize.z);
+    const distanceMultiplier = state.pdfCameraDistance || 1.0;
     const baseDistance = annExtent > 0 ? annExtent * 2 : maxDim * 0.15;
-    const distance = Math.max(baseDistance, maxDim * 0.08);
+    const distance = Math.max(baseDistance, maxDim * 0.08) * distanceMultiplier;
 
-    const angle = Math.PI / 3; // 60 degrees from horizontal
+    const angle = ((state.pdfCameraAngle || 60) * Math.PI) / 180;
     const horizontalOffset = distance * Math.cos(angle);
     const verticalOffset = distance * Math.sin(angle);
     const horizontalDir = new THREE.Vector3(1, 0, 1).normalize();

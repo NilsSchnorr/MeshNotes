@@ -254,6 +254,8 @@ export function resetAllSettings() {
     state.pdfPageSize = 'a4';
     state.pdfOrientation = 'portrait';
     state.pdfDpi = 150;
+    state.pdfCameraDistance = 1.0;
+    state.pdfCameraAngle = 60;
     state.screenshotQuality = 2;
     
     // Reset UI elements
@@ -276,6 +278,10 @@ export function resetAllSettings() {
     dom.settingsPdfPageSize.value = 'a4';
     dom.settingsPdfOrientation.value = 'portrait';
     dom.settingsPdfDpi.value = '150';
+    dom.settingsPdfCameraDistance.value = '1.0';
+    dom.settingsPdfCameraDistanceValue.textContent = '×1.0';
+    dom.settingsPdfCameraAngle.value = '60';
+    dom.settingsPdfCameraAngleValue.textContent = '60°';
     dom.settingsScreenshotQuality.value = '2';
     
     // Reset background color
@@ -353,6 +359,20 @@ export function setPdfDpi(dpi) {
     state.pdfDpi = parseInt(dpi);
     localStorage.setItem('meshnotes_pdfDpi', dpi);
     dom.settingsPdfDpi.value = dpi;
+}
+
+export function setPdfCameraDistance(value) {
+    state.pdfCameraDistance = parseFloat(value);
+    localStorage.setItem('meshnotes_pdfCameraDistance', value);
+    dom.settingsPdfCameraDistance.value = value;
+    dom.settingsPdfCameraDistanceValue.textContent = `×${parseFloat(value).toFixed(1)}`;
+}
+
+export function setPdfCameraAngle(value) {
+    state.pdfCameraAngle = parseInt(value);
+    localStorage.setItem('meshnotes_pdfCameraAngle', value);
+    dom.settingsPdfCameraAngle.value = value;
+    dom.settingsPdfCameraAngleValue.textContent = `${value}°`;
 }
 
 // ============ Screenshot Settings ============
