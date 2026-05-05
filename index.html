@@ -348,7 +348,7 @@
 
                             <p style="margin-top: 10px;"><strong>Tip:</strong> Large GLB models can be reduced significantly using <em>Draco compression</em> before sharing. See the <em>Model Preparation &amp; Format Guide</em> section for details and tools.</p>
 
-                            <p style="margin-top: 10px;"><strong>Permanent (own hosting / DOI):</strong> For long-term, citable sharing, upload your model and annotation files to a CORS-friendly repository that supports direct file access from the browser. Suitable repositories include <a href="https://heidata.uni-heidelberg.de" target="_blank">Propylaeum@heiDATA</a> (Dataverse-based, recommended for German archaeology), <a href="https://figshare.com" target="_blank">Figshare</a>, or any other Dataverse installation. Enter the file URLs in the dialog, select the model format (important when the URL does not contain a file extension), and MeshNotes generates a permanent link. These links do not expire and do not use meshnotes.org storage — the files are loaded directly from your repository. If your repository mints DOIs, the link is citable in publications.</p>
+                            <p style="margin-top: 10px;"><strong>Permanent (own hosting / DOI):</strong> For long-term, citable sharing, upload your model and annotation files to a CORS-friendly repository that supports direct file access from the browser. Enter the file URLs in the dialog, select the model format (important when the URL does not contain a file extension), and MeshNotes generates a permanent link. These links do not expire and do not use meshnotes.org storage — the files are loaded directly from your repository. If your repository mints DOIs, the link is citable in publications.</p>
 
                             <p style="margin-top: 10px;"><strong>Previously generated links:</strong> The Share dialog keeps a history of all links you have generated, showing the model name, creation date, and time remaining until expiry. You can copy any previous link or remove entries from the list. This history is stored in your browser’s local storage.</p>
 
@@ -905,9 +905,9 @@
 
                     <!-- Long-term sharing section -->
                     <div id="share-longterm" style="display:none;">
-                        <p style="margin-top: 16px;">Enter CORS-friendly URLs for your model and annotation files (e.g., from Propylaeum@heiDATA or another Dataverse repository):</p>
+                        <p style="margin-top: 16px;">Enter CORS-friendly URLs for your model and annotation files:</p>
                         <label for="longterm-model-url">Model URL *</label>
-                        <input type="text" id="longterm-model-url" placeholder="https://heidata.uni-heidelberg.de/api/access/datafile/...">
+                        <input type="text" id="longterm-model-url" placeholder="https://your-repository.org/api/access/datafile/...">
                         <label for="longterm-model-format" style="margin-top: 8px;">Model Format *</label>
                         <select id="longterm-model-format" style="width:100%; padding:8px 12px; background:var(--color-input-bg,#0a2a3f); border:1px solid #1A5A8A; color:#eee; border-radius:4px; font-size:13px;">
                             <option value="glb">GLB / GLTF</option>
@@ -916,7 +916,7 @@
                         </select>
                         <p class="share-privacy-note" style="font-size: 12px;">💡 <strong>Tip:</strong> GLB is recommended for permanent sharing because it bundles the model, materials, and textures into a single file. If your model is OBJ with separate MTL/texture files, consider converting to GLB before uploading to your repository.</p>
                         <label for="longterm-annotations-url" style="margin-top: 8px;">Annotations URL (optional)</label>
-                        <input type="text" id="longterm-annotations-url" placeholder="https://heidata.uni-heidelberg.de/api/access/datafile/...">
+                        <input type="text" id="longterm-annotations-url" placeholder="https://your-repository.org/api/access/datafile/...">
                         <button id="longterm-generate-btn" class="share-action-btn" disabled style="margin-top: 12px; width: 100%;">Generate Permanent Link</button>
                     </div>
                 </div>
