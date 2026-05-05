@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
@@ -11,7 +12,7 @@ import { showStatus, updateFaceCountDisplay } from '../utils/helpers.js';
 import { updateViewHelperLabels } from './camera.js';
 import { setModelOpacity } from './lighting.js';
 
-// Set up Draco decoder for compressed GLB/glTF files (e.g. from optimizeglb.com)
+// Set up decoders for compressed GLB/glTF files
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
 
@@ -54,6 +55,7 @@ export function loadModel(file) {
 
     const loader = new GLTFLoader();
     loader.setDRACOLoader(dracoLoader);
+    loader.setMeshoptDecoder(MeshoptDecoder);
     const url = URL.createObjectURL(file);
 
     loader.load(
