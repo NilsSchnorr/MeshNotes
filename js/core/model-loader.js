@@ -1,6 +1,7 @@
 // js/core/model-loader.js
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
@@ -9,6 +10,10 @@ import { state, dom } from '../state.js';
 import { showStatus, updateFaceCountDisplay } from '../utils/helpers.js';
 import { updateViewHelperLabels } from './camera.js';
 import { setModelOpacity } from './lighting.js';
+
+// Set up Draco decoder for compressed GLB/glTF files (e.g. from optimizeglb.com)
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
 
 // Register BVH extensions for accelerated raycasting and spatial queries
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -48,6 +53,7 @@ export function loadModel(file) {
     if (_updateModelInfoDisplay) _updateModelInfoDisplay();
 
     const loader = new GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
     const url = URL.createObjectURL(file);
 
     loader.load(
