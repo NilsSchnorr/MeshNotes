@@ -224,7 +224,7 @@ export async function generateEphemeralLink() {
             progressSection.style.display = 'none';
             choiceSection.style.display = 'none';
             errorSection.style.display = 'block';
-            errorMessage.textContent = `Your model files total ${totalMB.toFixed(1)} MB, which exceeds the 100 MB upload limit. Try reducing the file size (e.g., Draco compression for GLB, or decimation in your 3D software) before sharing.`;
+            errorMessage.textContent = `Your model files total ${totalMB.toFixed(1)} MB, which exceeds the 100 MB upload limit. Try reducing the file size with Draco compression (e.g., optimizeglb.com or gltf-transform) or decimation in your 3D software before sharing.`;
             return;
         }
 
@@ -293,7 +293,7 @@ export async function generateEphemeralLink() {
             if (state.loadedModelFiles) {
                 totalMB = state.loadedModelFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
             }
-            errorMessage.textContent = `Upload failed — your files are ${totalMB.toFixed(1)} MB, which likely exceeds the 100 MB upload limit. Try reducing the file size (e.g., Draco compression for GLB, or decimation in your 3D software) before sharing.`;
+            errorMessage.textContent = `Upload failed — your files are ${totalMB.toFixed(1)} MB, which likely exceeds the 100 MB upload limit. Try reducing the file size with Draco compression (e.g., optimizeglb.com or gltf-transform) or decimation in your 3D software before sharing.`;
         } else {
             errorMessage.textContent = error.message;
         }

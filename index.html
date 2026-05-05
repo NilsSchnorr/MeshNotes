@@ -134,6 +134,8 @@
                             
                             <p style="margin-top: 10px;"><strong>Orientation:</strong> When loading OBJ or PLY files, MeshNotes will ask you which axis is "up" in your source software. Most photogrammetry and cultural heritage tools (Metashape, CloudCompare, MeshLab, Blender) use <strong>Z-up</strong>, while some game engines and web viewers use Y-up. Selecting the correct option ensures your model displays upright. GLB/GLTF files handle orientation automatically per the glTF specification. See the <em>Coordinate System</em> section below for more details.</p>
 
+                            <p style="margin-top: 10px;"><strong>Reducing file size (Draco compression):</strong> Large photogrammetry models can produce GLB files of several hundred megabytes. <em>Draco compression</em> significantly reduces geometry size while preserving visual quality — MeshNotes fully supports Draco-compressed GLB files. You can compress your models using browser-based tools such as <a href="https://optimizeglb.com/dashboard" target="_blank">OptimizeGLB</a>, or locally via the command-line tool <a href="https://gltf-transform.dev/" target="_blank">gltf-transform</a> (<code>npx gltf-transform draco input.glb output.glb</code>). The local option avoids uploading your model to a third-party server.</p>
+
                             <p style="margin-top: 10px;"><strong>Units:</strong> MeshNotes displays distances and scalebar values in whatever unit your model was created with. If your photogrammetry software exports in meters, distances will be in meters. If it exports in millimeters, they will be in millimeters. There is no unit conversion — consistency depends on your source data. Check your 3D software's export settings if distances seem off by a factor of 1000.</p>
                         </div>
                     </div>
@@ -343,6 +345,8 @@
                             <p>Click <strong>Share</strong> in the toolbar to open the sharing dialog. MeshNotes offers two sharing modes:</p>
 
                             <p style="margin-top: 10px;"><strong>Quick Share (90 days):</strong> Uploads your model and annotations to meshnotes.org and generates a link. Anyone with the link can open the model and annotations directly in MeshNotes — no file download or manual import needed. Quick Share links expire after 90 days. Click <strong>Generate Link</strong> to upload. Maximum file size: 100 MB.</p>
+
+                            <p style="margin-top: 10px;"><strong>Tip:</strong> Large GLB models can be reduced significantly using <em>Draco compression</em> before sharing. See the <em>Model Preparation &amp; Format Guide</em> section for details and tools.</p>
 
                             <p style="margin-top: 10px;"><strong>Permanent (own hosting / DOI):</strong> For long-term, citable sharing, upload your model and annotation files to a CORS-friendly repository that supports direct file access from the browser. Suitable repositories include <a href="https://heidata.uni-heidelberg.de" target="_blank">Propylaeum@heiDATA</a> (Dataverse-based, recommended for German archaeology), <a href="https://figshare.com" target="_blank">Figshare</a>, or any other Dataverse installation. Enter the file URLs in the dialog, select the model format (important when the URL does not contain a file extension), and MeshNotes generates a permanent link. These links do not expire and do not use meshnotes.org storage — the files are loaded directly from your repository. If your repository mints DOIs, the link is citable in publications.</p>
 
@@ -887,6 +891,7 @@
                     <div id="share-ephemeral-section">
                         <p style="margin-top: 16px;">Uploads your model and annotations to meshnotes.org for 90 days. Anyone with the link can open them in MeshNotes.</p>
                         <p class="share-privacy-note">⚠️ By clicking <strong>Generate Link</strong>, your model file and annotations will be uploaded to meshnotes.org. Your data will no longer be fully offline. Maximum file size: 100 MB.</p>
+                        <p class="share-privacy-note" style="margin-top: 6px;">💡 <strong>Tip:</strong> Large GLB files? Reduce size with <a href="https://optimizeglb.com/dashboard" target="_blank">Draco compression</a> before sharing.</p>
                         <button id="share-generate-btn" class="share-action-btn" disabled style="margin-top: 12px; width: 100%;">Generate Link</button>
 
                         <!-- Previously generated links -->
