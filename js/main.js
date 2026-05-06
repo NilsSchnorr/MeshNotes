@@ -3,7 +3,7 @@ import { state, dom, initDomReferences } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
 import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality } from './core/lighting.js';
-import { setUpdateModelInfoDisplay, loadModel, loadOBJModel, loadPLYModel } from './core/model-loader.js';
+import { setUpdateModelInfoDisplay, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
 import { setEditingCallbacks, finishSurfacePainting, renderMeasurements } from './annotation-tools/editing.js';
@@ -147,6 +147,8 @@ async function loadFromUrlParams() {
                 return ['jpg', 'jpeg', 'png', 'tif', 'tiff'].includes(e);
             }) || null;
             loadPLYModel(modelFile, textureFile, 'z-up');
+        } else if (format === 'stl' || ext === 'stl') {
+            loadSTLModel(modelFile, 'z-up');
         } else {
             throw new Error(`Unsupported format: ${ext}`);
         }

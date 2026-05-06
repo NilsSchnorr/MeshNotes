@@ -139,7 +139,7 @@ export function blobToFile(blob, filename) {
 export async function loadShareFiles(shareId) {
     const manifest = await fetchShareManifest(shareId);
 
-    const modelExtensions = ['glb', 'obj', 'ply'];
+    const modelExtensions = ['glb', 'obj', 'ply', 'stl'];
     const annotationExtensions = ['jsonld', 'json'];
 
     let modelFile = null;
@@ -200,9 +200,9 @@ export async function loadDirectFiles(modelUrl, annotationsUrl) {
     
     // Priority: explicit format param > URL extension > default to glb
     let format;
-    if (formatParam && ['glb', 'gltf', 'obj', 'ply'].includes(formatParam)) {
+    if (formatParam && ['glb', 'gltf', 'obj', 'ply', 'stl'].includes(formatParam)) {
         format = formatParam === 'gltf' ? 'glb' : formatParam;
-    } else if (urlExt && ['glb', 'gltf', 'obj', 'ply'].includes(urlExt)) {
+    } else if (urlExt && ['glb', 'gltf', 'obj', 'ply', 'stl'].includes(urlExt)) {
         format = ['glb', 'gltf'].includes(urlExt) ? 'glb' : urlExt;
     } else {
         format = 'glb'; // Default assumption

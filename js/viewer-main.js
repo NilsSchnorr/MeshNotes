@@ -30,6 +30,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 // Wire up late-bound references (same as main.js but without editing callbacks)
 setUpdateModelInfoDisplay(updateModelInfoDisplay);
@@ -236,6 +237,8 @@ function loadModelFromFiles(data) {
                 return ['jpg', 'jpeg', 'png', 'tif', 'tiff'].includes(e);
             });
             loadPLYFromFile(modelFile, textureFile).then(resolve).catch(reject);
+        } else if (format === 'stl' || ext === 'stl') {
+            loadSTLFromFile(modelFile).then(resolve).catch(reject);
         } else {
             reject(new Error(`Unsupported format: ${ext}`));
         }
@@ -403,6 +406,41 @@ function loadPLYFromFile(plyFile, textureFile) {
             (error) => {
                 URL.revokeObjectURL(url);
                 reject(new Error('Failed to load PLY: ' + error.message));
+            }
+        );
+    });
+}
+
+function loadSTLFromFile(stlFile) {
+    return new Promise((resolve, reject) => {
+        const loader = new STLLoader();
+        const url = URL.createObjectURL(stlFile);
+
+        loader.load(
+            url,
+            (geometry) => {
+                geometry.computeVertexNormals();
+                const hasColors = !!geometry.attributes.color;
+
+                const material = new THREE.MeshStandardMaterial({
+                    roughness: 0.7,
+                    metalness: 0.0,
+                    vertexColors: hasColors,
+                    color: hasColors ? 0xffffff : 0xcccccc,
+                    side: THREE.DoubleSide
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                const group = new THREE.Group();
+                group.add(mesh);
+                setupLoadedModel(group, stlFile.name, 'z-up');
+                URL.revokeObjectURL(url);
+                resolve();
+            },
+            undefined,
+            (error) => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Failed to load STL: ' + error.message));
             }
         );
     });
