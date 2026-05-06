@@ -286,7 +286,30 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>At the top of the sidebar is a <strong>Model Information</strong> section for general notes about the entire model. Double-click it to add an introduction, context, or overview that applies to the whole model rather than a specific location. Like annotations, it supports multiple entries from different team members with timestamps — useful for documenting the model's origin, processing history, or general observations.</p>
+                            <p>In the <strong>General Information</strong> section at the top of the sidebar, the <strong>Model Information</strong> item stores free-form notes about the entire model. Click the ✏️ button or double-click to open it. Like annotations, it supports multiple entries from different team members with timestamps — useful for documenting the model’s origin, processing history, or general observations. The sidebar shows a preview of the latest entry.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
+                            <span>Metadata Report</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Below Model Information, the <strong>Metadata Report</strong> provides a structured form for documenting the technical metadata of your 3D documentation project. Click the ✏️ button or double-click to open it. The form covers five sections: <strong>General Information</strong> (project title, location, timeline), <strong>Capture Metadata</strong> (documentation method, instrument, camera/scanner settings), <strong>Reference Metadata</strong> (GPS, scalebars, GCPs), <strong>Processing Metadata</strong> (software, algorithms, model details), and <strong>Legal</strong> (project lead, funding, copyright).</p>
+
+                            <p style="margin-top: 10px;">The template supports all common 3D documentation methods: photogrammetry, structured light scanning, LiDAR, and terrestrial laser scanning (TLS). Fields that don’t apply to your method can simply be left empty. Each section also allows adding <strong>custom fields</strong> for project-specific needs. A non-editable <strong>Data Management</strong> guideline with a recommended folder structure is shown at the bottom for reference.</p>
+
+                            <p style="margin-top: 10px;"><strong>Export &amp; Import:</strong> The metadata popup has three buttons at the top:</p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>⬇ JSON</strong> — Downloads the metadata as a JSON file. This is the round-trip format: re-import it into MeshNotes to restore all fields. If the form is empty, you get the blank template to fill out in a text editor.</li>
+                                <li><strong>⬇ PDF</strong> — Downloads a fillable PDF form with all fields. Pre-filled values are included if available. The PDF can be opened in any PDF viewer, filled out by hand or digitally, and used as a standalone documentation form outside of MeshNotes.</li>
+                                <li><strong>⬆ JSON</strong> — Imports a previously exported JSON metadata file, replacing the current metadata after confirmation.</li>
+                            </ul>
+
+                            <p style="margin-top: 10px;"><strong>Integration:</strong> Metadata is automatically included in the JSON-LD annotation export and restored on import. It also appears at the end of PDF reports (only filled fields are shown). The metadata persists when loading a new model — you can fill it in before loading your 3D file.</p>
+
+                            <p style="margin-top: 10px;">The sidebar shows how many fields are filled (e.g., “5 of 39 fields filled”) with a preview of the first filled value.</p>
                         </div>
                     </div>
 

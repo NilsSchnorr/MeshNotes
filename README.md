@@ -19,6 +19,7 @@ Key features include:
 - **Measurement tools** — measure straight-line distances or multi-point paths (Ctrl+click) directly on the model, with configurable display units
 - **Groups** — organize annotations with customizable colors, per-group opacity, and visibility toggles
 - **Model Information** — add general notes about the entire model
+- **Metadata Report** — structured form for capturing technical documentation metadata (camera/scanner settings, processing parameters, legal info) with fillable PDF and JSON export/import, supporting photogrammetry, structured light, LiDAR, and TLS workflows
 - **Draggable points** — reposition annotation markers without recreating them
 - **Search** — filter annotations by name using the search box in the sidebar
 - **Flip View** — rotate the model 180° for easy access to the underside (purely visual, does not affect annotation coordinates or exports)
@@ -131,6 +132,7 @@ MeshNotes uses the following open-source libraries (loaded via CDN):
 - [Three.js](https://threejs.org/) (MIT License) — 3D rendering
 - [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) (MIT License) — Accelerated raycasting & surface projection
 - [jsPDF](https://github.com/parallax/jsPDF) (MIT License) — PDF generation
+- [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT License) — Fillable PDF form creation
 
 
 ## Author
