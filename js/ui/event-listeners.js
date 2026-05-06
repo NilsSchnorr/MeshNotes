@@ -13,6 +13,8 @@ import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
 import { importAnnotations } from '../export/import-json.js';
+import { openMetadataPopup, closeMetadataPopup, saveMetadata, initMetadata, updateMetadataDisplay } from '../metadata/metadata-ui.js';
+import { downloadMetadataJSON, downloadMetadataPDF, importMetadataJSON } from '../metadata/metadata-io.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
 import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink, toggleHistory } from '../export/share.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
@@ -67,11 +69,15 @@ function clearAnnotationsAndGroups() {
     state.groups = [];
     state.selectedAnnotation = null;
     state.editingAnnotation = null;
-    state.modelInfo = { entries: [] };
+    state.modelInfo = { entries: [], metadata: null };
+    initMetadata();
+    updateMetadataDisplay();
 
     // Close any open popups
     dom.annotationPopup.classList.remove('visible');
     dom.groupPopup.classList.remove('visible');
+    const metadataPopup = document.getElementById('metadata-popup');
+    if (metadataPopup) metadataPopup.classList.remove('visible');
     state.isAddingEntry = false;
     state.editingEntryId = null;
     state.editingModelInfo = false;
@@ -409,6 +415,23 @@ export function setupEventListeners() {
     document.getElementById('model-info-edit-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         openModelInfoPopup();
+    });
+
+    // Metadata popup
+    document.getElementById('metadata-item').addEventListener('dblclick', openMetadataPopup);
+    document.getElementById('metadata-edit-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openMetadataPopup();
+    });
+    document.getElementById('btn-metadata-save').addEventListener('click', saveMetadata);
+    document.getElementById('btn-metadata-close').addEventListener('click', closeMetadataPopup);
+    document.getElementById('btn-metadata-download-json').addEventListener('click', downloadMetadataJSON);
+    document.getElementById('btn-metadata-download-pdf').addEventListener('click', downloadMetadataPDF);
+    document.getElementById('metadata-upload-input').addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            importMetadataJSON(e.target.files[0]);
+            e.target.value = ''; // Reset so same file can be re-imported
+        }
     });
 
     // Confirmation dialog
@@ -774,6 +797,12 @@ export function setupEventListeners() {
 
             if (dom.scalebarConfirmOverlay.classList.contains('visible')) {
                 hideScalebarConfirm();
+                return;
+            }
+
+            const metadataPopupEl = document.getElementById('metadata-popup');
+            if (metadataPopupEl && metadataPopupEl.classList.contains('visible')) {
+                closeMetadataPopup();
                 return;
             }
 

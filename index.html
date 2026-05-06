@@ -1268,6 +1268,24 @@
                     <button class="btn-save" id="btn-group-save">Save</button>
                 </div>
             </div>
+
+            <!-- Metadata Popup -->
+            <div class="popup metadata-popup" id="metadata-popup">
+                <h3>Metadata Report</h3>
+                <div class="metadata-popup-actions">
+                    <button class="btn-save" id="btn-metadata-download-json" title="Download as JSON (re-importable)">⬇ JSON</button>
+                    <button class="btn-save" id="btn-metadata-download-pdf" title="Download as fillable PDF">⬇ PDF</button>
+                    <label class="btn-save btn-metadata-upload" title="Import metadata from JSON">
+                        ⬆ JSON
+                        <input type="file" id="metadata-upload-input" accept=".json" style="display: none;">
+                    </label>
+                </div>
+                <div class="metadata-popup-body" id="metadata-popup-body"></div>
+                <div class="btn-row">
+                    <button class="btn-save" id="btn-metadata-save">Save</button>
+                    <button class="btn-cancel" id="btn-metadata-close">Close</button>
+                </div>
+            </div>
         </div>
 
         <div id="sidebar">
@@ -1293,6 +1311,15 @@
                                 <button class="annotation-edit-btn" id="model-info-edit-btn" title="Edit model information">✏️</button>
                             </div>
                             <div class="model-info-subtitle" id="model-info-subtitle">No entries yet</div>
+                        </div>
+
+                        <div class="model-info-item" id="metadata-item" style="margin-top: 6px;">
+                            <div class="model-info-header">
+                                <span class="model-info-icon">📊</span>
+                                <span class="model-info-title">Metadata Report</span>
+                                <button class="annotation-edit-btn" id="metadata-edit-btn" title="Edit metadata">✏️</button>
+                            </div>
+                            <div class="model-info-subtitle" id="metadata-subtitle">No metadata yet</div>
                         </div>
                     </div>
 

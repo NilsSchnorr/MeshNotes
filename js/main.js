@@ -15,6 +15,7 @@ import { openGroupPopup } from './annotation-tools/groups.js';
 import { initLabelOcclusionUpdates } from './utils/label-occlusion.js';
 import { showStatus, toDisplayCoords } from './utils/helpers.js';
 import { importAnnotations } from './export/import-json.js';
+import { initMetadata, updateMetadataDisplay } from './metadata/metadata-ui.js';
 import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUntilExpiry } from './core/url-params.js';
 import * as THREE from 'three';
 
@@ -55,6 +56,8 @@ function init() {
     createDefaultGroup();
     updateGroupsList();
     updateMeasurementsDisplay();
+    initMetadata();
+    updateMetadataDisplay();
 
     // Event listeners
     setupEventListeners();

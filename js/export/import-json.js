@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { generateUUID, showStatus } from '../utils/helpers.js';
 import { convertFromW3CAnnotation, pointFromZUp } from './w3c-format.js';
 import { updateModelInfoDisplay } from '../annotation-tools/data.js';
+import { updateMetadataDisplay, initMetadata } from '../metadata/metadata-ui.js';
 import { updateGroupsList } from '../annotation-tools/groups.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { reprojectAllAnnotations } from '../annotation-tools/projection.js';
@@ -179,6 +180,30 @@ function importW3CAnnotations(data) {
         updateModelInfoDisplay();
     }
 
+    // Import metadata report (replace with confirmation)
+    const importedMetadata = data['metadata'] || data['meshnotes:metadata'];
+    if (importedMetadata && importedMetadata.sections) {
+        const { filled } = (() => {
+            let total = 0, filled = 0;
+            if (state.modelInfo.metadata && state.modelInfo.metadata.sections) {
+                for (const s of state.modelInfo.metadata.sections) {
+                    for (const f of s.fields) { total++; if (f.value && f.value.trim()) filled++; }
+                    if (s.customFields) for (const f of s.customFields) { total++; if (f.value && f.value.trim()) filled++; }
+                }
+            }
+            return { total, filled };
+        })();
+
+        let doImport = true;
+        if (filled > 0) {
+            doImport = confirm('Imported file contains metadata. Replace current metadata?');
+        }
+        if (doImport) {
+            state.modelInfo.metadata = importedMetadata;
+            updateMetadataDisplay();
+        }
+    }
+
     // Import groups - match by UUID first, then by name
     if (data['meshnotes:groups']) {
         data['meshnotes:groups'].forEach(importedGroup => {
@@ -312,6 +337,12 @@ function importLegacyAnnotations(data) {
             });
         });
         updateModelInfoDisplay();
+    }
+
+    // Import metadata if present (legacy format)
+    if (data.modelInfo && data.modelInfo.metadata && data.modelInfo.metadata.sections) {
+        state.modelInfo.metadata = data.modelInfo.metadata;
+        updateMetadataDisplay();
     }
 
     // Merge groups (avoid duplicates by name)

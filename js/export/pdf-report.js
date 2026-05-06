@@ -6,6 +6,7 @@ import { toggleCamera } from '../core/camera.js';
 import { updateFixedLightDirection, getDpiMultiplier } from '../core/lighting.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showScalebarConfirm, drawScalebarOnCanvas } from '../annotation-tools/data.js';
+import { getFieldDefinition, getMetadataStats, DATA_MANAGEMENT_GUIDELINE } from '../metadata/templates.js';
 
 // ============ PDF Settings Helpers ============
 
@@ -635,6 +636,108 @@ async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layou
  * table of contents, and one page per annotation with auto-screenshots.
  * @param {boolean} includeScalebar - Whether to include scalebar on screenshots
  */
+// ============ Metadata Pages ============
+
+/**
+ * Renders metadata report pages at the end of the PDF.
+ * Only includes filled fields to keep it compact.
+ */
+function pdfRenderMetadataPages(pdf, layout) {
+    const metadata = state.modelInfo.metadata;
+    if (!metadata || !metadata.sections) return;
+
+    const { filled } = getMetadataStats(metadata);
+    if (filled === 0) return; // Skip entirely if nothing filled
+
+    const accent = getAccentColor();
+    const templateId = metadata.template || '3d-documentation';
+
+    pdf.addPage();
+    let y = layout.margin;
+
+    // Page title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(accent.r, accent.g, accent.b);
+    pdf.text('Metadata Report', layout.margin, y);
+    y += 4;
+    pdf.setDrawColor(accent.r, accent.g, accent.b);
+    pdf.setLineWidth(0.5);
+    pdf.line(layout.margin, y, layout.margin + layout.contentWidth, y);
+    y += 8;
+
+    for (const section of metadata.sections) {
+        // Collect only filled fields (template + custom)
+        const filledFields = [];
+        for (const field of section.fields) {
+            if (field.value && field.value.trim()) {
+                filledFields.push(field);
+            }
+        }
+        if (section.customFields) {
+            for (const field of section.customFields) {
+                if (field.value && field.value.trim()) {
+                    filledFields.push(field);
+                }
+            }
+        }
+
+        if (filledFields.length === 0) continue; // Skip empty sections
+
+        // Page break check: section header + at least one field
+        if (y + 18 > layout.pageHeight - layout.margin) {
+            pdf.addPage();
+            y = layout.margin;
+        }
+
+        // Section header
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(accent.r, accent.g, accent.b);
+        pdf.text(section.title, layout.margin, y);
+        y += 2;
+        pdf.setDrawColor(200, 200, 200);
+        pdf.setLineWidth(0.2);
+        pdf.line(layout.margin, y, layout.margin + layout.contentWidth, y);
+        y += 5;
+
+        // Render filled fields as label: value rows
+        const labelWidth = 55;
+        const valueX = layout.margin + labelWidth + 3;
+        const valueWidth = layout.contentWidth - labelWidth - 3;
+
+        for (const field of filledFields) {
+            // Estimate height needed
+            pdf.setFontSize(9);
+            const valueLines = pdf.splitTextToSize(field.value, valueWidth);
+            const rowHeight = Math.max(6, valueLines.length * 4 + 2);
+
+            if (y + rowHeight > layout.pageHeight - layout.margin) {
+                pdf.addPage();
+                y = layout.margin;
+            }
+
+            // Label
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(9);
+            pdf.setTextColor(60, 60, 60);
+            pdf.text(field.key, layout.margin, y + 3.5);
+
+            // Value
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(valueLines, valueX, y + 3.5);
+
+            y += rowHeight;
+        }
+
+        y += 4; // Gap between sections
+    }
+}
+
+// ============ Main Export Flow ============
+
 async function doExportPdfReport(includeScalebar) {
     // Store and override light settings for consistent screenshots
     const originalLightMode = state.lightFollowsCamera;
@@ -701,6 +804,9 @@ async function doExportPdfReport(includeScalebar) {
             await pdfRenderAnnotationPage(pdf, groupAnns[annIdx], group, groupAnns, annIdx, layout, includeScalebar);
         }
     }
+
+    // Render metadata pages at end (only filled fields)
+    pdfRenderMetadataPages(pdf, layout);
 
     // Restore everything
     pdfRestoreCamera(savedCamera);

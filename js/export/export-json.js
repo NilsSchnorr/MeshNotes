@@ -34,7 +34,8 @@ export function buildAnnotationJSON() {
                 'modelSource': 'meshnotes:modelSource',
                 'annotationType': 'meshnotes:annotationType',
                 'surfaceProjection': 'meshnotes:surfaceProjection',
-                'modelInfo': 'meshnotes:modelInfo'
+                'modelInfo': 'meshnotes:modelInfo',
+                'metadata': 'meshnotes:metadata'
             }
         ],
         type: 'AnnotationCollection',
@@ -103,6 +104,9 @@ export function buildAnnotationJSON() {
                 return bodyObj;
             })
         } : undefined,
+
+        // Metadata report
+        'metadata': state.modelInfo.metadata || undefined,
 
         // Annotations
         total: w3cAnnotations.length,

@@ -656,6 +656,190 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
+        /* Metadata Popup */
+        .metadata-popup {
+            max-width: 600px;
+            width: 90vw;
+            max-height: 85vh;
+            flex-direction: column;
+            overflow: hidden;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .metadata-popup.visible {
+            display: flex !important;
+        }
+
+        .metadata-popup-actions {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+
+        .metadata-popup-actions .btn-save {
+            font-size: 11px;
+            padding: 4px 10px;
+        }
+
+        .btn-metadata-upload {
+            cursor: pointer;
+        }
+
+        .metadata-popup-body {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            margin-bottom: 12px;
+            padding-right: 4px;
+        }
+
+        .metadata-popup > h3 {
+            flex-shrink: 0;
+        }
+
+        .metadata-popup > .btn-row {
+            flex-shrink: 0;
+        }
+
+        .metadata-section {
+            margin-bottom: 16px;
+        }
+
+        .metadata-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-gold);
+            margin: 0 0 4px 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--color-blue);
+        }
+
+        .metadata-field-row {
+            margin-bottom: 6px;
+        }
+
+        .metadata-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--color-text);
+            margin-bottom: 2px;
+        }
+
+        .metadata-hint {
+            font-weight: normal;
+            color: var(--color-text-muted);
+            font-size: 10px;
+        }
+
+        .metadata-value {
+            font-size: 12px;
+            color: var(--color-text);
+            padding: 4px 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 3px;
+            min-height: 20px;
+            word-break: break-word;
+        }
+
+        .metadata-empty {
+            color: var(--color-text-muted);
+            font-style: italic;
+            font-size: 11px;
+        }
+
+        .metadata-input {
+            width: 100%;
+            padding: 4px 6px;
+            font-size: 12px;
+            background: var(--color-bg);
+            color: var(--color-text);
+            border: 1px solid var(--color-blue);
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .metadata-textarea {
+            min-height: 48px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .metadata-input:focus {
+            border-color: var(--color-gold);
+            outline: none;
+        }
+
+        .metadata-custom-row {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 2px;
+        }
+
+        .metadata-custom-key {
+            flex: 1;
+            padding: 3px 6px;
+            font-size: 11px;
+            font-weight: 500;
+            background: var(--color-bg);
+            color: var(--color-gold);
+            border: 1px dashed var(--color-blue);
+            border-radius: 3px;
+        }
+
+        .btn-remove-custom-field {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .btn-remove-custom-field:hover {
+            color: #ff6b6b;
+        }
+
+        .metadata-add-field {
+            margin-top: 4px;
+        }
+
+        .btn-add-custom-field {
+            background: none;
+            border: 1px dashed var(--color-blue);
+            color: var(--color-text-muted);
+            cursor: pointer;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .btn-add-custom-field:hover {
+            color: var(--color-gold);
+            border-color: var(--color-gold);
+        }
+
+        .metadata-guideline {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .metadata-guideline-text {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: var(--color-text-muted);
+            white-space: pre-wrap;
+            margin: 0;
+            line-height: 1.5;
+        }
+
         /* Popups */
         .popup {
             display: none;

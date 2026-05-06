@@ -94,7 +94,7 @@ export const state = {
     editingAnnotation: null,
 
     // Model Information
-    modelInfo: { entries: [] },
+    modelInfo: { entries: [], metadata: null },
     editingModelInfo: false,
 
     // Point dragging
