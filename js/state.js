@@ -116,6 +116,9 @@ export const state = {
     pendingFaces: [],               // Faces added since last highlight update
     needsFullHighlightRebuild: false, // Flag: erase occurred, need full rebuild
     highlightVertexCount: 0,        // Current vertex count in highlight buffer
+    surfaceStrokeHistory: [],       // Array of { added: Set<number>, removed: Set<number> }
+    currentStrokeAdded: null,       // Faces added in current stroke
+    currentStrokeRemoved: null,     // Faces removed (erased) in current stroke
 
     // Box annotation
     selectedBoxAnnotation: null,

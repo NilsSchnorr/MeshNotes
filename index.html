@@ -214,6 +214,7 @@
                         </div>
                         <div class="manual-item-content">
                             <p>Click <strong>Surface</strong> to paint directly on the 3D model's mesh faces. Adjust the brush size using the slider (0.1-20% of model size), then click and drag to highlight faces. <strong>Right-click and drag</strong> to rotate the view while painting — this lets you paint a continuous surface annotation from multiple angles (e.g., wrapping around a statue's arm). Hold <strong>Shift</strong> while painting to erase. Double-click to finish and open the annotation popup.</p>
+                            <p style="margin-top: 10px;"><strong>Undo:</strong> Press <code>Ctrl+Z</code> (or <code>Cmd+Z</code> on Mac) to undo the last paint stroke. Each stroke (one mousedown-to-mouseup drag) is treated as one undoable step, including erase strokes. You can undo multiple strokes in succession.</p>
                             <p style="margin-top: 10px;">Surface annotations are ideal for marking 3D regions like weathered areas, specific architectural features, or body parts on sculptures that can't be easily captured with flat polygons.</p>
                             <div class="limitation-note">
                                 <strong>Performance Note:</strong> The Surface tool uses BVH (Bounding Volume Hierarchy) acceleration for fast spatial queries, significantly improving painting performance. It works best on smaller models (statues, ceramics, artifacts). Performance depends on face count:
@@ -254,6 +255,7 @@
                         <div class="manual-item-content">
                             <p>Click <strong>Measure</strong> to activate the measurement tool. Click two points on the model to measure the straight-line distance between them. Multiple measurements can be taken and all stay visible with their distance labels.</p>
                             <p style="margin-top: 10px;"><strong>Multi-point measurement:</strong> Hold <code>Ctrl</code> (or <code>Cmd</code> on Mac) while clicking to measure a path through multiple points — useful for measuring around corners, along curved edges, or following a non-straight route. Keep holding Ctrl and clicking to add more points. The total path distance is shown as you go. Release Ctrl and click once more to finalize, or simply click without Ctrl when you have two or more points. Multi-point measurements display the total distance along with a breakdown of individual segment lengths (e.g., <code>1.234 + 2.345 + 3.456</code>).</p>
+                            <p style="margin-top: 10px;"><strong>Undo:</strong> Press <code>Ctrl+Z</code> (or <code>Cmd+Z</code> on Mac) to remove the last placed measurement point before the measurement is finalized. This works for both simple two-point and multi-point measurements.</p>
                             <p style="margin-top: 10px;"><strong>Managing measurements:</strong> Click the <strong>×</strong> button next to any measurement to delete just that one. Click on a measurement value to <strong>copy it to clipboard</strong> for pasting into documentation. Press <code>Esc</code> to clear all measurements at once.</p>
                             <p style="margin-top: 10px;">Distances are displayed in the unit configured in <strong>Settings</strong> (default: "units"). You can set this to mm, cm, m, or a custom label. The actual scale depends on how your 3D model was created or exported — MeshNotes does not convert between units.</p>
                         </div>
@@ -1025,6 +1027,7 @@
                     <div class="measure-help-row"><span class="help-key">Click</span><span class="measure-help-desc">Place point</span></div>
                     <div class="measure-help-row"><span class="help-key">2nd click</span><span class="measure-help-desc">Complete</span></div>
                     <div class="measure-help-row"><span class="help-key">Ctrl</span><span class="help-key">+click</span><span class="measure-help-desc">Add more points</span></div>
+                    <div class="measure-help-row"><span class="help-key">Ctrl</span><span class="help-key">Z</span><span class="measure-help-desc">Undo point</span></div>
                     <div class="measure-help-row"><span class="help-key">Click value</span><span class="measure-help-desc">Copy to clipboard</span></div>
                     <div class="measure-help-row"><span class="help-key">Esc</span><span class="measure-help-desc">Clear all</span></div>
                 </div>
@@ -1047,6 +1050,7 @@
                         <div class="brush-help-title">Painting</div>
                         <div class="brush-help-row"><span class="help-key">Left-drag</span><span class="brush-help-desc">Paint faces</span></div>
                         <div class="brush-help-row"><span class="help-key">Shift</span><span class="help-key">+drag</span><span class="brush-help-desc">Erase</span></div>
+                        <div class="brush-help-row"><span class="help-key">Ctrl</span><span class="help-key">Z</span><span class="brush-help-desc">Undo stroke</span></div>
                         <div class="brush-help-row"><span class="help-key">Double-click</span><span class="brush-help-desc">Finish</span></div>
                         <div class="brush-help-row"><span class="help-key">Esc</span><span class="brush-help-desc">Cancel</span></div>
                     </div>

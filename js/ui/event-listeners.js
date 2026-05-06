@@ -5,7 +5,7 @@ import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain,
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, resetAllSettings } from '../core/lighting.js';
-import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint } from '../annotation-tools/editing.js';
+import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
@@ -803,15 +803,27 @@ export function setupEventListeners() {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        // Undo last point with Ctrl+Z (Cmd+Z on Mac) for line/polygon tools
+        // Undo last point/stroke with Ctrl+Z (Cmd+Z on Mac) for line/polygon/surface/measure tools
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-            // Only trigger if we're in line/polygon mode and not in a text input
+            // Only trigger if we're in a supported tool and not in a text input
             const activeElement = document.activeElement;
             const isTextInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
             
             if (!isTextInput && (state.currentTool === 'line' || state.currentTool === 'polygon') && state.tempPoints.length > 0) {
                 e.preventDefault();
                 undoLastPoint();
+                return;
+            }
+            
+            if (!isTextInput && state.currentTool === 'surface' && state.surfaceStrokeHistory.length > 0) {
+                e.preventDefault();
+                undoLastSurfaceStroke();
+                return;
+            }
+            
+            if (!isTextInput && state.currentTool === 'measure' && state.measurePoints.length > 0) {
+                e.preventDefault();
+                undoLastMeasurePoint();
                 return;
             }
         }

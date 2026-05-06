@@ -185,11 +185,13 @@ export function paintAtPoint(point, mesh, faceIndex) {
                         if (state.paintedFaces.has(faceId)) {
                             state.paintedFaces.delete(faceId);
                             state.needsFullHighlightRebuild = true;
+                            if (state.currentStrokeRemoved) state.currentStrokeRemoved.add(faceId);
                         }
                     } else {
                         if (!state.paintedFaces.has(faceId)) {
                             state.paintedFaces.add(faceId);
                             state.pendingFaces.push(faceId);
+                            if (state.currentStrokeAdded) state.currentStrokeAdded.add(faceId);
                         }
                     }
                 }
@@ -232,11 +234,13 @@ export function paintAtPoint(point, mesh, faceIndex) {
                     if (state.paintedFaces.has(faceId)) {
                         state.paintedFaces.delete(faceId);
                         state.needsFullHighlightRebuild = true;
+                        if (state.currentStrokeRemoved) state.currentStrokeRemoved.add(faceId);
                     }
                 } else {
                     if (!state.paintedFaces.has(faceId)) {
                         state.paintedFaces.add(faceId);
                         state.pendingFaces.push(faceId);
+                        if (state.currentStrokeAdded) state.currentStrokeAdded.add(faceId);
                     }
                 }
             }
@@ -515,6 +519,9 @@ export function finishSurfacePainting(event) {
     state.pendingFaces = [];
     state.needsFullHighlightRebuild = false;
     state.isPaintingSurface = false;
+    state.surfaceStrokeHistory = [];
+    state.currentStrokeAdded = null;
+    state.currentStrokeRemoved = null;
     _stopPaintLoop();
 }
 
@@ -525,6 +532,9 @@ export function clearTempSurface() {
     state.highlightVertexCount = 0;
     state.isPaintingSurface = false;
     state.surfaceHighlightDirty = false;
+    state.surfaceStrokeHistory = [];
+    state.currentStrokeAdded = null;
+    state.currentStrokeRemoved = null;
     _stopPaintLoop();
     if (state.surfaceHighlightRAF) {
         cancelAnimationFrame(state.surfaceHighlightRAF);
@@ -568,6 +578,101 @@ export function undoLastPoint() {
     
     // Provide feedback
     const remaining = state.tempPoints.length;
+    if (remaining === 0) {
+        showStatus('All points removed. Click to start again.');
+    } else {
+        showStatus(`Point removed. ${remaining} point${remaining !== 1 ? 's' : ''} remaining.`);
+    }
+    
+    return true;
+}
+
+/**
+ * Undo the last paint stroke during surface annotation.
+ * Reverses the last stroke by removing added faces and re-adding erased faces.
+ * @returns {boolean} True if a stroke was undone, false if no strokes to undo.
+ */
+export function undoLastSurfaceStroke() {
+    if (state.surfaceStrokeHistory.length === 0) {
+        return false;
+    }
+    
+    const stroke = state.surfaceStrokeHistory.pop();
+    
+    // Remove faces that were added in that stroke
+    for (const faceId of stroke.added) {
+        state.paintedFaces.delete(faceId);
+    }
+    
+    // Re-add faces that were erased in that stroke
+    for (const faceId of stroke.removed) {
+        state.paintedFaces.add(faceId);
+    }
+    
+    // Force a full rebuild of the highlight mesh
+    state.needsFullHighlightRebuild = true;
+    state.pendingFaces = [];
+    scheduleSurfaceHighlight();
+    
+    const remaining = state.surfaceStrokeHistory.length;
+    if (state.paintedFaces.size === 0) {
+        showStatus('All strokes undone. Paint to start again.');
+    } else {
+        showStatus(`Stroke undone. ${remaining} stroke${remaining !== 1 ? 's' : ''} remaining.`);
+    }
+    
+    return true;
+}
+
+/**
+ * Undo the last measurement point placed during an in-progress measurement.
+ * Removes the last point, its marker, and updates the measurement line/label.
+ * @returns {boolean} True if a point was removed, false if no points to undo.
+ */
+export function undoLastMeasurePoint() {
+    if (state.measurePoints.length === 0) {
+        return false;
+    }
+    
+    // Remove the last point
+    state.measurePoints.pop();
+    
+    // Remove the last marker from the scene
+    if (state.measureMarkers.length > 0) {
+        const marker = state.measureMarkers.pop();
+        if (marker.geometry) marker.geometry.dispose();
+        if (marker.material) marker.material.dispose();
+        state.annotationObjects.remove(marker);
+    }
+    
+    // Update the line and label
+    if (state.measurePoints.length >= 2) {
+        updateMeasureLine();
+        updateLiveMeasurementLabel();
+    } else {
+        // Less than 2 points — remove line and label
+        if (state.measureLine) {
+            if (state.measureLine.geometry) state.measureLine.geometry.dispose();
+            if (state.measureLine.material) state.measureLine.material.dispose();
+            state.annotationObjects.remove(state.measureLine);
+            state.measureLine = null;
+        }
+        if (state.measureLabel) {
+            if (state.measureLabel.material && state.measureLabel.material.map) {
+                state.measureLabel.material.map.dispose();
+            }
+            if (state.measureLabel.material) state.measureLabel.material.dispose();
+            state.annotationObjects.remove(state.measureLabel);
+            state.measureLabel = null;
+        }
+    }
+    
+    // If we dropped below 2 points, exit multi-point mode
+    if (state.measurePoints.length < 2) {
+        state.isMultiPointMeasure = false;
+    }
+    
+    const remaining = state.measurePoints.length;
     if (remaining === 0) {
         showStatus('All points removed. Click to start again.');
     } else {
@@ -993,6 +1098,10 @@ export function onCanvasPointerDown(event) {
     if (state.currentTool === 'surface' && state.currentModel && event.button === 0) {
         state.isPaintingSurface = true;
         state.controls.enabled = false;
+
+        // Start tracking a new stroke for undo
+        state.currentStrokeAdded = new Set();
+        state.currentStrokeRemoved = new Set();
 
         // Store the initial paint position and start the rAF-gated paint loop.
         // This ensures the first click paints immediately on the next frame,
@@ -1470,6 +1579,17 @@ export function onCanvasPointerMove(event) {
 
 export function onCanvasPointerUp(event) {
     if (state.isPaintingSurface) {
+        // Save the completed stroke to history for undo
+        if (state.currentStrokeAdded || state.currentStrokeRemoved) {
+            const added = state.currentStrokeAdded || new Set();
+            const removed = state.currentStrokeRemoved || new Set();
+            if (added.size > 0 || removed.size > 0) {
+                state.surfaceStrokeHistory.push({ added, removed });
+            }
+            state.currentStrokeAdded = null;
+            state.currentStrokeRemoved = null;
+        }
+
         state.isPaintingSurface = false;
         state.controls.enabled = true;
         _stopPaintLoop();
