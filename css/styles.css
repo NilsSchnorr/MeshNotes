@@ -299,6 +299,23 @@
             display: flex;
         }
 
+        #stl-dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--color-overlay);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #stl-dialog-overlay.visible {
+            display: flex;
+        }
+
         .obj-dialog {
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);

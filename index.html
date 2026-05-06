@@ -81,7 +81,7 @@
                 <section>
                     <h3>Quick Start</h3>
                     <div style="background: #041D31; padding: 16px; border-radius: 6px;">
-                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Import ▾</strong> and select <strong>3D Model</strong> to open a 3D model file (.glb, .gltf, .obj, or .ply format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files.</p>
+                        <p style="margin-bottom: 12px;"><strong>1. Load a model</strong> — Click <strong>Import ▾</strong> and select <strong>3D Model</strong> to open a 3D model file (.glb, .gltf, .obj, .ply, or .stl format). For OBJ files, you will be prompted to optionally add material (.mtl) and texture files.</p>
                         <p style="margin-bottom: 12px;"><strong>2. Add annotations</strong> — Select a tool (Point, Line, Polygon, or Surface) and click on the model. Double-click to finish lines/polygons/surfaces.</p>
                         <p style="margin-bottom: 12px;"><strong>3. Navigate annotations</strong> — Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing.</p>
                         <p style="margin-bottom: 12px;"><strong>4. Adjust annotations</strong> — When no tool is active, drag any annotation point to reposition it. Use groups to organize and color-code your work.</p>
@@ -100,7 +100,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Import ▾</strong> and select <strong>3D Model</strong> to open a 3D model file. The tool supports <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, and <code>.ply</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
+                            <p>Click <strong>Import ▾</strong> and select <strong>3D Model</strong> to open a 3D model file. The tool supports <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, <code>.ply</code>, and <code>.stl</code> formats. After loading, the face count is displayed in the bottom-right corner.</p>
                             
                             <p style="margin-top: 10px;"><strong>PLY Files:</strong> When loading a PLY file, you will be asked whether to add a texture image. If your PLY contains UV coordinates, the texture will be mapped onto the model. PLY files with vertex colors are loaded automatically without requiring a separate texture.</p>
                             
@@ -120,7 +120,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>MeshNotes works with 3D models in <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, and <code>.ply</code> formats. Choosing the right format and preparing your model well will give you the best experience.</p>
+                            <p>MeshNotes works with 3D models in <code>.glb</code>, <code>.gltf</code>, <code>.obj</code>, <code>.ply</code>, and <code>.stl</code> formats. Choosing the right format and preparing your model well will give you the best experience.</p>
 
                             <p style="margin-top: 10px;"><strong>Recommended format:</strong> <code>GLB</code> (Binary glTF) is the best all-around choice. It packages geometry, textures, and materials into a single file, loads quickly, and does not allow for misleading axial orientation</p>
 
@@ -129,11 +129,12 @@
                                 <li><strong>GLB/GLTF</strong> — Best overall. Single file (GLB) or folder with linked textures (GLTF). Supports textures, materials, and vertex colors.</li>
                                 <li><strong>OBJ</strong> — Widely supported format. Requires separate <code>.mtl</code> and texture files. Often used for models from photogrammetry or SLS software.</li>
                                 <li><strong>PLY</strong> — Common for point clouds and laser scans, standart format for e.g. GigaMesh. Supports vertex colors natively.</li>
+                                <li><strong>STL</strong> — Widely used in 3D scanning and 3D printing workflows. Contains geometry only (no textures or vertex colors). Supports both ASCII and binary STL files, including binary STL with per-face color.</li>
                             </ul>
 
                             <p style="margin-top: 10px;"><strong>Face count &amp; performance:</strong> The number of faces (triangles) in your model directly affects performance. After loading, the face count is displayed in the bottom-right corner with a color indicator:</p>
                             
-                            <p style="margin-top: 10px;"><strong>Orientation:</strong> When loading OBJ or PLY files, MeshNotes will ask you which axis is "up" in your source software. Most photogrammetry and cultural heritage tools (Metashape, CloudCompare, MeshLab, Blender) use <strong>Z-up</strong>, while some game engines and web viewers use Y-up. Selecting the correct option ensures your model displays upright. GLB/GLTF files handle orientation automatically per the glTF specification. See the <em>Coordinate System</em> section below for more details.</p>
+                            <p style="margin-top: 10px;"><strong>Orientation:</strong> When loading OBJ, PLY, or STL files, MeshNotes will ask you which axis is "up" in your source software. Most photogrammetry and cultural heritage tools (Metashape, CloudCompare, MeshLab, Blender) use <strong>Z-up</strong>, while some game engines and web viewers use Y-up. Selecting the correct option ensures your model displays upright. GLB/GLTF files handle orientation automatically per the glTF specification. See the <em>Coordinate System</em> section below for more details.</p>
 
                             <p style="margin-top: 10px;"><strong>Reducing file size (Draco compression):</strong> Large photogrammetry models can produce GLB files of several hundred megabytes. <em>Draco compression</em> significantly reduces geometry size while preserving visual quality — MeshNotes fully supports Draco-compressed GLB files. You can compress your models using browser-based tools such as <a href="https://optimizeglb.com/dashboard" target="_blank">OptimizeGLB</a>, or locally via the command-line tool <a href="https://gltf-transform.dev/" target="_blank">gltf-transform</a> (<code>npx gltf-transform draco input.glb output.glb</code>). The local option avoids uploading your model to a third-party server.</p>
 
@@ -974,7 +975,7 @@
     </div>
 
     <div id="toolbar">
-        <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply">
+        <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply,.stl">
         <input type="file" id="import-input" accept=".json,.jsonld">
         <input type="file" id="obj-material-input" accept=".mtl,.jpg,.jpeg,.png,.tif,.tiff" multiple>
         <input type="file" id="ply-texture-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
@@ -982,7 +983,7 @@
         <div class="export-dropdown" id="import-dropdown">
             <button class="tool-btn" id="btn-import-menu" title="Import model or annotations">📂 Import ▾</button>
             <div class="export-dropdown-menu" id="import-dropdown-menu">
-                <button class="export-dropdown-item" id="btn-load">🌐 3D Model (.glb, .obj, .ply)</button>
+                <button class="export-dropdown-item" id="btn-load">🌐 3D Model (.glb, .obj, .ply, .stl)</button>
                 <button class="export-dropdown-item" id="btn-import">📄 Annotations (.jsonld)</button>
             </div>
         </div>
@@ -1284,6 +1285,26 @@
                     <div class="btn-row">
                         <button class="btn-secondary" id="ply-load-plain">Load without texture</button>
                         <button class="btn-primary" id="ply-add-texture">Add Texture</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stl-dialog-overlay">
+                <div class="obj-dialog">
+                    <div class="dialog-header-row">
+                        <h3>STL File Detected</h3>
+                        <button class="dialog-close-btn" id="stl-dialog-close" title="Close">✕</button>
+                    </div>
+                    <p>STL files contain geometry only (no textures or vertex colors).</p>
+                    <div class="axis-selector">
+                        <label class="axis-heading">Model up-axis orientation:</label>
+                        <div class="axis-options">
+                            <label><input type="radio" name="stl-up-axis" value="z-up" checked> Z-up (most common for STL files)</label>
+                            <label><input type="radio" name="stl-up-axis" value="y-up"> Y-up (e.g. some Blender exports)</label>
+                        </div>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn-primary" id="stl-load-btn">Load Model</button>
                     </div>
                 </div>
             </div>

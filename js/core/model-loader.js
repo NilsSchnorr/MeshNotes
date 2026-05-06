@@ -5,6 +5,7 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { state, dom } from '../state.js';
@@ -42,6 +43,12 @@ export function loadModel(file) {
     if (ext === 'ply') {
         state.pendingPlyFile = file;
         dom.plyDialogOverlay.classList.add('visible');
+        return;
+    }
+
+    if (ext === 'stl') {
+        state.pendingStlFile = file;
+        dom.stlDialogOverlay.classList.add('visible');
         return;
     }
 
@@ -523,6 +530,49 @@ export function loadPLYModel(plyFile, textureFile, upAxis) {
             console.error('Error loading PLY:', error);
             dom.loading.classList.remove('visible');
             showStatus('Error loading PLY model!');
+        }
+    );
+}
+
+export function loadSTLModel(stlFile, upAxis) {
+    // Store file for model export
+    state.loadedModelFiles = [stlFile];
+
+    dom.loading.classList.add('visible');
+    state.modelFileName = stlFile.name;
+    state.modelInfo = { entries: [] };
+    if (_updateModelInfoDisplay) _updateModelInfoDisplay();
+
+    const loader = new STLLoader();
+    const url = URL.createObjectURL(stlFile);
+
+    loader.load(
+        url,
+        (geometry) => {
+            geometry.computeVertexNormals();
+
+            const hasColors = !!geometry.attributes.color;
+
+            const material = new THREE.MeshStandardMaterial({
+                roughness: 0.7,
+                metalness: 0.0,
+                vertexColors: hasColors,
+                color: hasColors ? 0xffffff : 0xcccccc,
+                side: THREE.DoubleSide
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            const group = new THREE.Group();
+            group.add(mesh);
+
+            setupLoadedModel(group, stlFile.name, upAxis);
+            URL.revokeObjectURL(url);
+        },
+        undefined,
+        (error) => {
+            console.error('Error loading STL:', error);
+            dom.loading.classList.remove('visible');
+            showStatus('Error loading STL model!');
         }
     );
 }

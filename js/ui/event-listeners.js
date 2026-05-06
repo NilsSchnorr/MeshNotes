@@ -1,7 +1,7 @@
 // js/ui/event-listeners.js
 import { state, dom } from '../state.js';
 import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
-import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel } from '../core/model-loader.js';
+import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, resetAllSettings } from '../core/lighting.js';
@@ -301,6 +301,27 @@ export function setupEventListeners() {
             state.pendingPlyFile = null;
         }
         dom.plyTextureInput.value = '';
+    });
+
+    // STL dialog
+    document.getElementById('stl-dialog-close').addEventListener('click', () => {
+        dom.stlDialogOverlay.classList.remove('visible');
+        state.pendingStlFile = null;
+    });
+    dom.stlDialogOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.stlDialogOverlay) {
+            dom.stlDialogOverlay.classList.remove('visible');
+            state.pendingStlFile = null;
+        }
+    });
+
+    dom.stlLoadBtn.addEventListener('click', () => {
+        const upAxis = getSelectedUpAxis('stl-up-axis');
+        dom.stlDialogOverlay.classList.remove('visible');
+        if (state.pendingStlFile) {
+            loadSTLModel(state.pendingStlFile, upAxis);
+            state.pendingStlFile = null;
+        }
     });
 
     // Toolbar buttons
@@ -859,6 +880,12 @@ export function setupEventListeners() {
             if (dom.plyDialogOverlay.classList.contains('visible')) {
                 dom.plyDialogOverlay.classList.remove('visible');
                 state.pendingPlyFile = null;
+                return;
+            }
+
+            if (dom.stlDialogOverlay.classList.contains('visible')) {
+                dom.stlDialogOverlay.classList.remove('visible');
+                state.pendingStlFile = null;
                 return;
             }
 

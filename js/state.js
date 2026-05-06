@@ -141,6 +141,7 @@ export const state = {
     // Pending files (for dialogs)
     pendingObjFile: null,
     pendingPlyFile: null,
+    pendingStlFile: null,
 
     // UI state
     pendingLinks: [],
@@ -178,6 +179,8 @@ export function initDomReferences() {
     dom.plyDialogOverlay = document.getElementById('ply-dialog-overlay');
     dom.plyLoadPlain = document.getElementById('ply-load-plain');
     dom.plyAddTexture = document.getElementById('ply-add-texture');
+    dom.stlDialogOverlay = document.getElementById('stl-dialog-overlay');
+    dom.stlLoadBtn = document.getElementById('stl-load-btn');
 
     // Toolbar buttons
     dom.btnLoad = document.getElementById('btn-load');
