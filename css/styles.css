@@ -314,6 +314,34 @@
             font-size: 16px;
         }
 
+        /* Dialog header row with close button (OBJ/PLY dialogs) */
+        .dialog-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .dialog-header-row h3 {
+            margin-bottom: 0;
+        }
+
+        .dialog-close-btn {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .dialog-close-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: var(--color-text-light);
+        }
+
         .obj-dialog p {
             color: var(--color-text-medium);
             margin-bottom: 20px;
@@ -697,7 +725,7 @@
             padding-right: 4px;
         }
 
-        .metadata-popup > h3 {
+        .metadata-popup > .popup-header-row {
             flex-shrink: 0;
         }
 
@@ -853,6 +881,54 @@
         }
 
         .popup.visible {
+            display: block;
+        }
+
+        /* Popup header row with close button */
+        .popup-header-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            margin: -4px -8px 12px -8px;
+            padding: 0 8px 0 0;
+        }
+
+        .popup-header-row h3,
+        .popup > .popup-header-row h3 {
+            flex: 1;
+            margin: 0;
+        }
+
+        .popup-close-btn {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .popup-close-btn:hover {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
+        /* Popup backdrop overlay for viewport popups */
+        #popup-backdrop {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 199;
+        }
+
+        #popup-backdrop.visible {
             display: block;
         }
 
@@ -1372,6 +1448,29 @@
             padding: 20px;
             max-width: 350px;
             text-align: center;
+            position: relative;
+        }
+
+        /* Close button for confirm dialogs */
+        .confirm-close-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            z-index: 1;
+            line-height: 1;
+        }
+
+        .confirm-close-btn:hover {
+            background: var(--color-blue);
+            color: var(--color-text-light);
         }
 
         .confirm-dialog p {
@@ -3268,6 +3367,18 @@
                 width: 44px;
                 height: 44px;
                 font-size: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Touch-friendly close buttons for popups and dialogs */
+            .popup-close-btn,
+            .dialog-close-btn,
+            .confirm-close-btn {
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 20px;
                 display: flex;
                 align-items: center;
                 justify-content: center;

@@ -205,6 +205,19 @@ export function setupEventListeners() {
 
     // OBJ dialog
     let pendingObjUpAxis = 'z-up';
+
+    // OBJ dialog close button and overlay click
+    document.getElementById('obj-dialog-close').addEventListener('click', () => {
+        dom.objDialogOverlay.classList.remove('visible');
+        state.pendingObjFile = null;
+    });
+    dom.objDialogOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.objDialogOverlay) {
+            dom.objDialogOverlay.classList.remove('visible');
+            state.pendingObjFile = null;
+        }
+    });
+
     dom.objLoadPlain.addEventListener('click', () => {
         const upAxis = getSelectedUpAxis('obj-up-axis');
         dom.objDialogOverlay.classList.remove('visible');
@@ -242,6 +255,19 @@ export function setupEventListeners() {
 
     // PLY dialog
     let pendingPlyUpAxis = 'z-up';
+
+    // PLY dialog close button and overlay click
+    document.getElementById('ply-dialog-close').addEventListener('click', () => {
+        dom.plyDialogOverlay.classList.remove('visible');
+        state.pendingPlyFile = null;
+    });
+    dom.plyDialogOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.plyDialogOverlay) {
+            dom.plyDialogOverlay.classList.remove('visible');
+            state.pendingPlyFile = null;
+        }
+    });
+
     dom.plyLoadPlain.addEventListener('click', () => {
         const upAxis = getSelectedUpAxis('ply-up-axis');
         dom.plyDialogOverlay.classList.remove('visible');
@@ -374,12 +400,31 @@ export function setupEventListeners() {
         dom.groupOpacityValue.textContent = e.target.value + '%';
     });
 
+    // Group popup X close button
+    document.getElementById('group-popup-close').addEventListener('click', () => {
+        dom.groupPopup.classList.remove('visible');
+        state.editingGroup = null;
+    });
+
     // Inline group creation in annotation popup
     dom.btnAddGroupInline.addEventListener('click', showInlineGroupForm);
     dom.btnSaveInlineGroup.addEventListener('click', createGroupInline);
     dom.btnCancelInlineGroup.addEventListener('click', hideInlineGroupForm);
     dom.inlineGroupName.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') createGroupInline();
+    });
+
+    // Annotation popup X close button
+    document.getElementById('annotation-popup-close').addEventListener('click', () => {
+        dom.annotationPopup.classList.remove('visible');
+        clearTempDrawing();
+        state.editingAnnotation = null;
+        state.editingModelInfo = false;
+        state.isAddingEntry = false;
+        state.editingEntryId = null;
+        hideInlineGroupForm();
+        restoreToolHelp();
+        state.controls.enabled = true;
     });
 
     // Annotation popup
@@ -418,6 +463,11 @@ export function setupEventListeners() {
         openModelInfoPopup();
     });
 
+    // Metadata popup X close button
+    document.getElementById('metadata-popup-close').addEventListener('click', () => {
+        closeMetadataPopup();
+    });
+
     // Metadata popup
     document.getElementById('metadata-item').addEventListener('dblclick', openMetadataPopup);
     document.getElementById('metadata-edit-btn').addEventListener('click', (e) => {
@@ -435,6 +485,9 @@ export function setupEventListeners() {
         }
     });
 
+    // Confirm dialog X close button
+    document.getElementById('confirm-dialog-close').addEventListener('click', hideConfirm);
+
     // Confirmation dialog
     dom.confirmOk.addEventListener('click', () => {
         if (state.confirmCallback) state.confirmCallback();
@@ -445,9 +498,19 @@ export function setupEventListeners() {
         if (e.target === dom.confirmOverlay) hideConfirm();
     });
 
+    // Annotation clear dialog X close button
+    document.getElementById('annotation-clear-dialog-close').addEventListener('click', () => {
+        hideAnnotationClearDialog();
+    });
+
     // Annotation clear dialog - click overlay to dismiss
     dom.annotationClearOverlay.addEventListener('click', (e) => {
         if (e.target === dom.annotationClearOverlay) hideAnnotationClearDialog();
+    });
+
+    // Scalebar confirm dialog X close button
+    document.getElementById('scalebar-confirm-dialog-close').addEventListener('click', () => {
+        hideScalebarConfirm();
     });
 
     // Scalebar confirmation dialog
@@ -775,6 +838,18 @@ export function setupEventListeners() {
                 return;
             }
 
+            if (dom.objDialogOverlay.classList.contains('visible')) {
+                dom.objDialogOverlay.classList.remove('visible');
+                state.pendingObjFile = null;
+                return;
+            }
+
+            if (dom.plyDialogOverlay.classList.contains('visible')) {
+                dom.plyDialogOverlay.classList.remove('visible');
+                state.pendingPlyFile = null;
+                return;
+            }
+
             if (dom.manualOverlay.classList.contains('visible')) {
                 dom.manualOverlay.classList.remove('visible');
                 return;
@@ -833,6 +908,9 @@ export function setupEventListeners() {
 
     // Canvas touch-action must be 'none' so OrbitControls receives all pointer events
     initCanvasTouchAction();
+
+    // Popup backdrop: auto-show when any viewport popup is visible, click to close
+    setupPopupBackdrop();
 }
 
 // ============ Pointer Events with Capture Phase Interception ============
@@ -1157,6 +1235,55 @@ function _endBoxRotationGesture() {
     _isRotatingBoxWithGesture = false;
     state.selectedBoxAnnotation = null;
     state.controls.enabled = true;
+}
+
+// ============ Popup Backdrop (click-outside-to-close for viewport popups) ============
+
+function setupPopupBackdrop() {
+    const backdrop = document.getElementById('popup-backdrop');
+    if (!backdrop) return;
+
+    const metadataPopup = document.getElementById('metadata-popup');
+    const popupsToWatch = [dom.annotationPopup, dom.groupPopup, metadataPopup];
+
+    // Use MutationObserver to auto-show/hide backdrop when any viewport popup toggles visibility
+    const observer = new MutationObserver(() => {
+        const anyVisible = popupsToWatch.some(p => p && p.classList.contains('visible'));
+        backdrop.classList.toggle('visible', anyVisible);
+    });
+
+    popupsToWatch.forEach(popup => {
+        if (popup) {
+            observer.observe(popup, { attributes: true, attributeFilter: ['class'] });
+        }
+    });
+
+    // Click on backdrop closes whichever viewport popup is open
+    backdrop.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (dom.annotationPopup.classList.contains('visible')) {
+            dom.annotationPopup.classList.remove('visible');
+            clearTempDrawing();
+            state.editingAnnotation = null;
+            state.editingModelInfo = false;
+            state.isAddingEntry = false;
+            state.editingEntryId = null;
+            hideInlineGroupForm();
+            restoreToolHelp();
+            state.controls.enabled = true;
+        }
+
+        if (dom.groupPopup.classList.contains('visible')) {
+            dom.groupPopup.classList.remove('visible');
+            state.editingGroup = null;
+        }
+
+        if (metadataPopup && metadataPopup.classList.contains('visible')) {
+            closeMetadataPopup();
+        }
+    });
 }
 
 // ============ Sidebar Toggle (Phase 3) ============

@@ -1131,9 +1131,15 @@
             <div id="status"></div>
             <div id="loading">Loading model...</div>
 
+            <!-- Popup backdrop for viewport popups (click to close) -->
+            <div id="popup-backdrop"></div>
+
             <!-- Annotation Popup -->
             <div class="popup" id="annotation-popup">
-                <h3 id="popup-title">New Annotation</h3>
+                <div class="popup-header-row">
+                    <h3 id="popup-title">New Annotation</h3>
+                    <button class="popup-close-btn" id="annotation-popup-close" title="Close">✕</button>
+                </div>
                 
                 <div id="popup-main-fields">
                     <label for="ann-name">Name *</label>
@@ -1199,6 +1205,7 @@
             <!-- Confirmation Dialog -->
             <div class="confirm-overlay" id="confirm-overlay">
                 <div class="confirm-dialog">
+                    <button class="confirm-close-btn" id="confirm-dialog-close" title="Close">✕</button>
                     <p id="confirm-message">Are you sure?</p>
                     <div class="btn-row">
                         <button class="btn-cancel" id="confirm-cancel">Cancel</button>
@@ -1210,6 +1217,7 @@
             <!-- Annotation Clear Dialog (shown when loading new model with existing annotations) -->
             <div class="confirm-overlay" id="annotation-clear-overlay">
                 <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="annotation-clear-dialog-close" title="Close">✕</button>
                     <p id="annotation-clear-message">You have annotations from the current model. What would you like to do?</p>
                     <p style="margin-top: 12px; font-size: 12px; color: #888;">Clearing will remove all annotations, groups, and measurements from the workspace.</p>
                     <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
@@ -1223,6 +1231,7 @@
             <!-- Scalebar Confirmation Dialog -->
             <div class="confirm-overlay" id="scalebar-confirm-overlay">
                 <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="scalebar-confirm-dialog-close" title="Close">✕</button>
                     <p id="scalebar-confirm-message">You are currently in <strong>Perspective</strong> view. A scalebar can only be included in <strong>Orthographic</strong> view where scale is uniform across the image.</p>
                     <p style="margin-top: 12px; font-size: 12px; color: #888;">Would you like to switch to Orthographic view to include a scalebar?</p>
                     <div class="btn-row" style="margin-top: 16px;">
@@ -1235,7 +1244,10 @@
             <!-- OBJ Material Dialog -->
             <div id="obj-dialog-overlay">
                 <div class="obj-dialog">
-                    <h3>OBJ File Detected</h3>
+                    <div class="dialog-header-row">
+                        <h3>OBJ File Detected</h3>
+                        <button class="dialog-close-btn" id="obj-dialog-close" title="Close">✕</button>
+                    </div>
                     <p>Would you like to add material (.mtl) and/or texture files (.jpg, .png)?<br>You can select one or multiple files.</p>
                     <div class="axis-selector">
                         <label class="axis-heading">Model up-axis orientation:</label>
@@ -1253,7 +1265,10 @@
 
             <div id="ply-dialog-overlay">
                 <div class="obj-dialog">
-                    <h3>PLY File Detected</h3>
+                    <div class="dialog-header-row">
+                        <h3>PLY File Detected</h3>
+                        <button class="dialog-close-btn" id="ply-dialog-close" title="Close">✕</button>
+                    </div>
                     <p>Would you like to add a texture image (.jpg, .png)?<br>This requires your PLY to contain UV coordinates.</p>
                     <div class="axis-selector">
                         <label class="axis-heading">Model up-axis orientation:</label>
@@ -1271,7 +1286,10 @@
 
             <!-- Group Popup -->
             <div class="popup" id="group-popup">
-                <h3 id="group-popup-title">New Group</h3>
+                <div class="popup-header-row">
+                    <h3 id="group-popup-title">New Group</h3>
+                    <button class="popup-close-btn" id="group-popup-close" title="Close">✕</button>
+                </div>
                 <label for="group-name">Name</label>
                 <input type="text" id="group-name" placeholder="e.g., Phase 1 features">
                 
@@ -1295,7 +1313,10 @@
 
             <!-- Metadata Popup -->
             <div class="popup metadata-popup" id="metadata-popup">
-                <h3>Metadata Report</h3>
+                <div class="popup-header-row">
+                    <h3>Metadata Report</h3>
+                    <button class="popup-close-btn" id="metadata-popup-close" title="Close">✕</button>
+                </div>
                 <div class="metadata-popup-actions">
                     <button class="btn-save" id="btn-metadata-download-json" title="Download as JSON (re-importable)">⬇ JSON</button>
                     <button class="btn-save" id="btn-metadata-download-pdf" title="Download as fillable PDF">⬇ PDF</button>
