@@ -78,19 +78,40 @@ export function importMetadataJSON(file) {
     reader.readAsText(file);
 }
 
-// ============ PDF Export ============
+// ============ Fillable PDF Export (pdf-lib) ============
+
+// Layout constants in PDF points (1pt = 1/72 inch, A4 = 595.28 x 841.89)
+const PT = {
+    pageWidth: 595.28,
+    pageHeight: 841.89,
+    margin: 42.52,         // ~15mm
+    labelWidth: 170,       // ~60mm
+    lineHeight: 20,        // single-line field height
+    multilineHeight: 54,   // multiline field height (3 lines)
+    sectionGap: 14,
+    fieldGap: 3,           // vertical gap between fields
+    labelFieldGap: 6,      // horizontal gap between label and field box
+    fontSize: 9,
+    sectionFontSize: 12,
+    titleFontSize: 16,
+    guidelineFontSize: 7,
+    footerFontSize: 7
+};
+PT.contentWidth = PT.pageWidth - 2 * PT.margin;
+PT.fieldWidth = PT.contentWidth - PT.labelWidth - PT.labelFieldGap;
+PT.fieldX = PT.margin + PT.labelWidth + PT.labelFieldGap;
 
 /**
- * Exports metadata as a PDF document.
- * All fields are always present (for use as a standalone form).
- * Pre-populated values are printed if available; empty fields show hint text and a box.
+ * Exports metadata as a fillable PDF form using pdf-lib.
+ * All fields are always present. Pre-populated if values exist.
  */
-export function downloadMetadataPDF() {
-    const { jsPDF } = window.jspdf;
-    if (!jsPDF) {
-        showStatus('PDF library not loaded');
+export async function downloadMetadataPDF() {
+    if (!window.PDFLib) {
+        showStatus('pdf-lib not loaded');
         return;
     }
+
+    const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
 
     const metadata = state.modelInfo.metadata || createEmptyMetadata();
     const templateId = metadata.template || '3d-documentation';
@@ -100,183 +121,222 @@ export function downloadMetadataPDF() {
         return;
     }
 
-    const pdf = new jsPDF('portrait', 'mm', 'a4');
-    const pageWidth = 210;
-    const pageHeight = 297;
-    const margin = 15;
-    const contentWidth = pageWidth - 2 * margin;
-    const fieldLabelWidth = 60;
-    const fieldInputWidth = contentWidth - fieldLabelWidth - 2;
-    const lineHeight = 7;
-    const sectionGap = 6;
+    try {
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+        const fontMono = await pdfDoc.embedFont(StandardFonts.Courier);
+        const form = pdfDoc.getForm();
 
-    let y = margin;
+        const gold = rgb(170 / 255, 129 / 255, 1 / 255);
+        const black = rgb(0, 0, 0);
+        const gray = rgb(0.47, 0.47, 0.47);
+        const lightGray = rgb(0.7, 0.7, 0.7);
+        const hintGray = rgb(0.63, 0.63, 0.63);
 
-    // Title
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(16);
-    pdf.text('3D Documentation \u2014 Metadata Report', margin, y);
-    y += 10;
+        // cursorY tracks position from the TOP of the page (increases downward)
+        let page = pdfDoc.addPage([PT.pageWidth, PT.pageHeight]);
+        let cursorY = PT.margin;
+        let fieldCounter = 0;
 
-    // Model filename if available
-    if (state.modelFileName) {
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(`Model: ${state.modelFileName}`, margin, y);
-        pdf.setTextColor(0, 0, 0);
-        y += 8;
-    }
+        // Convert top-down cursorY to pdf-lib y (from bottom)
+        const fromTop = (topY) => PT.pageHeight - topY;
 
-    // Separator
-    pdf.setDrawColor(170, 129, 1); // Gold accent
-    pdf.setLineWidth(0.5);
-    pdf.line(margin, y, pageWidth - margin, y);
-    y += sectionGap;
-
-    // Render sections
-    for (let si = 0; si < metadata.sections.length; si++) {
-        const section = metadata.sections[si];
-        const templateSection = template.sections.find(s => s.title === section.title);
-
-        // Check if we need a new page for the section header + at least one field
-        if (y + 20 > pageHeight - margin) {
-            pdf.addPage();
-            y = margin;
-        }
-
-        // Section header
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(12);
-        pdf.setTextColor(170, 129, 1);
-        pdf.text(section.title, margin, y);
-        pdf.setTextColor(0, 0, 0);
-        y += 2;
-        pdf.setDrawColor(170, 129, 1);
-        pdf.setLineWidth(0.3);
-        pdf.line(margin, y, pageWidth - margin, y);
-        y += sectionGap;
-
-        // Template fields
-        for (let fi = 0; fi < section.fields.length; fi++) {
-            const field = section.fields[fi];
-            const def = templateSection
-                ? templateSection.fields.find(f => f.key === field.key)
-                : null;
-            const hint = def ? def.hint : '';
-            const multiline = def ? def.multiline : false;
-
-            y = renderPdfField(pdf, field.key, field.value, hint, multiline, y, margin, fieldLabelWidth, fieldInputWidth, lineHeight, pageHeight);
-        }
-
-        // Custom fields
-        if (section.customFields) {
-            for (const field of section.customFields) {
-                y = renderPdfField(pdf, field.key || 'Custom', field.value, '', false, y, margin, fieldLabelWidth, fieldInputWidth, lineHeight, pageHeight);
+        // Get a new page if not enough space remaining
+        const ensureSpace = (needed) => {
+            if (cursorY + needed > PT.pageHeight - PT.margin - 30) { // 30pt reserved for footer
+                page = pdfDoc.addPage([PT.pageWidth, PT.pageHeight]);
+                cursorY = PT.margin;
             }
+        };
+
+        // Draws a label + fillable form field and advances cursorY
+        const drawFormField = (key, value, hint, multiline) => {
+            const fieldHeight = multiline ? PT.multilineHeight : PT.lineHeight;
+
+            ensureSpace(fieldHeight + PT.fieldGap);
+
+            // Label — baseline aligned near the top of the field
+            page.drawText(key, {
+                x: PT.margin,
+                y: fromTop(cursorY + PT.fontSize + 3),
+                size: PT.fontSize,
+                font: fontBold,
+                color: black
+            });
+
+            // Fillable text field — positioned with bottom-left in pdf-lib coords
+            const fieldBottomY = fromTop(cursorY + fieldHeight);
+            const uniqueName = `field_${fieldCounter++}`;
+
+            const textField = form.createTextField(uniqueName);
+            textField.addToPage(page, {
+                x: PT.fieldX,
+                y: fieldBottomY,
+                width: PT.fieldWidth,
+                height: fieldHeight,
+                borderWidth: 0.5,
+                borderColor: lightGray
+            });
+
+            textField.setFontSize(PT.fontSize);
+            if (multiline) {
+                textField.enableMultiline();
+            }
+
+            if (value && value.trim()) {
+                textField.setText(value);
+            } else if (hint) {
+                textField.setText(hint);
+            }
+
+            cursorY += fieldHeight + PT.fieldGap;
+        };
+
+        // ---- Title ----
+        page.drawText('3D Documentation \u2014 Metadata Report', {
+            x: PT.margin,
+            y: fromTop(cursorY + PT.titleFontSize),
+            size: PT.titleFontSize,
+            font: fontBold,
+            color: black
+        });
+        cursorY += PT.titleFontSize + 8;
+
+        // Model filename
+        if (state.modelFileName) {
+            page.drawText(`Model: ${state.modelFileName}`, {
+                x: PT.margin,
+                y: fromTop(cursorY + 10),
+                size: 10,
+                font: font,
+                color: gray
+            });
+            cursorY += 18;
         }
 
-        y += sectionGap;
-    }
+        // Gold separator line
+        page.drawLine({
+            start: { x: PT.margin, y: fromTop(cursorY) },
+            end: { x: PT.margin + PT.contentWidth, y: fromTop(cursorY) },
+            thickness: 1.5,
+            color: gold
+        });
+        cursorY += PT.sectionGap;
 
-    // Data Management guideline
-    if (y + 40 > pageHeight - margin) {
-        pdf.addPage();
-        y = margin;
-    }
+        // ---- Sections ----
+        for (let si = 0; si < metadata.sections.length; si++) {
+            const section = metadata.sections[si];
+            const templateSection = template.sections.find(s => s.title === section.title);
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.setTextColor(170, 129, 1);
-    pdf.text('Data Management', margin, y);
-    pdf.setTextColor(0, 0, 0);
-    y += 2;
-    pdf.setDrawColor(170, 129, 1);
-    pdf.setLineWidth(0.3);
-    pdf.line(margin, y, pageWidth - margin, y);
-    y += sectionGap;
+            ensureSpace(30);
 
-    pdf.setFont('courier', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(80, 80, 80);
-    const guidelineLines = DATA_MANAGEMENT_GUIDELINE.split('\n');
-    for (const line of guidelineLines) {
-        if (y + 5 > pageHeight - margin) {
-            pdf.addPage();
-            y = margin;
+            // Section header
+            page.drawText(section.title, {
+                x: PT.margin,
+                y: fromTop(cursorY + PT.sectionFontSize),
+                size: PT.sectionFontSize,
+                font: fontBold,
+                color: gold
+            });
+            cursorY += PT.sectionFontSize + 3;
+
+            // Section underline
+            page.drawLine({
+                start: { x: PT.margin, y: fromTop(cursorY) },
+                end: { x: PT.margin + PT.contentWidth, y: fromTop(cursorY) },
+                thickness: 0.75,
+                color: gold
+            });
+            cursorY += PT.sectionGap;
+
+            // Template fields
+            for (let fi = 0; fi < section.fields.length; fi++) {
+                const field = section.fields[fi];
+                const def = templateSection
+                    ? templateSection.fields.find(f => f.key === field.key)
+                    : null;
+                const hint = def ? def.hint : '';
+                const multiline = def ? def.multiline : false;
+
+                drawFormField(field.key, field.value, hint, multiline);
+            }
+
+            // Custom fields
+            if (section.customFields) {
+                for (const field of section.customFields) {
+                    drawFormField(field.key || 'Custom', field.value, '', false);
+                }
+            }
+
+            cursorY += PT.sectionGap;
         }
-        pdf.text(line.replace(/\t/g, '    '), margin, y);
-        y += 4;
-    }
 
-    // Footer on last page
-    pdf.setFont('helvetica', 'italic');
-    pdf.setFontSize(8);
-    pdf.setTextColor(120, 120, 120);
-    pdf.text(
-        'Generated by MeshNotes \u2014 https://github.com/NilsSchnorr/MeshNotes',
-        margin,
-        pageHeight - 8
-    );
-    pdf.text(
-        'For questions about the report, please contact: Nils Schnorr, nils.schnorr@uni-saarland.de',
-        margin,
-        pageHeight - 4
-    );
+        // ---- Data Management guideline ----
+        ensureSpace(60);
 
-    // Save
-    const baseName = state.modelFileName
-        ? state.modelFileName.replace(/\.[^.]+$/, '')
-        : 'metadata';
-    pdf.save(`${baseName}-metadata-report.pdf`);
-    showStatus('Metadata PDF exported');
-}
+        page.drawText('Data Management', {
+            x: PT.margin,
+            y: fromTop(cursorY + PT.sectionFontSize),
+            size: PT.sectionFontSize,
+            font: fontBold,
+            color: gold
+        });
+        cursorY += PT.sectionFontSize + 3;
 
-/**
- * Renders a single field row in the PDF.
- * Shows label on the left, value or hint in a bordered box on the right.
- * @returns {number} Updated y position
- */
-function renderPdfField(pdf, key, value, hint, multiline, y, margin, fieldLabelWidth, fieldInputWidth, lineHeight, pageHeight) {
-    const fieldHeight = multiline ? lineHeight * 3 : lineHeight;
-    const fieldX = margin + fieldLabelWidth;
+        page.drawLine({
+            start: { x: PT.margin, y: fromTop(cursorY) },
+            end: { x: PT.margin + PT.contentWidth, y: fromTop(cursorY) },
+            thickness: 0.75,
+            color: gold
+        });
+        cursorY += PT.sectionGap;
 
-    // Page break check
-    if (y + fieldHeight + 2 > pageHeight - margin) {
-        pdf.addPage();
-        y = margin;
-    }
-
-    // Label
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9);
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(key, margin, y + 4.5);
-
-    // Field box
-    pdf.setDrawColor(180, 180, 180);
-    pdf.setLineWidth(0.2);
-    pdf.rect(fieldX, y, fieldInputWidth, fieldHeight);
-
-    // Content: value or hint
-    if (value && value.trim()) {
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(9);
-        pdf.setTextColor(0, 0, 0);
-        if (multiline) {
-            const lines = pdf.splitTextToSize(value, fieldInputWidth - 4);
-            const maxLines = Math.floor(fieldHeight / 4);
-            pdf.text(lines.slice(0, maxLines), fieldX + 2, y + 4);
-        } else {
-            pdf.text(value.substring(0, 80), fieldX + 2, y + 4.5);
+        const guidelineLines = DATA_MANAGEMENT_GUIDELINE.split('\n');
+        for (const line of guidelineLines) {
+            ensureSpace(12);
+            page.drawText(line.replace(/\t/g, '    '), {
+                x: PT.margin,
+                y: fromTop(cursorY + PT.guidelineFontSize),
+                size: PT.guidelineFontSize,
+                font: fontMono,
+                color: gray
+            });
+            cursorY += PT.guidelineFontSize + 3;
         }
-    } else if (hint) {
-        pdf.setFont('helvetica', 'italic');
-        pdf.setFontSize(9);
-        pdf.setTextColor(160, 160, 160);
-        pdf.text(hint.substring(0, 60), fieldX + 2, y + 4.5);
-        pdf.setTextColor(0, 0, 0);
-    }
 
-    return y + fieldHeight + 2;
+        // ---- Footer on every page ----
+        const pages = pdfDoc.getPages();
+        for (const p of pages) {
+            p.drawText(
+                'Generated by MeshNotes \u2014 https://github.com/NilsSchnorr/MeshNotes',
+                { x: PT.margin, y: 22, size: PT.footerFontSize, font: fontItalic, color: hintGray }
+            );
+            p.drawText(
+                'For questions about the report, please contact: Nils Schnorr, nils.schnorr@uni-saarland.de',
+                { x: PT.margin, y: 13, size: PT.footerFontSize, font: fontItalic, color: hintGray }
+            );
+        }
+
+        // ---- Save ----
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        const baseName = state.modelFileName
+            ? state.modelFileName.replace(/\.[^.]+$/, '')
+            : 'metadata';
+        link.download = `${baseName}-metadata-report.pdf`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        showStatus('Metadata PDF exported');
+
+    } catch (err) {
+        console.error('PDF export error:', err);
+        showStatus('PDF export failed: ' + err.message);
+    }
 }

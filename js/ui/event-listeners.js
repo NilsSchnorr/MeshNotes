@@ -69,7 +69,8 @@ function clearAnnotationsAndGroups() {
     state.groups = [];
     state.selectedAnnotation = null;
     state.editingAnnotation = null;
-    state.modelInfo = { entries: [], metadata: null };
+    const preservedMetadata = state.modelInfo.metadata;
+    state.modelInfo = { entries: [], metadata: preservedMetadata };
     initMetadata();
     updateMetadataDisplay();
 
