@@ -578,12 +578,16 @@
             font-weight: 600;
             font-size: 13px;
             color: var(--color-gold);
+            flex: 1;
         }
 
         .model-info-subtitle {
             font-size: 11px;
             color: var(--color-text-muted);
             padding-left: 24px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Annotation List */

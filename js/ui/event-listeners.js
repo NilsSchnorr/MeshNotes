@@ -406,6 +406,11 @@ export function setupEventListeners() {
     // Model Info double-click
     dom.modelInfoItem.addEventListener('dblclick', openModelInfoPopup);
 
+    document.getElementById('model-info-edit-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openModelInfoPopup();
+    });
+
     // Confirmation dialog
     dom.confirmOk.addEventListener('click', () => {
         if (state.confirmCallback) state.confirmCallback();

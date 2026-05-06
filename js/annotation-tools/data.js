@@ -330,11 +330,22 @@ function deleteModelInfoEntry(entryId) {
 
 export function updateModelInfoDisplay() {
     const entryCount = state.modelInfo.entries.length;
+    let text;
     if (entryCount === 0) {
-        dom.modelInfoSubtitle.textContent = 'No entries yet';
+        text = 'No entries yet';
     } else {
-        dom.modelInfoSubtitle.textContent = entryCount === 1 ? '1 entry' : `${entryCount} entries`;
+        text = entryCount === 1 ? '1 entry' : `${entryCount} entries`;
+        const newest = state.modelInfo.entries[entryCount - 1];
+        const desc = (newest.description || '').trim();
+        if (desc) {
+            const words = desc.split(/\s+/);
+            const preview = words.length > 4
+                ? words.slice(0, 4).join(' ') + '\u2026'
+                : desc;
+            text += ` \u2014 ${preview}`;
+        }
     }
+    dom.modelInfoSubtitle.textContent = text;
 }
 
 export function renderEntriesList(ann) {
