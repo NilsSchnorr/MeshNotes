@@ -74,7 +74,10 @@
 
         .header-logo {
             height: 46px;
+            max-height: 46px;
+            max-width: 46px;
             width: auto;
+            object-fit: contain;
             cursor: pointer;
         }
 
