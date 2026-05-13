@@ -1,5 +1,5 @@
 // js/main.js - Application entry point
-import { state, dom, initDomReferences } from './state.js';
+import { state, dom, initDomReferences, APP_VERSION } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
 import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality } from './core/lighting.js';
@@ -40,6 +40,10 @@ setRenderCallbacks({
 function init() {
     // Initialize DOM references
     initDomReferences();
+
+    // Display app version in About modal
+    const versionEl = document.getElementById('app-version');
+    if (versionEl) versionEl.textContent = 'v' + APP_VERSION;
 
     // Scene setup
     initScene();

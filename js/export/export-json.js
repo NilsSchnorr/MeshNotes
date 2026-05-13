@@ -1,5 +1,5 @@
 // js/export/export-json.js - W3C Web Annotation Collection export
-import { state } from '../state.js';
+import { state, APP_VERSION } from '../state.js';
 import { generateUUID, getModelMimeType, showStatus } from '../utils/helpers.js';
 import { convertToW3CAnnotation } from './w3c-format.js';
 
@@ -44,8 +44,8 @@ export function buildAnnotationJSON() {
         generator: {
             type: 'Software',
             name: 'MeshNotes',
-            'schema:version': '2.0',
-            homepage: 'https://github.com/NilsSchnorr/MeshNotes'
+            'schema:version': APP_VERSION,
+            homepage: 'https://meshnotes.org'
         },
         generated: new Date().toISOString(),
 

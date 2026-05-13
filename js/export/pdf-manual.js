@@ -1,4 +1,5 @@
 // js/export/pdf-manual.js
+import { APP_VERSION } from '../state.js';
 
 export function downloadManualAsPdf() {
     const { jsPDF } = window.jspdf;
@@ -54,7 +55,7 @@ export function downloadManualAsPdf() {
     pdf.setFontSize(11);
     pdf.setTextColor(120, 120, 120);
     const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    pdf.text(`Generated: ${dateStr}`, pageWidth / 2, 80, { align: 'center' });
+    pdf.text(`Version ${APP_VERSION} — ${dateStr}`, pageWidth / 2, 80, { align: 'center' });
 
     pdf.setFontSize(11);
     pdf.setTextColor(80, 80, 80);
@@ -283,7 +284,7 @@ export function downloadManualAsPdf() {
     for (let i = 1; i <= pageCount; i++) {
         pdf.setPage(i);
         pdf.text(
-            `MeshNotes Manual - Page ${i} of ${pageCount}`,
+            `MeshNotes v${APP_VERSION} Manual - Page ${i} of ${pageCount}`,
             pageWidth / 2,
             pageHeight - 10,
             { align: 'center' }

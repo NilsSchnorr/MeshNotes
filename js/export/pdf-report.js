@@ -1,6 +1,6 @@
 // js/export/pdf-report.js - Multi-page PDF report generation
 import * as THREE from 'three';
-import { state, dom } from '../state.js';
+import { state, dom, APP_VERSION } from '../state.js';
 import { showStatus, hexToRgb, delay, toDisplayCoords } from '../utils/helpers.js';
 import { toggleCamera } from '../core/camera.js';
 import { updateFixedLightDirection, getDpiMultiplier } from '../core/lighting.js';
@@ -258,6 +258,12 @@ async function pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, v
     pdf.setTextColor(120, 120, 120);
     const dateStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
     pdf.text(`Generated: ${dateStr}`, pageWidth / 2, metaY, { align: 'center' });
+    metaY += 6;
+
+    // Software version
+    pdf.setFontSize(9);
+    pdf.setTextColor(150, 150, 150);
+    pdf.text(`MeshNotes v${APP_VERSION}`, pageWidth / 2, metaY, { align: 'center' });
 
     // Overview screenshot (position after metadata)
     const screenshotY = metaY + 8;
