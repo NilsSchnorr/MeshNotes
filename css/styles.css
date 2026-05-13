@@ -65,11 +65,17 @@
             color: var(--color-text-light);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
         }
 
         #header h1 span.icon {
             font-size: 22px;
+        }
+
+        .header-logo {
+            height: 46px;
+            width: auto;
+            cursor: pointer;
         }
 
         #header h1 .subtitle {

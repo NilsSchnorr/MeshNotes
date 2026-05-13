@@ -99,6 +99,10 @@ function hideAnnotationClearDialog() {
     dom.annotationClearOverlay.classList.remove('visible');
 }
 
+function hideRefreshConfirmDialog() {
+    dom.refreshConfirmOverlay.classList.remove('visible');
+}
+
 /**
  * Downloads all model files (model + materials/textures) to the user's computer.
  * For OBJ: downloads OBJ + MTL + texture files.
@@ -529,6 +533,42 @@ export function setupEventListeners() {
         if (e.target === dom.annotationClearOverlay) hideAnnotationClearDialog();
     });
 
+    // Logo click — refresh with confirmation if annotations exist
+    document.getElementById('header-logo').addEventListener('click', () => {
+        if (state.annotations.length === 0) {
+            location.reload();
+            return;
+        }
+
+        const count = state.annotations.length;
+        document.getElementById('refresh-confirm-message').textContent =
+            `You have ${count} annotation${count !== 1 ? 's' : ''} in the current session. What would you like to do before refreshing?`;
+
+        dom.refreshConfirmOverlay.classList.add('visible');
+    });
+
+    // Refresh confirm dialog — close button
+    document.getElementById('refresh-confirm-dialog-close').addEventListener('click', hideRefreshConfirmDialog);
+
+    // Refresh confirm dialog — overlay click to dismiss
+    dom.refreshConfirmOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.refreshConfirmOverlay) hideRefreshConfirmDialog();
+    });
+
+    // Refresh confirm dialog — buttons
+    dom.refreshConfirmCancel.addEventListener('click', hideRefreshConfirmDialog);
+
+    dom.refreshConfirmRefresh.addEventListener('click', () => {
+        hideRefreshConfirmDialog();
+        location.reload();
+    });
+
+    dom.refreshConfirmExport.addEventListener('click', () => {
+        hideRefreshConfirmDialog();
+        exportAnnotations();
+        setTimeout(() => location.reload(), 500);
+    });
+
     // Scalebar confirm dialog X close button
     document.getElementById('scalebar-confirm-dialog-close').addEventListener('click', () => {
         hideScalebarConfirm();
@@ -858,6 +898,11 @@ export function setupEventListeners() {
 
             if (dom.annotationClearOverlay.classList.contains('visible')) {
                 hideAnnotationClearDialog();
+                return;
+            }
+
+            if (dom.refreshConfirmOverlay.classList.contains('visible')) {
+                hideRefreshConfirmDialog();
                 return;
             }
 

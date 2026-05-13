@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MeshNotes</title>
+    <link rel="icon" type="image/svg+xml" href="icons/logo1.svg">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <!-- Header -->
     <header id="header">
-        <h1>MeshNotes <span class="subtitle">– 3D Annotation Tool for Research & Heritage</span></h1>
+        <h1><img src="icons/logo1.svg" alt="MeshNotes logo" class="header-logo" id="header-logo">MeshNotes <span class="subtitle">– 3D Annotation Tool for Research & Heritage</span></h1>
         <div class="header-buttons">
             <button id="btn-about">About</button>
             <button id="btn-manual">Manual</button>
@@ -1231,6 +1232,20 @@
                         <button class="btn-cancel" id="annotation-clear-cancel">Cancel</button>
                         <button class="btn-delete" id="annotation-clear-discard">Clear</button>
                         <button class="btn-save" id="annotation-clear-export">Export & Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refresh Confirmation Dialog (shown when clicking logo with existing annotations) -->
+            <div class="confirm-overlay" id="refresh-confirm-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="refresh-confirm-dialog-close" title="Close">✕</button>
+                    <p id="refresh-confirm-message">You have annotations in the current session. What would you like to do before refreshing?</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Refreshing will reset the workspace and all unsaved annotations will be lost.</p>
+                    <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
+                        <button class="btn-cancel" id="refresh-confirm-cancel">Cancel</button>
+                        <button class="btn-delete" id="refresh-confirm-refresh">Refresh</button>
+                        <button class="btn-save" id="refresh-confirm-export">Export & Refresh</button>
                     </div>
                 </div>
             </div>
