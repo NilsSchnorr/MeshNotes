@@ -18,6 +18,7 @@ import { importAnnotations } from './export/import-json.js';
 import { initMetadata, updateMetadataDisplay } from './metadata/metadata-ui.js';
 import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUntilExpiry } from './core/url-params.js';
 import * as THREE from 'three';
+import { loadIcons, initIcons } from './ui/icons.js';
 
 // Wire up late-bound references to break circular dependencies
 setUpdateModelInfoDisplay(updateModelInfoDisplay);
@@ -63,6 +64,9 @@ function init() {
     setupEventListeners();
     initGroupsEventDelegation(); // Set up delegated click/dblclick for annotation items
     window.addEventListener('resize', onWindowResize);
+
+    // Load SVG icons and inject into DOM (non-blocking)
+    loadIcons().then(() => initIcons());
 
     // Start render loop
     animate();

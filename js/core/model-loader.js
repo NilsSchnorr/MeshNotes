@@ -9,6 +9,7 @@ import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import { state, dom } from '../state.js';
+import { getIcon } from '../ui/icons.js';
 import { showStatus, updateFaceCountDisplay } from '../utils/helpers.js';
 import { updateViewHelperLabels } from './camera.js';
 import { setModelOpacity } from './lighting.js';
@@ -643,11 +644,13 @@ export function applyDisplayMode() {
 
 export function updateTextureButtonLabel() {
     const labels = {
-        'texture': '🖼️ Texture',
-        'vertexColors': '🎨 Colors',
-        'mesh': '⬜ Mesh',
-        'wireframe': '🔲 Wireframe'
+        'texture': { icon: 'texture', text: 'Texture' },
+        'vertexColors': { icon: 'color', text: 'Colors' },
+        'mesh': { icon: 'mesh', text: 'Mesh' },
+        'wireframe': { icon: 'wireframe', text: 'Wireframe' }
     };
-    dom.btnTexture.innerHTML = labels[state.displayMode] || '🖼️ Texture';
+    const mode = labels[state.displayMode] || labels['texture'];
+    const svg = getIcon(mode.icon);
+    dom.btnTexture.innerHTML = (svg ? svg + ' ' : '') + mode.text;
     dom.btnTexture.classList.toggle('active', state.displayMode !== 'texture');
 }

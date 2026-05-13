@@ -1,6 +1,7 @@
 // js/ui/tool-help.js - Unified tool info panel management
 // All tool-specific info panels (tool-help, brush-display, measurement-display) are managed here
 import { state, dom } from '../state.js';
+import { getIcon } from './icons.js';
 
 // ============ Device Detection ============
 
@@ -16,7 +17,7 @@ function isTouchDevice() {
 
 const toolHelpContent = {
     boxEdit: {
-        icon: '🔓',
+        icon: '',
         name: 'Edit Box',
         content: `
             <div class="help-section">
@@ -40,7 +41,7 @@ const toolHelpContent = {
         `
     },
     point: {
-        icon: '📍',
+        icon: 'point',
         name: 'Point Annotation',
         content: `
             <div class="help-section">
@@ -57,7 +58,7 @@ const toolHelpContent = {
         `
     },
     line: {
-        icon: '📏',
+        icon: 'line',
         name: 'Line Annotation',
         content: `
             <div class="help-section">
@@ -76,7 +77,7 @@ const toolHelpContent = {
         `
     },
     polygon: {
-        icon: '⬡',
+        icon: 'polygon',
         name: 'Polygon Annotation',
         content: `
             <div class="help-section">
@@ -95,7 +96,7 @@ const toolHelpContent = {
         `
     },
     box: {
-        icon: '📦',
+        icon: 'box',
         name: 'Box Annotation',
         content: `
             <div class="help-section">
@@ -125,7 +126,7 @@ const toolHelpContent = {
 // Note: Apple Pencil barrel double-tap works as "confirm" when configured to "Switch to Eraser" in iPad Settings
 const toolHelpContentTouch = {
     boxEdit: {
-        icon: '🔓',
+        icon: '',
         name: 'Edit Box',
         content: `
             <div class="help-section">
@@ -152,7 +153,7 @@ const toolHelpContentTouch = {
         `
     },
     point: {
-        icon: '📍',
+        icon: 'point',
         name: 'Point Annotation',
         content: `
             <div class="help-section">
@@ -168,7 +169,7 @@ const toolHelpContentTouch = {
         `
     },
     line: {
-        icon: '📏',
+        icon: 'line',
         name: 'Line Annotation',
         content: `
             <div class="help-section">
@@ -189,7 +190,7 @@ const toolHelpContentTouch = {
         `
     },
     polygon: {
-        icon: '⬡',
+        icon: 'polygon',
         name: 'Polygon Annotation',
         content: `
             <div class="help-section">
@@ -210,7 +211,7 @@ const toolHelpContentTouch = {
         `
     },
     box: {
-        icon: '📦',
+        icon: 'box',
         name: 'Box Annotation',
         content: `
             <div class="help-section">
@@ -286,7 +287,7 @@ export function showToolHelp(tool) {
         return;
     }
 
-    dom.toolHelpTitle.querySelector('.icon').textContent = help.icon;
+    dom.toolHelpTitle.querySelector('.icon').innerHTML = help.icon ? getIcon(help.icon) : '';
     dom.toolHelpTitle.querySelector('.name').textContent = help.name;
     dom.toolHelpContent.innerHTML = help.content;
     dom.toolHelp.classList.add('visible');

@@ -1,6 +1,7 @@
 // js/annotation-tools/groups.js
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
+import { getIcon } from '../ui/icons.js';
 import { generateUUID, escapeHtml, showStatus, toDisplayCoords } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
 
@@ -157,10 +158,10 @@ export function updateGroupsList() {
                     <div class="group-color" style="background: ${group.color}" data-action="edit"></div>
                     <span class="group-name" data-action="edit">${escapeHtml(group.name)} (${groupAnnotations.length})</span>
                     <button class="group-visibility ${group.visible ? '' : 'hidden'}" data-action="visibility">
-                        ${group.visible ? '👁' : '👁‍🗨'}
+                        ${group.visible ? getIcon('eyeOpen') : getIcon('eyeClosed')}
                     </button>
                     <div class="group-actions">
-                        <button data-action="edit">✏️</button>
+                        <button data-action="edit">${getIcon('edit')}</button>
                     </div>
                 </div>
                 ${group.visible ? `
@@ -245,7 +246,7 @@ export function initGroupsEventDelegation() {
 }
 
 function renderAnnotationItem(ann) {
-    const icons = { point: '📍', line: '📏', polygon: '⬡', surface: '🎨', box: '📦' };
+    const icons = { point: getIcon('point'), line: getIcon('line'), polygon: getIcon('polygon'), surface: getIcon('surface'), box: getIcon('box') };
     const entryCount = (ann.entries && ann.entries.length) || 0;
     const entryText = entryCount === 1 ? '1 entry' : `${entryCount} entries`;
 
@@ -265,9 +266,9 @@ function renderAnnotationItem(ann) {
     return `
         <div class="annotation-item ${state.selectedAnnotation === ann.id ? 'selected' : ''}" data-id="${ann.id}">
             <div class="header">
-                <span class="type-icon">${icons[ann.type] || '📍'}</span>
+                <span class="type-icon">${icons[ann.type] || getIcon('point')}</span>
                 <span class="name">${escapeHtml(ann.name)}</span>
-                <button class="annotation-edit-btn" data-action="edit-annotation" title="Edit annotation">✏️</button>
+                <button class="annotation-edit-btn" data-action="edit-annotation" title="Edit annotation">${getIcon('edit')}</button>
             </div>
             <div class="description">${entryText}${previewHtml}</div>
         </div>

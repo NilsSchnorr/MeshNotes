@@ -64,6 +64,7 @@
                         <li><a href="https://github.com/parallax/jsPDF" target="_blank">jsPDF</a> (MIT License) — PDF generation</li>
                         <li><a href="https://github.com/Hopding/pdf-lib" target="_blank">pdf-lib</a> (MIT License) — Fillable PDF form creation</li>
                     </ul>
+                    <p>All icons and the MeshNotes logo were designed by <strong style="color: var(--color-gold);">Lara Braun</strong>.</p>
                     <p>MeshNotes itself is licensed under the <strong>Apache License, Version 2.0</strong> — free to use, modify, and distribute. See the <a href="https://github.com/NilsSchnorr/MeshNotes/blob/main/LICENSE" target="_blank">LICENSE file</a> for details.</p>
                 </section>
             </div>
@@ -289,7 +290,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>In the <strong>General Information</strong> section at the top of the sidebar, the <strong>Model Information</strong> item stores free-form notes about the entire model. Click the ✏️ button or double-click to open it. Like annotations, it supports multiple entries from different team members with timestamps — useful for documenting the model’s origin, processing history, or general observations. The sidebar shows a preview of the latest entry.</p>
+                            <p>In the <strong>General Information</strong> section at the top of the sidebar, the <strong>Model Information</strong> item stores free-form notes about the entire model. Click the edit button or double-click to open it. Like annotations, it supports multiple entries from different team members with timestamps — useful for documenting the model’s origin, processing history, or general observations. The sidebar shows a preview of the latest entry.</p>
                         </div>
                     </div>
 
@@ -299,15 +300,15 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Below Model Information, the <strong>Metadata Report</strong> provides a structured form for documenting the technical metadata of your 3D documentation project. Click the ✏️ button or double-click to open it. The form covers five sections: <strong>General Information</strong> (project title, location, timeline), <strong>Capture Metadata</strong> (documentation method, instrument, camera/scanner settings), <strong>Reference Metadata</strong> (GPS, scalebars, GCPs), <strong>Processing Metadata</strong> (software, algorithms, model details), and <strong>Legal</strong> (project lead, funding, copyright).</p>
+                            <p>Below Model Information, the <strong>Metadata Report</strong> provides a structured form for documenting the technical metadata of your 3D documentation project. Click the edit button or double-click to open it. The form covers five sections: <strong>General Information</strong> (project title, location, timeline), <strong>Capture Metadata</strong> (documentation method, instrument, camera/scanner settings), <strong>Reference Metadata</strong> (GPS, scalebars, GCPs), <strong>Processing Metadata</strong> (software, algorithms, model details), and <strong>Legal</strong> (project lead, funding, copyright).</p>
 
                             <p style="margin-top: 10px;">The template supports all common 3D documentation methods: photogrammetry, structured light scanning, LiDAR, and terrestrial laser scanning (TLS). Fields that don’t apply to your method can simply be left empty. Each section also allows adding <strong>custom fields</strong> for project-specific needs. A non-editable <strong>Data Management</strong> guideline with a recommended folder structure is shown at the bottom for reference.</p>
 
                             <p style="margin-top: 10px;"><strong>Export &amp; Import:</strong> The metadata popup has three buttons at the top:</p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                <li><strong>⬇ JSON</strong> — Downloads the metadata as a JSON file. This is the round-trip format: re-import it into MeshNotes to restore all fields. If the form is empty, you get the blank template to fill out in a text editor.</li>
-                                <li><strong>⬇ PDF</strong> — Downloads a fillable PDF form with all fields. Pre-filled values are included if available. The PDF can be opened in any PDF viewer, filled out by hand or digitally, and used as a standalone documentation form outside of MeshNotes.</li>
-                                <li><strong>⬆ JSON</strong> — Imports a previously exported JSON metadata file, replacing the current metadata after confirmation.</li>
+                                <li><strong>JSON (download)</strong> — Downloads the metadata as a JSON file. This is the round-trip format: re-import it into MeshNotes to restore all fields. If the form is empty, you get the blank template to fill out in a text editor.</li>
+                                <li><strong>PDF (download)</strong> — Downloads a fillable PDF form with all fields. Pre-filled values are included if available. The PDF can be opened in any PDF viewer, filled out by hand or digitally, and used as a standalone documentation form outside of MeshNotes.</li>
+                                <li><strong>JSON (upload)</strong> — Imports a previously exported JSON metadata file, replacing the current metadata after confirmation.</li>
                             </ul>
 
                             <p style="margin-top: 10px;"><strong>Integration:</strong> Metadata is automatically included in the JSON-LD annotation export and restored on import. It also appears at the end of PDF reports (only filled fields are shown). The metadata persists when loading a new model — you can fill it in before loading your 3D file.</p>
@@ -579,7 +580,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click the <strong>⚙️ Settings</strong> button in the toolbar to open the settings panel. All settings are saved automatically in your browser and persist between sessions.</p>
+                            <p>Click the <strong>Settings</strong> button in the toolbar to open the settings panel. All settings are saved automatically in your browser and persist between sessions.</p>
 
                             <p style="margin-top: 10px;"><strong>User:</strong> Set a <strong>Default Author Name</strong> that is pre-filled whenever you create a new annotation entry, saving you from typing it each time.</p>
 
@@ -599,7 +600,7 @@
                         </div>
                     </div>
 
-                    <button class="btn-download-manual" id="btn-download-manual">📄 Download Manual as PDF</button>
+                    <button class="btn-download-manual" id="btn-download-manual" data-icon="manualDownload">Download Manual as PDF</button>
 
                 </section>
             </div>
@@ -610,7 +611,7 @@
     <div id="settings-overlay">
         <div id="settings-modal">
             <div id="settings-modal-header">
-                <h2>⚙️ Settings</h2>
+                <h2 data-icon="settings">Settings</h2>
                 <button id="settings-modal-close">✕</button>
             </div>
             <div id="settings-modal-content">
@@ -903,7 +904,7 @@
     <div id="share-overlay">
         <div id="share-modal">
             <div id="share-modal-header">
-                <h2>📤 Share</h2>
+                <h2 data-icon="share">Share</h2>
                 <button id="share-modal-close">✕</button>
             </div>
             <div id="share-modal-content">
@@ -918,7 +919,7 @@
                     <div id="share-ephemeral-section">
                         <p style="margin-top: 16px;">Uploads your model and annotations to meshnotes.org for 90 days. Anyone with the link can open them in MeshNotes.</p>
                         <p class="share-privacy-note">⚠️ By clicking <strong>Generate Link</strong>, your model file and annotations will be uploaded to meshnotes.org. Your data will no longer be fully offline. Maximum file size: 100 MB.</p>
-                        <p class="share-privacy-note" style="margin-top: 6px;">💡 <strong>Tip:</strong> Large GLB files? Reduce size with Draco compression before sharing (see <em>Model Preparation &amp; Format Guide</em> in the Manual for easy examples).</p>
+                        <p class="share-privacy-note" style="margin-top: 6px;"><strong>Tip:</strong> Large GLB files? Reduce size with Draco compression before sharing (see <em>Model Preparation &amp; Format Guide</em> in the Manual for easy examples).</p>
                         <button id="share-generate-btn" class="share-action-btn" disabled style="margin-top: 12px; width: 100%;">Generate Link</button>
 
                         <!-- Previously generated links -->
@@ -942,7 +943,7 @@
                             <option value="ply">PLY</option>
                             <option value="stl">STL</option>
                         </select>
-                        <p class="share-privacy-note" style="font-size: 12px;">💡 <strong>Tip:</strong> GLB is recommended for permanent sharing because it bundles the model, materials, and textures into a single file. If your model is OBJ with separate MTL/texture files, consider converting to GLB before uploading to your repository.</p>
+                        <p class="share-privacy-note" style="font-size: 12px;"><strong>Tip:</strong> GLB is recommended for permanent sharing because it bundles the model, materials, and textures into a single file. If your model is OBJ with separate MTL/texture files, consider converting to GLB before uploading to your repository.</p>
                         <label for="longterm-annotations-url" style="margin-top: 8px;">Annotations URL (optional)</label>
                         <input type="text" id="longterm-annotations-url" placeholder="https://your-repository.org/api/access/datafile/...">
                         <button id="longterm-generate-btn" class="share-action-btn" disabled style="margin-top: 12px; width: 100%;">Generate Permanent Link</button>
@@ -960,7 +961,7 @@
                     <p style="margin-bottom: 8px;"><strong>Share link created!</strong></p>
                     <div class="share-link-row">
                         <input type="text" id="share-link" readonly>
-                        <button id="share-copy-btn">📋 Copy</button>
+                        <button id="share-copy-btn" data-icon="copy">Copy</button>
                     </div>
                     <p id="share-expiry" style="margin-top: 8px; font-size: 12px;"></p>
                     <p style="margin-top: 12px; font-size: 12px;">Anyone with this link can open the model and annotations in MeshNotes.</p>
@@ -982,37 +983,37 @@
         <input type="file" id="ply-texture-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
         
         <div class="export-dropdown" id="import-dropdown">
-            <button class="tool-btn" id="btn-import-menu" title="Import model or annotations">📂 Import ▾</button>
+            <button class="tool-btn" id="btn-import-menu" data-icon="import" title="Import model or annotations">Import ▾</button>
             <div class="export-dropdown-menu" id="import-dropdown-menu">
-                <button class="export-dropdown-item" id="btn-load">🌐 3D Model (.glb, .obj, .ply, .stl)</button>
-                <button class="export-dropdown-item" id="btn-import">📄 Annotations (.jsonld)</button>
+                <button class="export-dropdown-item" id="btn-load" data-icon="model3d">3D Model (.glb, .obj, .ply, .stl)</button>
+                <button class="export-dropdown-item" id="btn-import" data-icon="jsonld">Annotations (.jsonld)</button>
             </div>
         </div>
-        <button class="tool-btn" id="btn-texture" disabled title="Toggle Texture">🖼️ Texture</button>
+        <button class="tool-btn" id="btn-texture" disabled data-icon="texture" title="Toggle Texture">Texture</button>
         
         <div class="tool-separator"></div>
         
-        <button class="tool-btn" id="btn-point" disabled title="Add Point Annotation">📍 Point</button>
-        <button class="tool-btn" id="btn-line" disabled title="Add Line Annotation">📏 Line</button>
-        <button class="tool-btn" id="btn-polygon" disabled title="Add Polygon Annotation">⬡ Polygon</button>
-        <button class="tool-btn" id="btn-surface" disabled title="Add Surface Annotation">🎨 Surface</button>
-        <button class="tool-btn" id="btn-box" disabled title="Add Box Annotation">📦 Box</button>
-        <button class="tool-btn" id="btn-measure" disabled title="Measure Distance">📐 Measure</button>
+        <button class="tool-btn" id="btn-point" disabled data-icon="point" title="Add Point Annotation">Point</button>
+        <button class="tool-btn" id="btn-line" disabled data-icon="line" title="Add Line Annotation">Line</button>
+        <button class="tool-btn" id="btn-polygon" disabled data-icon="polygon" title="Add Polygon Annotation">Polygon</button>
+        <button class="tool-btn" id="btn-surface" disabled data-icon="surface" title="Add Surface Annotation">Surface</button>
+        <button class="tool-btn" id="btn-box" disabled data-icon="box" title="Add Box Annotation">Box</button>
+        <button class="tool-btn" id="btn-measure" disabled data-icon="measure" title="Measure Distance">Measure</button>
         
         <div class="tool-separator"></div>
         
-        <button class="tool-btn" id="btn-screenshot" disabled title="Take Screenshot">📷 Screenshot</button>
+        <button class="tool-btn" id="btn-screenshot" disabled data-icon="screenshot" title="Take Screenshot">Screenshot</button>
         <div class="export-dropdown" id="export-dropdown">
-            <button class="tool-btn" id="btn-export" disabled title="Export annotations or PDF report">💾 Export ▾</button>
+            <button class="tool-btn" id="btn-export" disabled data-icon="export" title="Export annotations or PDF report">Export ▾</button>
             <div class="export-dropdown-menu" id="export-dropdown-menu">
-                <button class="export-dropdown-item" id="btn-export-jsonld">📄 JSON-LD (.jsonld)</button>
-                <button class="export-dropdown-item" id="btn-export-pdf">📑 PDF Report</button>
-                <button class="export-dropdown-item" id="btn-export-model">📦 Model Files</button>
+                <button class="export-dropdown-item" id="btn-export-jsonld" data-icon="jsonldExport">JSON-LD (.jsonld)</button>
+                <button class="export-dropdown-item" id="btn-export-pdf" data-icon="pdfExport">PDF Report</button>
+                <button class="export-dropdown-item" id="btn-export-model" data-icon="modelExport">Model Files</button>
             </div>
         </div>
-        <button class="tool-btn" id="btn-share" title="Share model and annotations via link">📤 Share</button>
+        <button class="tool-btn" id="btn-share" data-icon="share" title="Share model and annotations via link">Share</button>
         
-        <button id="btn-settings" title="Settings">⚙️ Settings</button>
+        <button id="btn-settings" data-icon="settings" title="Settings">Settings</button>
     </div>
 
     <div id="container">
@@ -1021,7 +1022,7 @@
 
             <div id="measurement-display">
                 <div class="measure-title">
-                    <span class="icon">📐</span>
+                    <span class="icon" data-icon="measure"></span>
                     <span class="name">Measurement Tool</span>
                 </div>
                 <div id="measurements-list"></div>
@@ -1037,7 +1038,7 @@
 
             <div id="brush-display">
                 <div class="brush-title">
-                    <span class="icon">🎨</span>
+                    <span class="icon" data-icon="surface"></span>
                     <span class="name">Surface Annotation</span>
                 </div>
                 <div class="brush-controls">
@@ -1340,14 +1341,14 @@
             <!-- Metadata Popup -->
             <div class="popup metadata-popup" id="metadata-popup">
                 <div class="popup-header-row">
-                    <h3>Metadata Report</h3>
+                    <h3>Meta- and Paradata Report</h3>
                     <button class="popup-close-btn" id="metadata-popup-close" title="Close">✕</button>
                 </div>
                 <div class="metadata-popup-actions">
-                    <button class="btn-save" id="btn-metadata-download-json" title="Download as JSON (re-importable)">⬇ JSON</button>
-                    <button class="btn-save" id="btn-metadata-download-pdf" title="Download as fillable PDF">⬇ PDF</button>
-                    <label class="btn-save btn-metadata-upload" title="Import metadata from JSON">
-                        ⬆ JSON
+                    <button class="btn-save" id="btn-metadata-download-json" data-icon="jsonDownload" title="Download as JSON (re-importable)">JSON download</button>
+                    <button class="btn-save" id="btn-metadata-download-pdf" data-icon="pdfDownload" title="Download as fillable PDF">PDF download</button>
+                    <label class="btn-save btn-metadata-upload" data-icon="jsonUpload" title="Import metadata from JSON">
+                        JSON upload
                         <input type="file" id="metadata-upload-input" accept=".json" style="display: none;">
                     </label>
                 </div>
@@ -1369,18 +1370,18 @@
                     <div id="model-info-section">
                         <div class="model-info-item" id="model-info-item">
                             <div class="model-info-header">
-                                <span class="model-info-icon"></span>
+                                <span class="model-info-icon" data-icon="modelInfo"></span>
                                 <span class="model-info-title">Model Information</span>
-                                <button class="annotation-edit-btn" id="model-info-edit-btn" title="Edit model information">✏️</button>
+                                <button class="annotation-edit-btn" id="model-info-edit-btn" data-icon="edit" title="Edit model information"></button>
                             </div>
                             <div class="model-info-subtitle" id="model-info-subtitle">No entries yet</div>
                         </div>
 
                         <div class="model-info-item" id="metadata-item" style="margin-top: 6px;">
                             <div class="model-info-header">
-                                <span class="model-info-icon"></span>
+                                <span class="model-info-icon" data-icon="modelInfo"></span>
                                 <span class="model-info-title">Metadata Report</span>
-                                <button class="annotation-edit-btn" id="metadata-edit-btn" title="Edit metadata">✏️</button>
+                                <button class="annotation-edit-btn" id="metadata-edit-btn" data-icon="edit" title="Edit metadata"></button>
                             </div>
                             <div class="model-info-subtitle" id="metadata-subtitle">No metadata yet</div>
                         </div>
