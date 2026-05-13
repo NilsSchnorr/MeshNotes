@@ -7,6 +7,7 @@ date-released: "2026-05-13"
 license: Apache-2.0
 repository-code: "https://github.com/NilsSchnorr/MeshNotes"
 url: "https://meshnotes.org"
+doi: "10.5281/zenodo.20171923"
 abstract: >-
   MeshNotes is a free, browser-based tool for annotating 3D models with
   points, lines, polygons, surfaces, and boxes, designed for archaeological

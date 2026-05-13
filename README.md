@@ -1,5 +1,9 @@
 # MeshNotes – 3D Annotation Tool for Research & Heritage
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20171923.svg)](https://doi.org/10.5281/zenodo.20171923)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/NilsSchnorr/MeshNotes/blob/main/LICENSE)
+[![Launch MeshNotes](https://img.shields.io/badge/Launch-meshnotes.org-gold)](https://meshnotes.org)
+
 A browser-based tool for annotating 3D models with points, lines, polygons, surfaces, and boxes — designed for cultural heritage documentation.
 
 Use the deployed version at: https://meshnotes.org — or clone/download the repository to run it locally with a web server.
