@@ -75,7 +75,9 @@ export async function loadIcons() {
         entries.map(async ([name, file]) => {
             const resp = await fetch(basePath + file);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const svg = await resp.text();
+            let svg = await resp.text();
+            // Inject inline sizing so icons render correctly even without CSS
+            svg = svg.replace('<svg ', '<svg width="1em" height="1em" ');
             iconCache[name] = svg;
         })
     );
