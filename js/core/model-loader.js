@@ -651,6 +651,7 @@ export function updateTextureButtonLabel() {
     };
     const mode = labels[state.displayMode] || labels['texture'];
     const svg = getIcon(mode.icon);
-    dom.btnTexture.innerHTML = (svg ? svg + ' ' : '') + mode.text;
-    dom.btnTexture.classList.toggle('active', state.displayMode !== 'texture');
+    dom.btnTexture.innerHTML = (svg ? `<span class="btn-texture-icon">${svg}</span>` : '') + `<span class="btn-texture-label">${mode.text}</span>`;
+    // All display modes use default blue button background
+    dom.btnTexture.classList.remove('active');
 }
