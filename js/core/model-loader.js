@@ -220,6 +220,9 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         }
     }
 
+    // Record BVH availability for features that depend on fast raycasting (e.g. label occlusion)
+    state.bvhAvailable = !bvhBuildFailed;
+
     // Display face count
     updateFaceCountDisplay(totalFaces);
     

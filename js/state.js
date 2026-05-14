@@ -41,6 +41,7 @@ export const state = {
     modelBoundingSize: 1,
     modelUpAxis: 'z-up', // 'y-up' or 'z-up'
     webglContextLost: false,
+    bvhAvailable: false,        // Whether BVH acceleration is available for current model
     loadedModelFiles: [],       // Original File objects for model export
 
     // UI Multipliers
