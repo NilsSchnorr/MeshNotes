@@ -337,15 +337,46 @@ export function setupEventListeners() {
     dom.btnBox.addEventListener('click', () => setTool('box'));
     dom.btnMeasure.addEventListener('click', () => setTool('measure'));
     dom.btnScreenshot.addEventListener('click', takeScreenshot);
-    // Helper: position dropdown for touch devices where toolbar overflow clips absolute menus
+
+    // --- Touch dropdown portal ---
+    // On touch devices the toolbar has overflow-x:auto which clips
+    // position:absolute AND position:fixed children (WebKit treats the
+    // scroll container as a containing block). Fix: portal the menu
+    // to <body> while the dropdown is open.
     const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
-    function positionDropdownForTouch(button, dropdown) {
-        if (!isCoarsePointer) return;
-        const menu = dropdown.querySelector('.export-dropdown-menu');
-        if (!menu || !dropdown.classList.contains('open')) return;
-        const rect = button.getBoundingClientRect();
-        menu.style.left = rect.left + 'px';
-        menu.style.top = (rect.bottom + 4) + 'px';
+    const _touchMenuRefs = new Map();
+
+    if (isCoarsePointer) {
+        _touchMenuRefs.set(dom.importDropdown, dom.importDropdown.querySelector('.export-dropdown-menu'));
+        _touchMenuRefs.set(dom.exportDropdown, dom.exportDropdown.querySelector('.export-dropdown-menu'));
+
+        const menuObserver = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.attributeName !== 'class') continue;
+                const dropdown = mutation.target;
+                const menu = _touchMenuRefs.get(dropdown);
+                if (!menu) continue;
+
+                if (dropdown.classList.contains('open')) {
+                    const button = dropdown.querySelector('.tool-btn');
+                    const rect = button.getBoundingClientRect();
+                    document.body.appendChild(menu);
+                    Object.assign(menu.style, {
+                        position: 'fixed',
+                        display: 'block',
+                        left: rect.left + 'px',
+                        top: (rect.bottom + 4) + 'px',
+                        zIndex: '10000',
+                    });
+                } else if (menu.parentElement !== dropdown) {
+                    dropdown.appendChild(menu);
+                    menu.style.cssText = '';
+                }
+            }
+        });
+
+        menuObserver.observe(dom.importDropdown, { attributes: true, attributeFilter: ['class'] });
+        menuObserver.observe(dom.exportDropdown, { attributes: true, attributeFilter: ['class'] });
     }
 
     // Export dropdown
@@ -353,7 +384,6 @@ export function setupEventListeners() {
         e.stopPropagation();
         dom.exportDropdown.classList.toggle('open');
         dom.importDropdown.classList.remove('open');
-        positionDropdownForTouch(dom.btnExport, dom.exportDropdown);
     });
     dom.btnExportJsonld.addEventListener('click', () => {
         dom.exportDropdown.classList.remove('open');
@@ -369,10 +399,13 @@ export function setupEventListeners() {
     });
     // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
-        if (!dom.exportDropdown.contains(e.target)) {
+        // On touch devices, portaled menus live on <body>; check them too
+        const exportMenu = _touchMenuRefs.get(dom.exportDropdown);
+        const importMenu = _touchMenuRefs.get(dom.importDropdown);
+        if (!dom.exportDropdown.contains(e.target) && !(exportMenu && exportMenu.contains(e.target))) {
             dom.exportDropdown.classList.remove('open');
         }
-        if (!dom.importDropdown.contains(e.target)) {
+        if (!dom.importDropdown.contains(e.target) && !(importMenu && importMenu.contains(e.target))) {
             dom.importDropdown.classList.remove('open');
         }
     });
@@ -389,7 +422,6 @@ export function setupEventListeners() {
         e.stopPropagation();
         dom.importDropdown.classList.toggle('open');
         dom.exportDropdown.classList.remove('open');
-        positionDropdownForTouch(dom.btnImportMenu, dom.importDropdown);
     });
 
     // Share button and dialog

@@ -3411,12 +3411,6 @@
                 flex-shrink: 0;
             }
 
-            /* Fix dropdown menus clipped by toolbar overflow on touch devices */
-            .export-dropdown-menu {
-                position: fixed !important;
-                margin-top: 0 !important;
-            }
-
             /* Larger slider thumbs */
             input[type="range"] {
                 height: 36px;
