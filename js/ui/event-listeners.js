@@ -330,12 +330,23 @@ export function setupEventListeners() {
 
     // Toolbar buttons
     dom.btnTexture.addEventListener('click', toggleTexture);
-    dom.btnPoint.addEventListener('click', () => setTool('point'));
-    dom.btnLine.addEventListener('click', () => setTool('line'));
-    dom.btnPolygon.addEventListener('click', () => setTool('polygon'));
-    dom.btnSurface.addEventListener('click', () => setTool('surface'));
-    dom.btnBox.addEventListener('click', () => setTool('box'));
-    dom.btnMeasure.addEventListener('click', () => setTool('measure'));
+
+    // Toggle tool: tap active tool again to deselect (also cleans up in-progress drawing)
+    function toggleTool(tool) {
+        if (state.currentTool === tool) {
+            clearTempDrawing();
+            setTool(null);
+        } else {
+            setTool(tool);
+        }
+    }
+
+    dom.btnPoint.addEventListener('click', () => toggleTool('point'));
+    dom.btnLine.addEventListener('click', () => toggleTool('line'));
+    dom.btnPolygon.addEventListener('click', () => toggleTool('polygon'));
+    dom.btnSurface.addEventListener('click', () => toggleTool('surface'));
+    dom.btnBox.addEventListener('click', () => toggleTool('box'));
+    dom.btnMeasure.addEventListener('click', () => toggleTool('measure'));
     dom.btnScreenshot.addEventListener('click', takeScreenshot);
 
     // --- Touch dropdown portal ---
