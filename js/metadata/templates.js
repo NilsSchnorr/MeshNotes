@@ -23,6 +23,22 @@ export const TEMPLATES = {
                 ]
             },
             {
+                title: 'Object Context',
+                fields: [
+                    { key: 'Object Type / Classification', hint: 'e.g., vessel, coin, sculpture, architectural element' },
+                    { key: 'Material', hint: 'e.g., marble, bronze, ceramic, mixed' },
+                    { key: 'Dimensions', hint: 'Physical dimensions of the object (L × W × H), units' },
+                    { key: 'Dating / Period', hint: 'e.g., 2nd c. BCE, La Tène D1, Augustan' },
+                    { key: 'Find Spot / Provenance', hint: 'Site name, gazetteer URI (e.g., iDAI.gazetteer, Pleiades, GeoNames)' },
+                    { key: 'Stratigraphic Context', hint: 'Excavation unit, SU number, trench, grid square' },
+                    { key: 'Excavation / Project Reference', hint: 'Project name, campaign year, director' },
+                    { key: 'Current Location', hint: 'Repository, museum, storeroom' },
+                    { key: 'Inventory Number', hint: 'Collection or accession number' },
+                    { key: 'Conservation State', hint: 'e.g., intact, fragmentary, restored, surface corrosion' },
+                    { key: 'Additional Notes', hint: '', multiline: true }
+                ]
+            },
+            {
                 title: 'Capture Metadata',
                 fields: [
                     { key: 'Documentation Method', hint: 'e.g., photogrammetry, structured light, LiDAR, TLS' },
@@ -62,6 +78,18 @@ export const TEMPLATES = {
                     { key: 'Workflow Description', hint: 'Not needed if processing report is available', multiline: true },
                     { key: 'Model Details', hint: 'Coordinate system, scale, units, mesh density, texture resolution, file formats', multiline: true },
                     { key: 'Postprocessing Information', hint: 'Versions, iterations, changes during/after processing', multiline: true },
+                    { key: 'Quality Summary', hint: 'e.g., polygon count, RMS error, completeness estimate, texture resolution', multiline: true },
+                    { key: 'Additional Notes', hint: '', multiline: true }
+                ]
+            },
+            {
+                title: 'Paradata',
+                fields: [
+                    { key: 'Method Rationale', hint: 'Why was this capture method chosen? (e.g., object size, surface properties, time/budget, accuracy requirements)', multiline: true },
+                    { key: 'Sources Consulted', hint: 'Publications, reports, excavation records, comparanda that informed decisions', multiline: true },
+                    { key: 'Interpretive Decisions', hint: 'What is evidenced vs. hypothesised? Were conflicting sources resolved?', multiline: true },
+                    { key: 'Known Limitations', hint: 'e.g., inaccessible areas, reflective surfaces, time constraints, incomplete coverage', multiline: true },
+                    { key: 'Uncertainty Notes', hint: 'Per-region or general assessment of reliability and completeness', multiline: true },
                     { key: 'Additional Notes', hint: '', multiline: true }
                 ]
             },
