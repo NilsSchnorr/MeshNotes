@@ -46,7 +46,7 @@ The tool runs entirely in your browser — your 3D models and annotations stay o
    
    **Or run locally:** Clone/download this repository and serve it with a local web server (e.g., `python -m http.server` or VS Code Live Server). Opening `index.html` directly via `file://` won't work due to browser security restrictions on ES modules.
 
-2. Click **Import ▾** → **3D Model** to open a 3D model (`.glb`, `.gltf`, `.obj`, or `.ply` format)
+2. Click **Import ▾** → **3D Model** to open a 3D model (`.glb`, `.gltf`, `.obj`, `.ply`, or `.stl` format)
 3. Use the toolbar to add annotations
 4. Export your work as JSON-LD, generate a PDF report, or click **Share** to create a shareable link
 
@@ -58,6 +58,7 @@ MeshNotes supports four 3D model formats:
 - **GLB/GLTF** (recommended) — Single file (GLB) or folder with linked textures (GLTF). Supports textures, materials, and vertex colors. Best compatibility since it embeds everything in one file.
 - **OBJ** — Widely supported format. When loading, you'll be prompted to optionally add material (`.mtl`) and texture files.
 - **PLY** — Common for point clouds and laser scans, standard format for tools like GigaMesh. Supports vertex colors natively. You can optionally add a texture image if your PLY contains UV coordinates.
+- **STL** — Widely used in 3D scanning and 3D printing workflows. Supports both ASCII and binary STL files, including binary STL with per-face color. Contains geometry only (no textures or vertex colors).
 
 If your model is in another format, convert it to GLB using [Blender](https://www.blender.org/) for best compatibility.
 
@@ -122,11 +123,11 @@ Both workflows allow multiple people to work on the same model independently, th
 MeshNotes exports annotations in the [W3C Web Annotation Data Model](https://www.w3.org/TR/annotation-model/) format (.jsonld). This standard format ensures:
 
 - **Interoperability** with other annotation tools and viewers
-- **Compatibility** with IIIF-based systems used in cultural heritage institutions
+- **Designed for compatibility** with IIIF-based systems used in cultural heritage institutions
 - **Future-proofing** through adherence to web standards
 - **Extensibility** via custom namespaces for 3D-specific data
 
-The export includes custom selectors for 3D geometry (points, polylines, polygons, mesh faces, and boxes) aligned with the emerging [IIIF 3D specifications](https://github.com/IIIF/3d). Legacy MeshNotes files (.json) can still be imported for backward compatibility.
+The export includes custom selectors for 3D geometry (points, polylines, polygons, mesh faces, and boxes) aligned with the emerging [IIIF 3D specifications](https://github.com/IIIF/3d), and developed with [NFDI4Objects](https://www.nfdi4objects.net/) interoperability goals in mind. Legacy MeshNotes files (.json) can still be imported for backward compatibility.
 
 
 ## Dependencies

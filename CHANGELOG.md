@@ -40,6 +40,7 @@ Initial public release.
 - GLB / GLTF (recommended)
 - OBJ (with optional MTL and textures)
 - PLY (with optional texture)
+- STL (ASCII and binary, including per-face color)
 
 ### Standards
 

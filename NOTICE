@@ -6,3 +6,4 @@ This product includes the following third-party software:
 - Three.js (https://threejs.org/) — Copyright 2010-2024 Three.js authors, MIT License
 - three-mesh-bvh (https://github.com/gkjohnson/three-mesh-bvh) — Copyright Garrett Johnson, MIT License
 - jsPDF (https://github.com/parallax/jsPDF) — Copyright James Hall, MIT License
+- pdf-lib (https://github.com/Hopding/pdf-lib) — Copyright Andrew Dillon, MIT License
