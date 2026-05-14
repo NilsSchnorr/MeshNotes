@@ -337,11 +337,23 @@ export function setupEventListeners() {
     dom.btnBox.addEventListener('click', () => setTool('box'));
     dom.btnMeasure.addEventListener('click', () => setTool('measure'));
     dom.btnScreenshot.addEventListener('click', takeScreenshot);
+    // Helper: position dropdown for touch devices where toolbar overflow clips absolute menus
+    const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+    function positionDropdownForTouch(button, dropdown) {
+        if (!isCoarsePointer) return;
+        const menu = dropdown.querySelector('.export-dropdown-menu');
+        if (!menu || !dropdown.classList.contains('open')) return;
+        const rect = button.getBoundingClientRect();
+        menu.style.left = rect.left + 'px';
+        menu.style.top = (rect.bottom + 4) + 'px';
+    }
+
     // Export dropdown
     dom.btnExport.addEventListener('click', (e) => {
         e.stopPropagation();
         dom.exportDropdown.classList.toggle('open');
         dom.importDropdown.classList.remove('open');
+        positionDropdownForTouch(dom.btnExport, dom.exportDropdown);
     });
     dom.btnExportJsonld.addEventListener('click', () => {
         dom.exportDropdown.classList.remove('open');
@@ -372,12 +384,15 @@ export function setupEventListeners() {
         if (e.target.files[0]) importAnnotations(e.target.files[0]);
     });
 
-    // Share button and dialog
+    // Import dropdown
     dom.btnImportMenu.addEventListener('click', (e) => {
         e.stopPropagation();
         dom.importDropdown.classList.toggle('open');
         dom.exportDropdown.classList.remove('open');
+        positionDropdownForTouch(dom.btnImportMenu, dom.importDropdown);
     });
+
+    // Share button and dialog
     dom.btnShare.addEventListener('click', shareModel);
     document.getElementById('share-modal-close').addEventListener('click', closeShareDialog);
     document.getElementById('share-copy-btn').addEventListener('click', copyShareLink);
