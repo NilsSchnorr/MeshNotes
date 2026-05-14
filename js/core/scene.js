@@ -11,7 +11,7 @@ import { showStatus, toDisplayCoords } from '../utils/helpers.js';
  * On tablet (coarse pointer), sidebar can be collapsed.
  * On desktop, sidebar is always visible at 320px.
  */
-function getViewportWidth() {
+export function getViewportWidth() {
     const sidebar = document.getElementById('sidebar');
     const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
     
@@ -28,7 +28,7 @@ function getViewportWidth() {
 /**
  * Calculates the available viewport height, accounting for header and toolbar.
  */
-function getViewportHeight() {
+export function getViewportHeight() {
     // Header (50px) + toolbar (38px) = 88px
     return window.innerHeight - 88;
 }

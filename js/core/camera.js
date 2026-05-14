@@ -3,12 +3,13 @@ import * as THREE from 'three';
 import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
 import { state, dom } from '../state.js';
 import { scheduleOcclusionUpdate } from '../utils/label-occlusion.js';
+import { getViewportWidth, getViewportHeight } from './scene.js';
 
 // ============ Camera Initialization ============
 
 export function initCameras() {
-    const width = window.innerWidth - 320;
-    const height = window.innerHeight - 50;
+    const width = getViewportWidth();
+    const height = getViewportHeight();
 
     // Create both cameras
     state.perspectiveCamera = new THREE.PerspectiveCamera(60, width / height, 0.001, 1000);
@@ -164,7 +165,7 @@ export function toggleCamera() {
         const distance = state.perspectiveCamera.position.distanceTo(state.controls.target);
         const fov = state.perspectiveCamera.fov * Math.PI / 180;
         const frustumHeight = 2 * distance * Math.tan(fov / 2);
-        const aspect = (window.innerWidth - 320) / (window.innerHeight - 50);
+        const aspect = getViewportWidth() / getViewportHeight();
 
         state.orthographicCamera.left = -frustumHeight * aspect / 2;
         state.orthographicCamera.right = frustumHeight * aspect / 2;
