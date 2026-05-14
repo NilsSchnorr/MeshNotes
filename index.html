@@ -266,6 +266,25 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header">
+                            <span>Cutting Plane (Profile Extraction)</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>The Cutting Plane tool lets you extract cross-section profiles from your 3D model. It is located inside the <strong>Measure</strong> tool — when you activate Measure, the Cutting Plane panel appears alongside the measurement controls.</p>
+                            <p style="margin-top: 10px;"><strong>Workflow:</strong> First, rotate your camera to look at the model from the direction you want to cut through. Then click <strong>Spawn Plane</strong> — a semi-transparent blue plane appears perpendicular to your current viewpoint, centered on the model. A red preview line shows where the plane intersects the mesh in real time.</p>
+                            <p style="margin-top: 10px;"><strong>Adjusting the plane:</strong></p>
+                            <ul style="margin: 6px 0 0 20px; font-size: 14px;">
+                                <li><strong>Left-drag</strong> on the plane to slide it forward/backward along its normal</li>
+                                <li><strong>Right-drag</strong> on the plane to tilt it freely</li>
+                                <li><strong>Ctrl + Left-drag</strong> (Cmd on Mac) to swing the plane — pivoting the left/right edges forward and backward, useful for aligning with walls or irregular features</li>
+                            </ul>
+                            <p style="margin-top: 10px;"><strong>Extracting the profile:</strong> Once the plane is positioned, click <strong>Extract Profile</strong>. MeshNotes computes the exact geometric intersection between the plane and the mesh triangles, projects it onto the plane's 2D coordinate system, and displays a preview. From the preview you can download the profile as <strong>SVG</strong> (vector, ideal for publication figures) or <strong>PNG</strong> (raster, 2× resolution). Both formats include a scale bar using the unit configured in Settings.</p>
+                            <p style="margin-top: 10px;"><strong>Tips:</strong> You can spawn, adjust, and extract multiple profiles without leaving the Measure tool. Click <strong>Remove Plane</strong> to clear the cutting plane, or press <strong>Esc</strong> to leave the Measure tool entirely (which also removes the plane). The cutting plane is visual only — it does not modify the model or affect annotations.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
                             <span>Groups</span>
                             <span class="toggle-icon">▶</span>
                         </div>
@@ -1021,6 +1040,7 @@
         <div id="viewport">
             <canvas id="canvas"></canvas>
 
+            <div id="measure-panels">
             <div id="measurement-display">
                 <div class="measure-title">
                     <span class="icon" data-icon="measure"></span>
@@ -1035,6 +1055,25 @@
                     <div class="measure-help-row"><span class="help-key">Click value</span><span class="measure-help-desc">Copy to clipboard</span></div>
                     <div class="measure-help-row"><span class="help-key">Esc</span><span class="measure-help-desc">Clear all</span></div>
                 </div>
+            </div>
+
+            <div id="cutting-plane-display">
+                <div class="measure-title">
+                    <span class="name">Cutting Plane</span>
+                </div>
+                <div class="cutting-plane-controls">
+                    <button id="btn-spawn-plane" class="cutting-plane-btn">Spawn Plane</button>
+                    <button id="btn-extract-profile" class="cutting-plane-btn" disabled>Extract Profile</button>
+                </div>
+                <div class="measure-help">
+                    <div class="measure-help-row"><span class="help-key">Left-drag</span><span class="measure-help-desc">Move plane</span></div>
+                    <div class="measure-help-row"><span class="help-key">Right-drag</span><span class="measure-help-desc">Tilt plane</span></div>
+                    <div class="measure-help-row"><span class="help-key">Ctrl</span><span class="help-key">Left-drag</span><span class="measure-help-desc">Swing</span></div>
+                    <div class="measure-help-row"><span class="help-desc" style="font-size: 11px; color: #888;">Align your camera view first,</span></div>
+                    <div class="measure-help-row"><span class="help-desc" style="font-size: 11px; color: #888;">then spawn — the plane appears</span></div>
+                    <div class="measure-help-row"><span class="help-desc" style="font-size: 11px; color: #888;">perpendicular to your viewpoint.</span></div>
+                </div>
+            </div>
             </div>
 
             <div id="brush-display">
@@ -1425,6 +1464,22 @@
 
     <!-- pdf-lib for fillable PDF metadata forms -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+    <!-- Profile Preview Overlay -->
+    <div id="profile-preview-overlay">
+        <div id="profile-preview-modal">
+            <div id="profile-preview-header">
+                <span>Profile Preview</span>
+                <button id="profile-preview-close">&times;</button>
+            </div>
+            <div id="profile-preview-container"></div>
+            <div id="profile-preview-actions">
+                <button id="btn-download-svg" class="profile-action-btn">Download SVG</button>
+                <button id="btn-download-png" class="profile-action-btn">Download PNG</button>
+                <button id="btn-profile-cancel" class="profile-action-btn cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <script type="importmap">
         {

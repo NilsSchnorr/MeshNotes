@@ -124,6 +124,9 @@ export const state = {
     currentStrokeAdded: null,       // Faces added in current stroke
     currentStrokeRemoved: null,     // Faces removed (erased) in current stroke
 
+    // Cutting plane
+    cuttingPlaneActive: false,
+
     // Box annotation
     selectedBoxAnnotation: null,
     isManipulatingBox: false,
@@ -289,8 +292,10 @@ export function initDomReferences() {
     dom.searchInput = document.getElementById('search-input');
 
     // Measurements
+    dom.measurePanels = document.getElementById('measure-panels');
     dom.measurementDisplay = document.getElementById('measurement-display');
     dom.measurementsList = document.getElementById('measurements-list');
+    dom.cuttingPlaneDisplay = document.getElementById('cutting-plane-display');
 
     // Tool Help Panel
     dom.toolHelp = document.getElementById('tool-help');

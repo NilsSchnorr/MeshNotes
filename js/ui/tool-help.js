@@ -246,7 +246,7 @@ const toolHelpContentTouch = {
 export function hideAllToolPanels() {
     dom.toolHelp.classList.remove('visible');
     dom.brushDisplay.classList.remove('visible');
-    dom.measurementDisplay.classList.remove('visible');
+    dom.measurePanels.classList.remove('visible');
 }
 
 // ============ Tool Help Panel (point, line, polygon, box) ============
@@ -268,8 +268,9 @@ export function showToolHelp(tool) {
     }
     
     if (tool === 'measure') {
-        dom.measurementDisplay.classList.add('visible');
+        dom.measurePanels.classList.add('visible');
         updateMeasureHelpForDevice();
+        updateCuttingPlaneHelpForDevice();
         return;
     }
     
@@ -332,6 +333,22 @@ function updateMeasureHelpForDevice() {
         `;
     }
     // Desktop content is already in HTML, no change needed
+}
+
+/**
+ * Updates cutting plane help section for current device type.
+ */
+function updateCuttingPlaneHelpForDevice() {
+    const helpSection = document.querySelector('#cutting-plane-display .measure-help');
+    if (!helpSection) return;
+    
+    if (isTouchDevice()) {
+        helpSection.innerHTML = `
+            <div class="measure-help-row"><span class="help-key">Drag plane</span><span class="measure-help-desc">Move</span></div>
+            <div class="measure-help-row"><span class="help-key">2-finger twist</span><span class="measure-help-desc">Rotate</span></div>
+            <div class="measure-help-row"><span class="help-desc" style="font-size: 11px; color: #888;">Align view, then spawn. The plane appears perpendicular to your viewpoint.</span></div>
+        `;
+    }
 }
 
 /**

@@ -1649,25 +1649,31 @@
             font-size: 12px;
         }
 
-        /* Measurement display */
-        #measurement-display {
+        /* Measure panels wrapper (contains measurement + cutting plane) */
+        #measure-panels {
             display: none;
             position: absolute;
             top: 10px;
             left: 10px;
+            z-index: 100;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        #measure-panels.visible {
+            display: flex;
+        }
+
+        /* Measurement display */
+        #measurement-display {
             background: var(--color-surface);
             color: var(--color-gold);
             padding: 12px 16px;
             border-radius: 6px;
             font-size: 12px;
-            z-index: 100;
             min-width: 200px;
             max-height: 300px;
             overflow-y: auto;
-        }
-
-        #measurement-display.visible {
-            display: block;
         }
 
         #measurements-list {
@@ -1784,6 +1790,149 @@
 
         .measure-help-desc {
             color: var(--color-text-medium);
+        }
+
+        /* Cutting Plane Display */
+        #cutting-plane-display {
+            background: var(--color-surface);
+            color: var(--color-gold);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            min-width: 180px;
+        }
+
+        .cutting-plane-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .cutting-plane-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            background: var(--color-blue-dark);
+            color: var(--color-text-light);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .cutting-plane-btn:hover:not(:disabled) {
+            background: var(--color-blue-hover);
+            border-color: var(--color-blue-hover);
+        }
+
+        .cutting-plane-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .cutting-plane-btn:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        /* Profile Preview Overlay */
+        #profile-preview-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--color-overlay);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #profile-preview-overlay.visible {
+            display: flex;
+        }
+
+        #profile-preview-modal {
+            background: #ffffff;
+            border-radius: 8px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        #profile-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--color-blue-dark);
+            color: var(--color-text-light);
+            border-radius: 8px 8px 0 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        #profile-preview-close {
+            background: none;
+            border: none;
+            color: var(--color-text-light);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        #profile-preview-close:hover {
+            color: var(--color-gold);
+        }
+
+        #profile-preview-container {
+            padding: 16px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #profile-preview-container svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #profile-preview-actions {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border-radius: 0 0 8px 8px;
+            justify-content: flex-end;
+        }
+
+        .profile-action-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            background: var(--color-blue-dark);
+            color: var(--color-text-light);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .profile-action-btn:hover {
+            background: var(--color-blue-hover);
+        }
+
+        .profile-action-btn.cancel {
+            background: transparent;
+            color: #666;
+            border-color: #ccc;
+        }
+
+        .profile-action-btn.cancel:hover {
+            background: #eee;
         }
 
         /* Brush Display for Surface Tool */
@@ -3511,6 +3660,12 @@
 
             /* Tool-help panel: inward from edge */
             #tool-help {
+                top: 8px;
+                left: max(12px, env(safe-area-inset-left));
+            }
+
+            /* Measure panels: inward from edge */
+            #measure-panels {
                 top: 8px;
                 left: max(12px, env(safe-area-inset-left));
             }

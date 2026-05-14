@@ -19,6 +19,7 @@ import { downloadManualAsPdf } from '../export/pdf-manual.js';
 import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink, toggleHistory } from '../export/share.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js';
+import { toggleCuttingPlane, extractProfile, closeProfilePreview, downloadProfileSVG, downloadProfilePNG, onCuttingPlanePointerDown, onCuttingPlanePointerMove, onCuttingPlanePointerUp, cleanupCuttingPlane } from '../annotation-tools/cutting-plane.js';
 
 // Re-export for modules that import from here
 export { hideToolHelp, restoreToolHelp, hideAllToolPanels, showBoxEditHelp, clearBoxEditState } from './tool-help.js';
@@ -26,8 +27,14 @@ export { hideToolHelp, restoreToolHelp, hideAllToolPanels, showBoxEditHelp, clea
 export function setTool(tool) {
     // If a box was unlocked, lock it and update visual feedback
     const hadUnlockedBox = state.boxEditUnlocked !== null;
+    const previousTool = state.currentTool;
 
     state.currentTool = tool;
+
+    // Clean up cutting plane when leaving the measure tool
+    if (previousTool === 'measure' && tool !== 'measure') {
+        cleanupCuttingPlane();
+    }
 
     // Clear box edit state when selecting any tool
     clearBoxEditState();
@@ -464,6 +471,19 @@ export function setupEventListeners() {
         dom.brushValue.textContent = state.surfaceBrushSize + '%';
     });
 
+    // Cutting plane buttons
+    document.getElementById('btn-spawn-plane').addEventListener('click', toggleCuttingPlane);
+    document.getElementById('btn-extract-profile').addEventListener('click', extractProfile);
+
+    // Profile preview overlay
+    document.getElementById('btn-download-svg').addEventListener('click', downloadProfileSVG);
+    document.getElementById('btn-download-png').addEventListener('click', downloadProfilePNG);
+    document.getElementById('btn-profile-cancel').addEventListener('click', closeProfilePreview);
+    document.getElementById('profile-preview-close').addEventListener('click', closeProfilePreview);
+    document.getElementById('profile-preview-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'profile-preview-overlay') closeProfilePreview();
+    });
+
     // Search filter
     dom.searchInput.addEventListener('input', (e) => {
         filterAnnotations(e.target.value);
@@ -652,6 +672,10 @@ export function setupEventListeners() {
     // Prevent context menu when right-clicking on boxes (for rotation)
     dom.canvas.addEventListener('contextmenu', (e) => {
         if (state.isManipulatingBox && state.boxManipulationMode === 'rotate') {
+            e.preventDefault();
+        }
+        // Prevent context menu during cutting plane rotation
+        if (state.cuttingPlaneActive && state.currentTool === 'measure') {
             e.preventDefault();
         }
     });
@@ -948,6 +972,13 @@ export function setupEventListeners() {
         }
         
         if (e.key === 'Escape') {
+            // Close profile preview overlay if open
+            const profileOverlay = document.getElementById('profile-preview-overlay');
+            if (profileOverlay && profileOverlay.classList.contains('visible')) {
+                closeProfilePreview();
+                return;
+            }
+
             // Close export dropdown if open
             if (dom.exportDropdown.classList.contains('open')) {
                 dom.exportDropdown.classList.remove('open');
@@ -1071,6 +1102,9 @@ let _lastTapY = 0;
 let _lastPenEraserState = false;
 let _barrelTapCooldown = 0;
 
+// Cutting plane drag/rotate interception flag
+let _cuttingPlaneConsumed = false;
+
 // Two-finger box rotation gesture state
 const _activeTouches = new Map();
 let _isRotatingBoxWithGesture = false;
@@ -1121,8 +1155,10 @@ function setupCanvasPointerEvents() {
         if (e.pointerType === 'pen') {
             e.stopImmediatePropagation();
             e.preventDefault();
+            if (_cuttingPlaneConsumed && onCuttingPlanePointerMove(e)) return;
             onCanvasPointerMove(e);
         } else if (e.pointerType === 'mouse') {
+            if (_cuttingPlaneConsumed && onCuttingPlanePointerMove(e)) return;
             onCanvasPointerMove(e);
         } else if (e.pointerType === 'touch') {
             _handleTouchMove(e);
@@ -1160,6 +1196,15 @@ function setupCanvasPointerEvents() {
 }
 
 function _handlePointerDown(e) {
+    // Check cutting plane interaction first when measure tool is active
+    if (state.currentTool === 'measure' && state.cuttingPlaneActive) {
+        if (onCuttingPlanePointerDown(e)) {
+            _cuttingPlaneConsumed = true;
+            return;
+        }
+    }
+    _cuttingPlaneConsumed = false;
+
     _pointerDownX = e.clientX;
     _pointerDownY = e.clientY;
     _pointerDownTime = Date.now();
@@ -1200,6 +1245,13 @@ function _shouldBarrelTapConfirm() {
 }
 
 function _handlePointerUp(e) {
+    // If cutting plane consumed the pointerdown, just release
+    if (_cuttingPlaneConsumed) {
+        onCuttingPlanePointerUp(e);
+        _cuttingPlaneConsumed = false;
+        return;
+    }
+
     const dx = e.clientX - _pointerDownX;
     const dy = e.clientY - _pointerDownY;
     const distSq = dx * dx + dy * dy;

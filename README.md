@@ -21,6 +21,7 @@ Key features include:
 - **Multi-entry annotations** — multiple users can add observations to the same feature with individual timestamps and version history
 - **Annotation types** — points, lines, polygons, surface painting, and boxes (lines and polygons can be projected onto the model surface)
 - **Measurement tools** — measure straight-line distances or multi-point paths (Ctrl+click) directly on the model, with configurable display units
+- **Cutting Plane** — extract cross-section profiles by spawning a camera-aligned cutting plane, adjusting its position and angle, and exporting the intersection as SVG (vector) or PNG with scale bar
 - **Groups** — organize annotations with customizable colors, per-group opacity, and visibility toggles
 - **Model Information** — add general notes about the entire model
 - **Metadata Report** — structured form for capturing technical documentation metadata (camera/scanner settings, processing parameters, legal info) with fillable PDF and JSON export/import, supporting photogrammetry, structured light, LiDAR, and TLS workflows
@@ -80,6 +81,7 @@ Ensure your model is oriented correctly (typically Y-up or Z-up) before exportin
 - **Surface projection** — Line and polygon edges are projected onto the model surface by default. Toggle this per annotation in the edit popup
 - **Box tool** — Drag to move, drag corners to resize, right-click + drag to rotate. Hold Shift while rotating to snap to 15° increments
 - **Multi-point measurement** — Hold Ctrl (Cmd on Mac) while clicking to measure paths through multiple points. Click on a measurement value to copy it to clipboard
+- **Cutting Plane** — Activate the Measure tool, then click Spawn Plane. The plane appears perpendicular to your current view. Left-drag to slide, right-drag to tilt, Ctrl+left-drag to swing. Click Extract Profile for SVG/PNG export with scale bar
 - **Flip View** — Click the Flip button to rotate the model 180°. Useful for coins or objects where the back is hard to reach with orbit controls. All annotation data remains in the original coordinate space
 - **View Helper** — Click any axis circle in the top-right widget to snap the camera to that standard view direction (e.g., top-down, front, side)
 - **Camera toggle** — Click "Perspective/Orthographic" to switch views; orthographic removes perspective distortion for accurate documentation
