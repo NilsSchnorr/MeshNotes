@@ -3,6 +3,68 @@ import * as THREE from 'three';
 import { state } from '../state.js';
 import { showStatus, flipTransform } from '../utils/helpers.js';
 
+/**
+ * Get the world-space face normal for a given face index on a mesh.
+ * Works with both indexed and non-indexed geometry.
+ */
+function getFaceWorldNormal(mesh, faceIndex) {
+    const geo = mesh.geometry;
+    const posAttr = geo.getAttribute('position');
+    const index = geo.index;
+
+    const vA = new THREE.Vector3();
+    const vB = new THREE.Vector3();
+    const vC = new THREE.Vector3();
+
+    if (index) {
+        vA.fromBufferAttribute(posAttr, index.getX(faceIndex * 3));
+        vB.fromBufferAttribute(posAttr, index.getX(faceIndex * 3 + 1));
+        vC.fromBufferAttribute(posAttr, index.getX(faceIndex * 3 + 2));
+    } else {
+        vA.fromBufferAttribute(posAttr, faceIndex * 3);
+        vB.fromBufferAttribute(posAttr, faceIndex * 3 + 1);
+        vC.fromBufferAttribute(posAttr, faceIndex * 3 + 2);
+    }
+
+    const edge1 = new THREE.Vector3().subVectors(vB, vA);
+    const edge2 = new THREE.Vector3().subVectors(vC, vA);
+    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+
+    // Transform to world space
+    const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+    normal.applyMatrix3(normalMatrix).normalize();
+
+    return normal;
+}
+
+/**
+ * Find the face normal at the closest surface point to a given world-space position.
+ * Returns null if no BVH-accelerated mesh is available.
+ */
+function getClosestSurfaceNormal(worldPoint) {
+    const localPoint = new THREE.Vector3();
+    const invMatrix = new THREE.Matrix4();
+    let bestDistance = Infinity;
+    let bestNormal = null;
+
+    for (const mesh of state.modelMeshes) {
+        if (!mesh.geometry.boundsTree) continue;
+
+        invMatrix.copy(mesh.matrixWorld).invert();
+        localPoint.copy(worldPoint).applyMatrix4(invMatrix);
+
+        const target = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+        const result = mesh.geometry.boundsTree.closestPointToPoint(localPoint, target);
+
+        if (result && result.distance < bestDistance) {
+            bestDistance = result.distance;
+            bestNormal = getFaceWorldNormal(mesh, result.faceIndex);
+        }
+    }
+
+    return bestNormal;
+}
+
 export function projectEdgeToSurface(pointA, pointB, segments = 30) {
     if (state.modelMeshes.length === 0) return null;
 
@@ -11,12 +73,23 @@ export function projectEdgeToSurface(pointA, pointB, segments = 30) {
     const localPoint = new THREE.Vector3();
     const invMatrix = new THREE.Matrix4();
 
+    // Get reference normals at the endpoints for normal-consistency filtering.
+    // This prevents projection from "jumping" to the opposite side of thin-walled
+    // geometry (e.g. inside of a vase when annotating the outside).
+    const refNormalA = getClosestSurfaceNormal(pointA);
+    const refNormalB = getClosestSurfaceNormal(pointB);
+    const hasRefNormals = (refNormalA !== null && refNormalB !== null);
+    const interpolatedNormal = new THREE.Vector3();
+    const raycaster = new THREE.Raycaster();
+    const rayOffset = (state.modelBoundingSize || 1) * 0.1;
+
     for (let i = 0; i <= segments; i++) {
         const t = i / segments;
         tempPoint.lerpVectors(pointA, pointB, t);
 
         let bestDistance = Infinity;
         let bestPoint = null;
+        let bestFaceNormal = null;
 
         for (const mesh of state.modelMeshes) {
             if (!mesh.geometry.boundsTree) continue;
@@ -30,6 +103,38 @@ export function projectEdgeToSurface(pointA, pointB, segments = 30) {
             if (result && result.distance < bestDistance) {
                 bestDistance = result.distance;
                 bestPoint = result.point.clone().applyMatrix4(mesh.matrixWorld);
+                bestFaceNormal = getFaceWorldNormal(mesh, result.faceIndex);
+            }
+        }
+
+        // Normal consistency check: reject points projected onto the wrong surface
+        if (bestPoint && hasRefNormals && bestFaceNormal) {
+            interpolatedNormal.lerpVectors(refNormalA, refNormalB, t).normalize();
+
+            if (bestFaceNormal.dot(interpolatedNormal) < 0) {
+                // The closest point is on the opposite-facing surface.
+                // Raycast from above the correct surface to find the right one.
+                const rayOrigin = tempPoint.clone().addScaledVector(interpolatedNormal, rayOffset);
+                const rayDir = interpolatedNormal.clone().negate();
+                raycaster.set(rayOrigin, rayDir);
+
+                let fallbackPoint = null;
+                for (const mesh of state.modelMeshes) {
+                    const hits = raycaster.intersectObject(mesh);
+                    if (hits.length > 0) {
+                        // Use the first hit whose normal is consistent
+                        for (const hit of hits) {
+                            const hitNormal = getFaceWorldNormal(mesh, hit.faceIndex);
+                            if (hitNormal.dot(interpolatedNormal) >= 0) {
+                                fallbackPoint = hit.point.clone();
+                                break;
+                            }
+                        }
+                        if (fallbackPoint) break;
+                    }
+                }
+
+                bestPoint = fallbackPoint; // null → linear interpolation fallback
             }
         }
 

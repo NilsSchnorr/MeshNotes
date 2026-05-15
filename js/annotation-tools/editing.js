@@ -30,6 +30,48 @@ const _paintDecompQuat = new THREE.Quaternion();
 const _paintClosestPoint = new THREE.Vector3();
 const _paintFaceCenter = new THREE.Vector3();
 
+// Reusable vectors for the brush's normal-consistency filter.
+// Prevents paint from bleeding through thin walls (e.g. inside of a vase when painting outside).
+const _refNormal = new THREE.Vector3();
+const _candidateNormal = new THREE.Vector3();
+const _normalEdge1 = new THREE.Vector3();
+const _normalEdge2 = new THREE.Vector3();
+const _normalTmpA = new THREE.Vector3();
+const _normalTmpB = new THREE.Vector3();
+const _normalTmpC = new THREE.Vector3();
+
+/**
+ * Compute the local-space normal of a face on a mesh into the target vector.
+ * Returns true on success, false if the face index is invalid.
+ * Works with both indexed and non-indexed geometry.
+ */
+function _computeLocalFaceNormal(mesh, faceIndex, target) {
+    const geometry = mesh.geometry;
+    const position = geometry.attributes.position;
+    const index = geometry.index;
+    if (!position || faceIndex == null || faceIndex < 0) return false;
+
+    let a, b, c;
+    if (index) {
+        a = index.getX(faceIndex * 3);
+        b = index.getX(faceIndex * 3 + 1);
+        c = index.getX(faceIndex * 3 + 2);
+    } else {
+        a = faceIndex * 3;
+        b = faceIndex * 3 + 1;
+        c = faceIndex * 3 + 2;
+    }
+
+    _normalTmpA.fromBufferAttribute(position, a);
+    _normalTmpB.fromBufferAttribute(position, b);
+    _normalTmpC.fromBufferAttribute(position, c);
+
+    _normalEdge1.subVectors(_normalTmpB, _normalTmpA);
+    _normalEdge2.subVectors(_normalTmpC, _normalTmpA);
+    target.crossVectors(_normalEdge1, _normalEdge2).normalize();
+    return target.lengthSq() > 0;
+}
+
 // Module-level reference to the highlight buffer (avoids deep property access)
 let _highlightBuffer = null;
 let _highlightBufferCapacity = 0; // in floats
@@ -159,6 +201,12 @@ export function paintAtPoint(point, mesh, faceIndex) {
     const position = geometry.attributes.position;
     const meshIndex = state.modelMeshes.indexOf(mesh);
 
+    // Reference normal at the hit face (local space). Used to reject faces on the
+    // opposite side of thin walls (e.g. the inside of a vase when painting the outside).
+    // Compared against each candidate face's local normal — both are in mesh-local space,
+    // so the world transform doesn't need to be applied.
+    const hasRefNormal = _computeLocalFaceNormal(mesh, faceIndex, _refNormal);
+
     if (geometry.boundsTree) {
         _paintInvMatrix.copy(mesh.matrixWorld).invert();
         _paintLocalCenter.copy(point).applyMatrix4(_paintInvMatrix);
@@ -180,6 +228,17 @@ export function paintAtPoint(point, mesh, faceIndex) {
                 _paintFaceCenter.z = (triangle.a.z + triangle.b.z + triangle.c.z) / 3;
 
                 if (_paintFaceCenter.distanceToSquared(_paintLocalCenter) <= localRadiusSq) {
+                    // Normal-consistency filter: skip faces facing the opposite direction
+                    // from the hit face. Keeps the brush on one side of thin walls.
+                    if (hasRefNormal) {
+                        _normalEdge1.subVectors(triangle.b, triangle.a);
+                        _normalEdge2.subVectors(triangle.c, triangle.a);
+                        _candidateNormal.crossVectors(_normalEdge1, _normalEdge2).normalize();
+                        if (_candidateNormal.dot(_refNormal) < 0) {
+                            return false;
+                        }
+                    }
+
                     const faceId = meshIndex * FACE_ID_MULTIPLIER + triIndex;
                     if (state.isErasingMode) {
                         if (state.paintedFaces.has(faceId)) {
@@ -229,6 +288,19 @@ export function paintAtPoint(point, mesh, faceIndex) {
                 .divideScalar(3);
 
             if (faceCenter.distanceTo(point) <= brushRadius) {
+                // Normal-consistency filter (same intent as the BVH path).
+                // Fallback path works in world space, so compare in world space too.
+                if (hasRefNormal) {
+                    _normalEdge1.subVectors(vB, vA);
+                    _normalEdge2.subVectors(vC, vA);
+                    _candidateNormal.crossVectors(_normalEdge1, _normalEdge2).normalize();
+                    // _refNormal is in local space; transform it to world via the normal matrix.
+                    // Cheap to do per-face since this path is the rare no-BVH fallback.
+                    const nm = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+                    const refWorld = _refNormal.clone().applyMatrix3(nm).normalize();
+                    if (_candidateNormal.dot(refWorld) < 0) continue;
+                }
+
                 const faceId = meshIndex * FACE_ID_MULTIPLIER + i;
                 if (state.isErasingMode) {
                     if (state.paintedFaces.has(faceId)) {
