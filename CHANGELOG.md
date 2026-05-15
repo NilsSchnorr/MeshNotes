@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.0] — 2026-05-15
+
+### Added
+
+- **Cutting Plane** — extract cross-section profiles from 3D models. Activate via the Measure tool's *Spawn Plane* button to place a camera-aligned cutting plane. Adjust its position with left-drag, tilt with right-drag, and swing with Ctrl+left-drag. The intersection with the model is previewed live and can be exported as a vector SVG or as a PNG with scale bar.
+
+
 ## [1.0.0] — 2026-05-13
 
 Initial public release.
@@ -50,4 +57,5 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.1.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.1.0
 [1.0.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.0.0
