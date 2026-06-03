@@ -16,7 +16,7 @@ import { setModelOpacity } from './lighting.js';
 
 // Set up decoders for compressed GLB/glTF files
 const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+dracoLoader.setDecoderPath('vendor/draco/');
 
 // Register BVH extensions for accelerated raycasting and spatial queries
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
