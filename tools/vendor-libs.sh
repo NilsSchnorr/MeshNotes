@@ -10,6 +10,10 @@
 # Re-run to re-fetch or update (bump the version pins below first, and keep
 # them in sync with index.html, viewer.html and js/core/model-loader.js).
 #
+# This also fetches each library's LICENSE file into its vendor/ subfolder,
+# satisfying the attribution conditions of the MIT / Apache-2.0 licenses when
+# the libraries are redistributed as part of this repository.
+#
 # Requires: curl (preinstalled on macOS and most Linux).
 # After running, commit ./vendor/ — GitHub Pages serves only committed files.
 
@@ -22,9 +26,11 @@ JSPDF_VER="2.5.1"
 PDFLIB_VER="1.17.1"
 
 THREE_BASE="https://unpkg.com/three@${THREE_VER}"
-BVH_URL="https://unpkg.com/three-mesh-bvh@${BVH_VER}/build/index.module.js"
+BVH_BASE="https://unpkg.com/three-mesh-bvh@${BVH_VER}"
+JSPDF_BASE="https://unpkg.com/jspdf@${JSPDF_VER}"
+PDFLIB_BASE="https://unpkg.com/pdf-lib@${PDFLIB_VER}"
 JSPDF_URL="https://cdnjs.cloudflare.com/ajax/libs/jspdf/${JSPDF_VER}/jspdf.umd.min.js"
-PDFLIB_URL="https://unpkg.com/pdf-lib@${PDFLIB_VER}/dist/pdf-lib.min.js"
+DRACO_LICENSE_URL="https://raw.githubusercontent.com/google/draco/master/LICENSE"
 
 # Resolve repo root as the parent of this script's directory.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,8 +47,9 @@ fetch() {  # fetch <url> <destination-relative-to-root>
   curl -fSL --retry 3 -o "${dest}" "${url}"
 }
 
-# ── three.js core ───────────────────────────────────────────────────────────
+# ── three.js core + license (MIT, covers core AND all examples/jsm add-ons) ─
 fetch "${THREE_BASE}/build/three.module.js" "vendor/three/build/three.module.js"
+fetch "${THREE_BASE}/LICENSE"               "vendor/three/LICENSE"
 
 # ── three.js add-ons (exact import closure used by MeshNotes) ───────────────
 #    If you later import a NEW three/addons/* module, add it to this list
@@ -70,18 +77,24 @@ done
 
 # ── Draco decoder (fetched at runtime by DRACOLoader; r160-matched build) ───
 #    DRACOLoader.setDecoderPath('vendor/draco/') expects these three files.
+#    Draco is Apache-2.0 (Google) — its LICENSE and README are fetched too.
 for f in draco_decoder.js draco_decoder.wasm draco_wasm_wrapper.js; do
   fetch "${THREE_BASE}/examples/jsm/libs/draco/gltf/${f}" "vendor/draco/${f}"
 done
+fetch "${THREE_BASE}/examples/jsm/libs/draco/README.md" "vendor/draco/README.md"
+fetch "${DRACO_LICENSE_URL}"                            "vendor/draco/LICENSE"
 
-# ── three-mesh-bvh (single bundled ES module) ───────────────────────────────
-fetch "${BVH_URL}" "vendor/three-mesh-bvh/index.module.js"
+# ── three-mesh-bvh (single bundled ES module) + license ─────────────────────
+fetch "${BVH_BASE}/build/index.module.js" "vendor/three-mesh-bvh/index.module.js"
+fetch "${BVH_BASE}/LICENSE"               "vendor/three-mesh-bvh/LICENSE"
 
-# ── jsPDF (UMD global, <script> tag) ────────────────────────────────────────
-fetch "${JSPDF_URL}" "vendor/jspdf/jspdf.umd.min.js"
+# ── jsPDF (UMD global, <script> tag) + license ─────────────────────────────
+fetch "${JSPDF_URL}"          "vendor/jspdf/jspdf.umd.min.js"
+fetch "${JSPDF_BASE}/LICENSE" "vendor/jspdf/LICENSE"
 
-# ── pdf-lib (UMD global, <script> tag) ──────────────────────────────────────
-fetch "${PDFLIB_URL}" "vendor/pdf-lib/pdf-lib.min.js"
+# ── pdf-lib (UMD global, <script> tag) + license ───────────────────────────
+fetch "${PDFLIB_URL}"            "vendor/pdf-lib/pdf-lib.min.js"
+fetch "${PDFLIB_BASE}/LICENSE.md" "vendor/pdf-lib/LICENSE.md"
 
 echo ""
 echo "Done. Review ./vendor/, then commit it:"

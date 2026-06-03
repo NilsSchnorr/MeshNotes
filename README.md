@@ -134,12 +134,14 @@ The export includes custom selectors for 3D geometry (points, polylines, polygon
 
 ## Dependencies
 
-MeshNotes uses the following open-source libraries (loaded via CDN):
+MeshNotes bundles the following open-source libraries and serves them from its own origin (self-hosted under `vendor/`, not loaded from external CDNs):
 
 - [Three.js](https://threejs.org/) (MIT License) — 3D rendering
 - [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) (MIT License) — Accelerated raycasting & surface projection
 - [jsPDF](https://github.com/parallax/jsPDF) (MIT License) — PDF generation
 - [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT License) — Fillable PDF form creation
+
+The Draco geometry decoder (Apache-2.0, by Google) used for compressed GLB/glTF is also vendored. All of these files live in the repository under `vendor/` and are served from the same origin as the app, so no visitor data is sent to third-party CDNs. To update them to different pinned versions, edit the version numbers in `tools/vendor-libs.sh` and re-run it (`bash tools/vendor-libs.sh`), then commit the refreshed `vendor/` directory.
 
 
 ## Author

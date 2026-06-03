@@ -1,9 +1,18 @@
 MeshNotes
 Copyright 2026 Nils Schnorr
 
-This product includes the following third-party software:
+This product includes the following third-party software, redistributed under
+their respective licenses. The full text of each license is included alongside
+the bundled code in the vendor/ directory.
 
 - Three.js (https://threejs.org/) — Copyright 2010-2024 Three.js authors, MIT License
-- three-mesh-bvh (https://github.com/gkjohnson/three-mesh-bvh) — Copyright Garrett Johnson, MIT License
-- jsPDF (https://github.com/parallax/jsPDF) — Copyright James Hall, MIT License
-- pdf-lib (https://github.com/Hopding/pdf-lib) — Copyright Andrew Dillon, MIT License
+  (covers the core build and all bundled examples/jsm add-ons)
+  License: vendor/three/LICENSE
+- three-mesh-bvh (https://github.com/gkjohnson/three-mesh-bvh) — Copyright 2018 Garrett Johnson, MIT License
+  License: vendor/three-mesh-bvh/LICENSE
+- jsPDF (https://github.com/parallax/jsPDF) — Copyright 2010-2021 James Hall, yWorks GmbH, and contributors, MIT License
+  License: vendor/jspdf/LICENSE
+- pdf-lib (https://github.com/Hopding/pdf-lib) — Copyright 2019 Andrew Dillon, MIT License
+  License: vendor/pdf-lib/LICENSE.md
+- Draco 3D Data Compression decoder (https://github.com/google/draco) — Copyright Google LLC, Apache License 2.0
+  License: vendor/draco/LICENSE
