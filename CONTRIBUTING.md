@@ -32,7 +32,6 @@ By submitting a pull request, you agree that your contribution is licensed under
 ### Code Style
 
 - MeshNotes uses vanilla ES6 modules (no bundler, no framework)
-- External libraries are loaded via CDN in the importmap — do not add npm/node dependencies
 - Keep the tool browser-only with no server-side components
 - All annotation data stays local — do not add network transmission of user data
 
