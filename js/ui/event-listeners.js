@@ -31,6 +31,11 @@ export function setTool(tool) {
 
     state.currentTool = tool;
 
+    // Reset the canvas cursor on every tool change; a leftover 'move'/'grab'/
+    // 'resize' cursor from box hover or manipulation would otherwise stick,
+    // since the drawing tools never set the cursor themselves.
+    dom.canvas.style.cursor = 'default';
+
     // Clean up cutting plane when leaving the measure tool
     if (previousTool === 'measure' && tool !== 'measure') {
         cleanupCuttingPlane();

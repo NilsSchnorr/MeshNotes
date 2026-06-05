@@ -7,6 +7,7 @@ import { state, dom } from '../state.js';
 import { showStatus, toStorageCoords } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
+import { showBoxEditHelp, hideToolHelp } from '../ui/tool-help.js';
 
 // Late-bound callbacks (forwarded from editing.js setEditingCallbacks)
 let _openAnnotationPopup = null;
@@ -461,4 +462,174 @@ export function endSelectedBoxManipulation() {
     renderAnnotations();
     updateGroupsList();
     showStatus(statusMsg);
+}
+
+
+// ============ Router-dispatch helpers (router-thinning pass) ============
+// These were inline branches in the editing.js pointer routers; moved here so
+// all box behaviour lives in box-edit.js. Behaviour-identical relocation; the
+// only adaptation is returning a boolean so the router can early-return.
+
+/**
+ * onCanvasTap: if a box is unlocked for editing and the user clicks somewhere
+ * other than that box, lock it. Returns true if the click was handled (box
+ * locked) and the router should stop processing the tap.
+ * @param {PointerEvent|MouseEvent} event
+ * @returns {boolean}
+ */
+export function handleUnlockedBoxClickElsewhere(event) {
+    // If a box is unlocked for editing and user clicks elsewhere (not on that box),
+    // lock the box and clear the edit state
+    if (state.boxEditUnlocked !== null && !state.currentTool && state.currentModel) {
+        const rect = dom.canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, state.camera);
+
+        // Check if clicking on any box body or handle of the unlocked box
+        const boxObjects = state.annotationObjects.children.filter(obj =>
+            (obj.userData.isBoxBody || obj.userData.isBoxHandle) &&
+            obj.userData.annotationId === state.boxEditUnlocked
+        );
+        const intersects = raycaster.intersectObjects(boxObjects);
+
+        // If not clicking on the unlocked box, lock it
+        if (intersects.length === 0) {
+            state.boxEditUnlocked = null;
+            hideToolHelp();
+            renderAnnotations();
+            showStatus('Box locked');
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * onCanvasTap: spawn a pending box at the tapped point and enter placement mode.
+ * @param {PointerEvent|MouseEvent} event
+ * @param {THREE.Vector3} point - intersected world-space point.
+ */
+export function beginBoxPlacement(event, point) {
+    const defaultSize = state.modelBoundingSize * 0.15;
+    state.pendingBoxData = {
+        center: { x: point.x, y: point.y, z: point.z },
+        size: { x: defaultSize, y: defaultSize, z: defaultSize },
+        rotation: { x: 0, y: 0, z: 0 }
+    };
+    state.isBoxPlacementMode = true;
+    state.pendingBoxClickPosition = { x: event.clientX, y: event.clientY };
+    renderPendingBox();
+    showStatus('Adjust box: drag to move, right-drag to rotate, drag corners to resize. Double-click to confirm.');
+}
+
+/**
+ * onCanvasDoubleTap: when no tool is active, double-clicking an existing box
+ * toggles its unlocked-for-editing state.
+ * @param {PointerEvent|MouseEvent} event
+ */
+export function toggleExistingBoxLock(event) {
+    // Check if double-clicking on an existing box to unlock it for editing
+    const rect = dom.canvas.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, state.camera);
+
+    const boxObjects = state.annotationObjects.children.filter(obj =>
+        obj.userData.isBoxBody && obj.isMesh
+    );
+    const boxIntersects = raycaster.intersectObjects(boxObjects);
+
+    if (boxIntersects.length > 0) {
+        const boxMesh = boxIntersects[0].object;
+        const annId = boxMesh.userData.annotationId;
+        const ann = state.annotations.find(a => a.id === annId);
+
+        if (ann && ann.type === 'box') {
+            // Toggle unlock state
+            if (state.boxEditUnlocked === annId) {
+                // Already unlocked, lock it again
+                state.boxEditUnlocked = null;
+                hideToolHelp();
+                renderAnnotations(); // Update visual feedback (opacity/color change)
+                showStatus('Box locked');
+            } else {
+                // Unlock for editing
+                state.boxEditUnlocked = annId;
+                showBoxEditHelp();
+                renderAnnotations(); // Update visual feedback (opacity/color change)
+                showStatus('Box unlocked for editing. Drag to move, right-drag to rotate, drag corners to resize.');
+            }
+        }
+    }
+}
+
+/**
+ * onCanvasPointerDown: during box placement, begin manipulating the pending box
+ * if the pointer hit one of its handles (resize) or its body (move/rotate).
+ * Returns true if a manipulation was started and the router should early-return.
+ * @param {PointerEvent|MouseEvent} event
+ * @returns {boolean}
+ */
+export function handlePendingBoxPointerDown(event) {
+    // Handle pending box manipulation during placement mode
+    if (state.isBoxPlacementMode && state.pendingBoxData && state.currentModel) {
+        const rect = dom.canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, state.camera);
+
+        // Check for handle hit on pending box
+        const handleObjects = state.annotationObjects.children.filter(obj =>
+            obj.userData.isPendingBoxHandle && obj.isMesh
+        );
+        const handleIntersects = raycaster.intersectObjects(handleObjects);
+
+        if (handleIntersects.length > 0) {
+            const handle = handleIntersects[0].object;
+            state.isManipulatingBox = true;
+            state.boxManipulationMode = 'resize';
+            state.activeBoxHandle = handle.userData.handleIndex;
+            state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
+            state.boxDragStartData = JSON.parse(JSON.stringify(state.pendingBoxData));
+            state.controls.enabled = false;
+            dom.canvas.style.cursor = 'nwse-resize';
+            return true;
+        }
+
+        // Check for body hit on pending box
+        const bodyObjects = state.annotationObjects.children.filter(obj =>
+            obj.userData.isPendingBoxBody && obj.isMesh
+        );
+        const bodyIntersects = raycaster.intersectObjects(bodyObjects);
+
+        if (bodyIntersects.length > 0) {
+            state.isManipulatingBox = true;
+            state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
+            state.boxDragStartData = JSON.parse(JSON.stringify(state.pendingBoxData));
+            state.controls.enabled = false;
+
+            if (event.button === 2) {
+                state.boxManipulationMode = 'rotate';
+                dom.canvas.style.cursor = 'ew-resize';
+            } else {
+                state.boxManipulationMode = 'move';
+                dom.canvas.style.cursor = 'move';
+            }
+            return true;
+        }
+    }
+    return false;
 }
