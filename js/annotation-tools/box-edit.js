@@ -16,6 +16,29 @@ export function setBoxEditCallbacks({ openAnnotationPopup, setTool }) {
     _setTool = setTool;
 }
 
+// --- Box "grab offset" helpers (keep the box's pick point under the cursor on move) ---
+function clientToNDC(clientX, clientY) {
+    const rect = dom.canvas.getBoundingClientRect();
+    return new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+}
+
+// Vector from the box center to where the cursor first hit the move-plane at drag start.
+// Subtracting it from the live plane hit keeps the grabbed point fixed under the cursor,
+// so the box no longer snaps its center to the pointer on the first move.
+function computeBoxGrabOffset(plane, startCenter) {
+    const startMouseNDC = clientToNDC(state.boxDragStartMouse.x, state.boxDragStartMouse.y);
+    const startRay = new THREE.Raycaster();
+    startRay.setFromCamera(startMouseNDC, state.camera);
+    const hitAtStart = new THREE.Vector3();
+    if (startRay.ray.intersectPlane(plane, hitAtStart)) {
+        return hitAtStart.sub(startCenter);
+    }
+    return new THREE.Vector3(0, 0, 0);
+}
+
 /**
  * Renders the pending box during placement mode.
  * Creates a temporary box visualization that can be manipulated before confirmation.
@@ -158,10 +181,16 @@ export function confirmBoxPlacement(event) {
         size: { ...state.pendingBoxData.size },
         rotation: state.pendingBoxData.rotation ? { ...state.pendingBoxData.rotation } : { x: 0, y: 0, z: 0 }
     };
-    
-    // Clear pending box visuals
-    clearPendingBox();
-    
+
+    // Exit placement mode but KEEP the pending box visuals on screen, so the box
+    // stays visible while the annotation popup is open (instead of vanishing until
+    // save). The pending visuals are removed when the popup resolves: saveAnnotation()
+    // and the cancel / X-close handlers all call clearTempDrawing(), which in turn
+    // calls clearPendingBox(). On save, renderAnnotations() then draws the real box.
+    state.isBoxPlacementMode = false;
+    state.pendingBoxData = null;
+    state.pendingBoxClickPosition = null;
+
     // Open popup with the finalized box data
     _openAnnotationPopup(event, 'box', [point], boxData);
     _setTool(null);
@@ -183,13 +212,15 @@ export function updatePendingBoxManipulation(event, mouse) {
         const cameraDir = new THREE.Vector3();
         state.camera.getWorldDirection(cameraDir);
         const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
+        const grabOffset = computeBoxGrabOffset(movePlane, startCenter);
 
         const intersection = new THREE.Vector3();
         if (raycaster.ray.intersectPlane(movePlane, intersection)) {
+            const newCenter = intersection.clone().sub(grabOffset);
             state.pendingBoxData.center = {
-                x: intersection.x,
-                y: intersection.y,
-                z: intersection.z
+                x: newCenter.x,
+                y: newCenter.y,
+                z: newCenter.z
             };
             renderPendingBox();
         }
@@ -295,11 +326,13 @@ export function updateSelectedBoxManipulation(event, mouse) {
         const cameraDir = new THREE.Vector3();
         state.camera.getWorldDirection(cameraDir);
         const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
+        const grabOffset = computeBoxGrabOffset(movePlane, startCenter);
 
         const intersection = new THREE.Vector3();
         if (raycaster.ray.intersectPlane(movePlane, intersection)) {
+            const newCenterWorld = intersection.clone().sub(grabOffset);
             // Convert from world space back to storage
-            const stored = toStorageCoords(intersection);
+            const stored = toStorageCoords(newCenterWorld);
             state.selectedBoxAnnotation.boxData.center = {
                 x: stored.x,
                 y: stored.y,
