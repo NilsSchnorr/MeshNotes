@@ -10,7 +10,7 @@ import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, re
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
 import { showBoxEditHelp, hideToolHelp } from '../ui/tool-help.js';
-import { addMeasureMarker, updateMeasureLine, updateLiveMeasurementLabel, finalizeMeasurement } from './measure.js';
+import { handleMeasureTap } from './measure.js';
 import { getIntersectionWithFace, paintAtPoint, finishSurfacePainting, clearTempSurface, _startPaintLoop, _stopPaintLoop, queuePaintInput, setSurfacePaintCallbacks } from './surface-paint.js';
 import { updateTempLine } from './drawing.js';
 import { renderPendingBox, clearPendingBox, updatePendingBoxManipulation, updateSelectedBoxManipulation, confirmBoxPlacement, endPendingBoxManipulation, endSelectedBoxManipulation, setBoxEditCallbacks } from './box-edit.js';
@@ -122,42 +122,7 @@ export function onCanvasTap(event) {
         state.tempPoints.push(point);
         updateTempLine();
     } else if (state.currentTool === 'measure') {
-        const isCtrlHeld = event.ctrlKey || event.metaKey;
-        
-        // Multi-point measurement logic:
-        // - Ctrl+click: add point and continue (multi-point mode)
-        // - Click without Ctrl when 2+ points exist: finalize measurement
-        // - Click without Ctrl when 0-1 points: normal add point behavior
-        
-        if (state.measurePoints.length >= 2 && !isCtrlHeld && !state.isMultiPointMeasure) {
-            // Normal two-point measurement completed on second click
-            state.measurePoints.push(point);
-            addMeasureMarker(point);
-            finalizeMeasurement();
-        } else if (state.measurePoints.length >= 2 && !isCtrlHeld && state.isMultiPointMeasure) {
-            // Finalizing multi-point measurement (Ctrl released)
-            finalizeMeasurement();
-        } else {
-            // Add point to current measurement
-            state.measurePoints.push(point);
-            addMeasureMarker(point);
-            
-            // If Ctrl is held, we're in multi-point mode
-            if (isCtrlHeld) {
-                state.isMultiPointMeasure = true;
-            }
-            
-            // Update visual with running distance if we have 2+ points
-            if (state.measurePoints.length >= 2) {
-                updateMeasureLine();
-                updateLiveMeasurementLabel();
-                
-                // If not in multi-point mode (normal two-point), finalize
-                if (!state.isMultiPointMeasure && !isCtrlHeld) {
-                    finalizeMeasurement();
-                }
-            }
-        }
+        handleMeasureTap(event, point);
     } else if (state.currentTool === 'surface') {
         state.isErasingMode = event.shiftKey;
         const hitInfo = getIntersectionWithFace(event);

@@ -262,6 +262,52 @@ export function finalizeMeasurement() {
     state.isMultiPointMeasure = false;
 }
 
+/**
+ * Handle a measurement-tool tap: add a point (and continue in multi-point mode
+ * with Ctrl/Cmd held), or finalize the measurement. Lifted verbatim from the
+ * onCanvasTap measure branch in editing.js (router-thinning pass) - behaviour unchanged.
+ * @param {PointerEvent|MouseEvent} event - the tap event (for Ctrl/Cmd detection).
+ * @param {THREE.Vector3} point - the intersected world-space point.
+ */
+export function handleMeasureTap(event, point) {
+    const isCtrlHeld = event.ctrlKey || event.metaKey;
+
+    // Multi-point measurement logic:
+    // - Ctrl+click: add point and continue (multi-point mode)
+    // - Click without Ctrl when 2+ points exist: finalize measurement
+    // - Click without Ctrl when 0-1 points: normal add point behavior
+
+    if (state.measurePoints.length >= 2 && !isCtrlHeld && !state.isMultiPointMeasure) {
+        // Normal two-point measurement completed on second click
+        state.measurePoints.push(point);
+        addMeasureMarker(point);
+        finalizeMeasurement();
+    } else if (state.measurePoints.length >= 2 && !isCtrlHeld && state.isMultiPointMeasure) {
+        // Finalizing multi-point measurement (Ctrl released)
+        finalizeMeasurement();
+    } else {
+        // Add point to current measurement
+        state.measurePoints.push(point);
+        addMeasureMarker(point);
+
+        // If Ctrl is held, we're in multi-point mode
+        if (isCtrlHeld) {
+            state.isMultiPointMeasure = true;
+        }
+
+        // Update visual with running distance if we have 2+ points
+        if (state.measurePoints.length >= 2) {
+            updateMeasureLine();
+            updateLiveMeasurementLabel();
+
+            // If not in multi-point mode (normal two-point), finalize
+            if (!state.isMultiPointMeasure && !isCtrlHeld) {
+                finalizeMeasurement();
+            }
+        }
+    }
+}
+
 export function updateMeasurementsDisplay() {
     const unit = state.measurementUnit || 'units';
     if (state.measurements.length === 0) {
