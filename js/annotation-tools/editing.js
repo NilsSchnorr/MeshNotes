@@ -12,7 +12,7 @@ import { updateGroupsList } from './groups.js';
 import { handleMeasureTap } from './measure.js';
 import { getIntersectionWithFace, paintAtPoint, finishSurfacePainting, clearTempSurface, _startPaintLoop, _stopPaintLoop, queuePaintInput, setSurfacePaintCallbacks } from './surface-paint.js';
 import { updateTempLine } from './drawing.js';
-import { clearPendingBox, updatePendingBoxManipulation, updateSelectedBoxManipulation, confirmBoxPlacement, endPendingBoxManipulation, endSelectedBoxManipulation, setBoxEditCallbacks, handleUnlockedBoxClickElsewhere, beginBoxPlacement, toggleExistingBoxLock, handlePendingBoxPointerDown } from './box-edit.js';
+import { clearPendingBox, updatePendingBoxManipulation, updateSelectedBoxManipulation, confirmBoxPlacement, endPendingBoxManipulation, endSelectedBoxManipulation, setBoxEditCallbacks, handleUnlockedBoxClickElsewhere, beginBoxPlacement, toggleExistingBoxLock, handlePendingBoxPointerDown, beginBoxHandleDrag, beginBoxBodyDrag } from './box-edit.js';
 
 // Late-bound references (set from main.js to avoid circular deps)
 let _openAnnotationPopup = null;
@@ -175,26 +175,7 @@ export function onCanvasPointerDown(event) {
         const annId = marker.userData.annotationId;
         const pointIndex = marker.userData.pointIndex;
 
-        if (marker.userData.isBoxHandle) {
-            const ann = state.annotations.find(a => a.id === annId);
-            if (ann && ann.type === 'box') {
-                // Only allow manipulation if box is unlocked
-                if (state.boxEditUnlocked !== annId) {
-                    showStatus('Double-click box to unlock for editing');
-                    return;
-                }
-                
-                state.selectedBoxAnnotation = ann;
-                state.isManipulatingBox = true;
-                state.boxManipulationMode = 'resize';
-                state.activeBoxHandle = marker.userData.handleIndex;
-                state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
-                state.boxDragStartData = JSON.parse(JSON.stringify(ann.boxData));
-                state.controls.enabled = false;
-                dom.canvas.style.cursor = 'nwse-resize';
-                return;
-            }
-        }
+        if (marker.userData.isBoxHandle && beginBoxHandleDrag(event, marker)) return;
 
         state.draggedAnnotation = state.annotations.find(a => a.id === annId);
         if (state.draggedAnnotation) {
@@ -207,38 +188,43 @@ export function onCanvasPointerDown(event) {
     }
 
     if (!state.isDraggingPoint && !state.isManipulatingBox) {
+        beginBoxBodyDrag(event, raycaster);
+    }
+}
+
+// Idle hover-cursor feedback (no active tool): grab/resize over draggable
+// annotation markers and box handles, move over a box body, default otherwise.
+// Lifted from the inline onCanvasPointerMove block (router-thinning pass).
+function updateHoverCursor(mouse) {
+    if (!state.currentTool && state.currentModel) {
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, state.camera);
+
+        const markerObjects = state.annotationObjects.children.filter(obj =>
+            obj.userData.isAnnotationMarker && obj.isMesh
+        );
+
+        const markerIntersects = raycaster.intersectObjects(markerObjects);
+
+        if (markerIntersects.length > 0) {
+            const hitMarker = markerIntersects[0].object;
+            if (hitMarker.userData.isBoxHandle) {
+                dom.canvas.style.cursor = 'nwse-resize';
+            } else {
+                dom.canvas.style.cursor = 'grab';
+            }
+            return;
+        }
+
         const boxObjects = state.annotationObjects.children.filter(obj =>
             obj.userData.isBoxBody && obj.isMesh
         );
         const boxIntersects = raycaster.intersectObjects(boxObjects);
 
         if (boxIntersects.length > 0) {
-            const boxMesh = boxIntersects[0].object;
-            const annId = boxMesh.userData.annotationId;
-            const ann = state.annotations.find(a => a.id === annId);
-
-            if (ann && ann.type === 'box') {
-                // Only allow manipulation if box is unlocked
-                if (state.boxEditUnlocked !== annId) {
-                    // Box is locked, show hint
-                    showStatus('Double-click box to unlock for editing');
-                    return;
-                }
-                
-                state.selectedBoxAnnotation = ann;
-                state.isManipulatingBox = true;
-                state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
-                state.boxDragStartData = JSON.parse(JSON.stringify(ann.boxData));
-                state.controls.enabled = false;
-
-                if (event.button === 2) {
-                    state.boxManipulationMode = 'rotate';
-                    dom.canvas.style.cursor = 'ew-resize';
-                } else {
-                    state.boxManipulationMode = 'move';
-                    dom.canvas.style.cursor = 'move';
-                }
-            }
+            dom.canvas.style.cursor = 'move';
+        } else {
+            dom.canvas.style.cursor = 'default';
         }
     }
 }
@@ -306,37 +292,7 @@ export function onCanvasPointerMove(event) {
         return;
     }
 
-    if (!state.currentTool && state.currentModel) {
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, state.camera);
-
-        const markerObjects = state.annotationObjects.children.filter(obj =>
-            obj.userData.isAnnotationMarker && obj.isMesh
-        );
-
-        const markerIntersects = raycaster.intersectObjects(markerObjects);
-
-        if (markerIntersects.length > 0) {
-            const hitMarker = markerIntersects[0].object;
-            if (hitMarker.userData.isBoxHandle) {
-                dom.canvas.style.cursor = 'nwse-resize';
-            } else {
-                dom.canvas.style.cursor = 'grab';
-            }
-            return;
-        }
-
-        const boxObjects = state.annotationObjects.children.filter(obj =>
-            obj.userData.isBoxBody && obj.isMesh
-        );
-        const boxIntersects = raycaster.intersectObjects(boxObjects);
-
-        if (boxIntersects.length > 0) {
-            dom.canvas.style.cursor = 'move';
-        } else {
-            dom.canvas.style.cursor = 'default';
-        }
-    }
+    updateHoverCursor(mouse);
 }
 
 export function onCanvasPointerUp(event) {

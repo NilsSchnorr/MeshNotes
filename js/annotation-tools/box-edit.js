@@ -633,3 +633,80 @@ export function handlePendingBoxPointerDown(event) {
     }
     return false;
 }
+
+
+/**
+ * onCanvasPointerDown: if the hit marker is a handle of an unlocked box, begin a
+ * resize manipulation. Returns true if the event was consumed (resize started, or
+ * a "locked" hint shown); false if the marker is not a box handle the router
+ * should keep treating as a normal draggable point.
+ * @param {PointerEvent|MouseEvent} event
+ * @param {THREE.Object3D} marker - the intersected annotation marker.
+ * @returns {boolean}
+ */
+export function beginBoxHandleDrag(event, marker) {
+    const annId = marker.userData.annotationId;
+    const ann = state.annotations.find(a => a.id === annId);
+    if (ann && ann.type === 'box') {
+        // Only allow manipulation if box is unlocked
+        if (state.boxEditUnlocked !== annId) {
+            showStatus('Double-click box to unlock for editing');
+            return true;
+        }
+
+        state.selectedBoxAnnotation = ann;
+        state.isManipulatingBox = true;
+        state.boxManipulationMode = 'resize';
+        state.activeBoxHandle = marker.userData.handleIndex;
+        state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
+        state.boxDragStartData = JSON.parse(JSON.stringify(ann.boxData));
+        state.controls.enabled = false;
+        dom.canvas.style.cursor = 'nwse-resize';
+        return true;
+    }
+    return false;
+}
+
+/**
+ * onCanvasPointerDown: if the pointer hit an unlocked box body (and no point drag
+ * or box manipulation is already in progress), begin a move (left button) or
+ * rotate (right button) manipulation. Reuses the marker raycaster the router
+ * already built, to avoid a second raycast.
+ * @param {PointerEvent|MouseEvent} event
+ * @param {THREE.Raycaster} raycaster - the router's marker raycaster.
+ */
+export function beginBoxBodyDrag(event, raycaster) {
+    const boxObjects = state.annotationObjects.children.filter(obj =>
+        obj.userData.isBoxBody && obj.isMesh
+    );
+    const boxIntersects = raycaster.intersectObjects(boxObjects);
+
+    if (boxIntersects.length > 0) {
+        const boxMesh = boxIntersects[0].object;
+        const annId = boxMesh.userData.annotationId;
+        const ann = state.annotations.find(a => a.id === annId);
+
+        if (ann && ann.type === 'box') {
+            // Only allow manipulation if box is unlocked
+            if (state.boxEditUnlocked !== annId) {
+                // Box is locked, show hint
+                showStatus('Double-click box to unlock for editing');
+                return;
+            }
+
+            state.selectedBoxAnnotation = ann;
+            state.isManipulatingBox = true;
+            state.boxDragStartMouse = { x: event.clientX, y: event.clientY };
+            state.boxDragStartData = JSON.parse(JSON.stringify(ann.boxData));
+            state.controls.enabled = false;
+
+            if (event.button === 2) {
+                state.boxManipulationMode = 'rotate';
+                dom.canvas.style.cursor = 'ew-resize';
+            } else {
+                state.boxManipulationMode = 'move';
+                dom.canvas.style.cursor = 'move';
+            }
+        }
+    }
+}
