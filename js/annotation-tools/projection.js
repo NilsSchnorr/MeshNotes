@@ -6,6 +6,12 @@ import { showStatus, flipTransform } from '../utils/helpers.js';
 /**
  * Get the world-space face normal for a given face index on a mesh.
  * Works with both indexed and non-indexed geometry.
+ *
+ * Note: deliberately kept separate from surface-paint.js's _computeLocalFaceNormal.
+ * This returns a WORLD-space normal (applies the mesh normal matrix) and allocates
+ * per call — fine here, where it runs once per raycast hit. The surface-paint
+ * variant stays in LOCAL space and is zero-allocation for its per-face paint hot
+ * path. They are not interchangeable; do not merge them.
  */
 function getFaceWorldNormal(mesh, faceIndex) {
     const geo = mesh.geometry;

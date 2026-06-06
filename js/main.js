@@ -6,7 +6,7 @@ import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurement
 import { setUpdateModelInfoDisplay, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
-import { setEditingCallbacks, finishSurfacePainting, renderMeasurements } from './annotation-tools/editing.js';
+import { setEditingCallbacks, renderMeasurements } from './annotation-tools/editing.js';
 import { updateMeasurementsDisplay } from './annotation-tools/editing.js';
 import { renderAnnotations, setRenderCallbacks } from './annotation-tools/render.js';
 import { setRenderAnnotations } from './annotation-tools/projection.js';
@@ -25,8 +25,6 @@ setUpdateModelInfoDisplay(updateModelInfoDisplay);
 setRenderAnnotations(renderAnnotations);
 setEditingCallbacks({
     openAnnotationPopup,
-    openAnnotationPopupForEdit,
-    finishSurfacePainting,
     setTool
 });
 setGroupCallbacks({

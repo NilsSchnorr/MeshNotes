@@ -47,6 +47,12 @@ const _normalTmpC = new THREE.Vector3();
  * Compute the local-space normal of a face on a mesh into the target vector.
  * Returns true on success, false if the face index is invalid.
  * Works with both indexed and non-indexed geometry.
+ *
+ * Note: deliberately kept separate from projection.js's getFaceWorldNormal. This
+ * stays in LOCAL space and is zero-allocation (reuses module-level vectors + the
+ * target) because it runs in the paint hot path — once per candidate face in the
+ * brush shapecast, potentially hundreds of times per mousemove. The projection
+ * variant returns WORLD space and allocates. They are not interchangeable.
  */
 function _computeLocalFaceNormal(mesh, faceIndex, target) {
     const geometry = mesh.geometry;

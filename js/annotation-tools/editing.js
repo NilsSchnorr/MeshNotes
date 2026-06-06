@@ -9,28 +9,24 @@ import { getIntersection, getIntersectionFull, createScaledTextSprite } from '..
 import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, recomputeAdjacentEdges, computeProjectedEdgesFlipAware, recomputeAdjacentEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
-import { handleMeasureTap } from './measure.js';
+import { handleMeasureTap, clearActiveMeasurement } from './measure.js';
 import { getIntersectionWithFace, paintAtPoint, finishSurfacePainting, clearTempSurface, _startPaintLoop, _stopPaintLoop, queuePaintInput, setSurfacePaintCallbacks, handleSurfaceTap, handleSurfaceDoubleTap } from './surface-paint.js';
 import { setDrawingCallbacks, addDrawingPoint, handlePointTap, finishDrawing } from './drawing.js';
 import { clearPendingBox, updatePendingBoxManipulation, updateSelectedBoxManipulation, confirmBoxPlacement, endPendingBoxManipulation, endSelectedBoxManipulation, setBoxEditCallbacks, handleUnlockedBoxClickElsewhere, beginBoxPlacement, toggleExistingBoxLock, handlePendingBoxPointerDown, beginBoxHandleDrag, beginBoxBodyDrag } from './box-edit.js';
 
-// Late-bound references (set from main.js to avoid circular deps)
-let _openAnnotationPopup = null;
-let _openAnnotationPopupForEdit = null;
-let _finishSurfacePainting = null;
-let _setTool = null;
-
-export function setEditingCallbacks({ openAnnotationPopup, openAnnotationPopupForEdit, finishSurfacePainting, setTool }) {
-    _openAnnotationPopup = openAnnotationPopup;
-    _openAnnotationPopupForEdit = openAnnotationPopupForEdit;
-    _finishSurfacePainting = finishSurfacePainting;
-    _setTool = setTool;
+export function setEditingCallbacks({ openAnnotationPopup, setTool }) {
     setSurfacePaintCallbacks({ openAnnotationPopup, setTool });
     setBoxEditCallbacks({ openAnnotationPopup, setTool });
     setDrawingCallbacks({ openAnnotationPopup, setTool });
 }
 
-export function clearTempDrawing() {
+/**
+ * Cancel an in-progress point/line/polygon drawing, surface paint, or box
+ * placement. Deliberately does NOT clear measurements — those persist across
+ * tool switches (see toggleTool) so the user can return and add more, or clear
+ * them manually. clearTempDrawing() layers the measurement clear on top.
+ */
+export function cancelUnfinishedDrawing() {
     state.tempPoints = [];
     state.tempProjectedEdges = [];
     if (state.tempLine) {
@@ -39,31 +35,13 @@ export function clearTempDrawing() {
         state.annotationObjects.remove(state.tempLine);
         state.tempLine = null;
     }
-    state.measurePoints = [];
-    state.measureMarkers.forEach(m => {
-        if (m.geometry) m.geometry.dispose();
-        if (m.material) m.material.dispose();
-        state.annotationObjects.remove(m);
-    });
-    state.measureMarkers = [];
-    if (state.measureLine) {
-        if (state.measureLine.geometry) state.measureLine.geometry.dispose();
-        if (state.measureLine.material) state.measureLine.material.dispose();
-        state.annotationObjects.remove(state.measureLine);
-        state.measureLine = null;
-    }
-    // Clear live measurement label
-    if (state.measureLabel) {
-        if (state.measureLabel.material && state.measureLabel.material.map) {
-            state.measureLabel.material.map.dispose();
-        }
-        if (state.measureLabel.material) state.measureLabel.material.dispose();
-        state.annotationObjects.remove(state.measureLabel);
-        state.measureLabel = null;
-    }
-    state.isMultiPointMeasure = false;
     clearTempSurface();
     clearPendingBox();
+}
+
+export function clearTempDrawing() {
+    cancelUnfinishedDrawing();
+    clearActiveMeasurement();
 }
 
 // Pointer-event-compatible aliases for the canvas handlers.

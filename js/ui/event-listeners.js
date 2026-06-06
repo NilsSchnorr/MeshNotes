@@ -5,7 +5,7 @@ import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain,
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, resetAllSettings } from '../core/lighting.js';
-import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
+import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, cancelUnfinishedDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
@@ -349,6 +349,9 @@ export function setupEventListeners() {
             clearTempDrawing();
             setTool(null);
         } else {
+            // Switching to a different tool: cancel any in-progress drawing/box/
+            // surface (measurements deliberately persist), then activate the tool.
+            cancelUnfinishedDrawing();
             setTool(tool);
         }
     }

@@ -106,19 +106,6 @@ function calculateTotalDistance(points) {
 }
 
 /**
- * Calculate individual segment distances for a path.
- * @param {THREE.Vector3[]} points - Array of points
- * @returns {number[]} Array of segment distances
- */
-function calculateSegmentDistances(points) {
-    const segments = [];
-    for (let i = 0; i < points.length - 1; i++) {
-        segments.push(points[i].distanceTo(points[i + 1]));
-    }
-    return segments;
-}
-
-/**
  * Updates the measurement line to connect all current measurement points.
  * Supports both two-point and multi-point measurements.
  */
@@ -425,7 +412,13 @@ function copyToClipboard(text, element) {
     });
 }
 
-export function clearAllMeasurements() {
+/**
+ * Clear the in-progress (not-yet-finalized) measurement: its points, markers,
+ * live line, live label, and multi-point flag. Shared by editing.js's
+ * clearTempDrawing and by clearAllMeasurements (which additionally removes all
+ * committed measurements afterwards).
+ */
+export function clearActiveMeasurement() {
     state.measurePoints = [];
     state.measureMarkers.forEach(m => {
         if (m.geometry) m.geometry.dispose();
@@ -449,6 +442,10 @@ export function clearAllMeasurements() {
         state.measureLabel = null;
     }
     state.isMultiPointMeasure = false;
+}
+
+export function clearAllMeasurements() {
+    clearActiveMeasurement();
 
     state.measurements.forEach(m => {
         m.markers.forEach(marker => {
