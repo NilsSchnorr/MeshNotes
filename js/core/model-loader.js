@@ -196,7 +196,7 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     
     // Build BVH trees separately with error handling
     // BVH is required for surface tools and efficient raycasting
-    const BVH_FACE_LIMIT = 5000000; // Skip BVH for extremely large models
+    const BVH_FACE_LIMIT = Infinity; // Limit disabled for testing large (10M-face) models — was 5000000
     
     if (totalFaces > BVH_FACE_LIMIT) {
         console.warn(`Model has ${totalFaces.toLocaleString()} faces - skipping BVH for performance. Surface tools may be slower.`);
