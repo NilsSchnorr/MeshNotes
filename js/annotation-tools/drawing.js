@@ -6,8 +6,16 @@ import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state } from '../state.js';
-import { showStatus } from '../utils/helpers.js';
+import { showStatus, toStorageCoords } from '../utils/helpers.js';
 import { projectEdgeToSurface, isProjectionAcceptable } from './projection.js';
+
+// Late-bound callbacks (set via editing.js setEditingCallbacks -> setDrawingCallbacks)
+let _openAnnotationPopup = null;
+let _setTool = null;
+export function setDrawingCallbacks({ openAnnotationPopup, setTool }) {
+    _openAnnotationPopup = openAnnotationPopup;
+    _setTool = setTool;
+}
 
 /**
  * Undo the last point placed during line or polygon drawing.
@@ -95,4 +103,43 @@ export function updateTempLine() {
 
     state.tempLine = new Line2(geometry, material);
     state.annotationObjects.add(state.tempLine);
+}
+
+
+/**
+ * onCanvasTap (point tool): open the annotation popup at the tapped point and
+ * deactivate the tool. Honours a pre-resolved pendingPointPosition if present.
+ * Lifted verbatim from the onCanvasTap point branch (router-thinning pass).
+ * @param {PointerEvent|MouseEvent} event
+ * @param {THREE.Vector3} point - intersected world-space point.
+ */
+export function handlePointTap(event, point) {
+    const pointToUse = state.pendingPointPosition || point;
+    state.pendingPointPosition = null;
+    if (!pointToUse) return;
+    _openAnnotationPopup(event, 'point', [toStorageCoords(pointToUse)]);
+    _setTool(null);
+}
+
+/**
+ * onCanvasTap (line/polygon tools): append a vertex and refresh the temp line.
+ * @param {THREE.Vector3} point - intersected world-space point.
+ */
+export function addDrawingPoint(point) {
+    state.tempPoints.push(point);
+    updateTempLine();
+}
+
+/**
+ * onCanvasDoubleTap (line/polygon tools): finalise the drawing — convert the
+ * collected world-space points to storage (non-flipped) space, open the
+ * annotation popup, and deactivate the tool.
+ * @param {PointerEvent|MouseEvent} event
+ * @param {'line'|'polygon'} type
+ */
+export function finishDrawing(event, type) {
+    // Convert from world space to storage (non-flipped) space
+    const storagePoints = state.tempPoints.map(p => toStorageCoords(p));
+    _openAnnotationPopup(event, type, storagePoints);
+    _setTool(null);
 }

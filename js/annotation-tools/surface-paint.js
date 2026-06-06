@@ -8,8 +8,10 @@ import { showStatus, toStorageCoords } from '../utils/helpers.js';
 
 // Late-bound callback (forwarded from editing.js setEditingCallbacks via setSurfacePaintCallbacks).
 let _openAnnotationPopup = null;
-export function setSurfacePaintCallbacks({ openAnnotationPopup }) {
+let _setTool = null;
+export function setSurfacePaintCallbacks({ openAnnotationPopup, setTool }) {
     _openAnnotationPopup = openAnnotationPopup;
+    _setTool = setTool;
 }
 
 // ============ Surface Painting Optimization Constants ============
@@ -657,4 +659,28 @@ export function undoLastSurfaceStroke() {
     }
     
     return true;
+}
+
+
+/**
+ * onCanvasTap (surface tool): paint (or erase, with Shift held) at the tapped
+ * face. Lifted verbatim from the onCanvasTap surface branch (router-thinning).
+ * @param {PointerEvent|MouseEvent} event
+ */
+export function handleSurfaceTap(event) {
+    state.isErasingMode = event.shiftKey;
+    const hitInfo = getIntersectionWithFace(event);
+    if (hitInfo) {
+        paintAtPoint(hitInfo.point, hitInfo.mesh, hitInfo.faceIndex);
+    }
+}
+
+/**
+ * onCanvasDoubleTap (surface tool): finalise the painted region into an
+ * annotation and deactivate the tool.
+ * @param {PointerEvent|MouseEvent} event
+ */
+export function handleSurfaceDoubleTap(event) {
+    finishSurfacePainting(event);
+    _setTool(null);
 }

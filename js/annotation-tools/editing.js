@@ -10,8 +10,8 @@ import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, re
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
 import { handleMeasureTap } from './measure.js';
-import { getIntersectionWithFace, paintAtPoint, finishSurfacePainting, clearTempSurface, _startPaintLoop, _stopPaintLoop, queuePaintInput, setSurfacePaintCallbacks } from './surface-paint.js';
-import { updateTempLine } from './drawing.js';
+import { getIntersectionWithFace, paintAtPoint, finishSurfacePainting, clearTempSurface, _startPaintLoop, _stopPaintLoop, queuePaintInput, setSurfacePaintCallbacks, handleSurfaceTap, handleSurfaceDoubleTap } from './surface-paint.js';
+import { setDrawingCallbacks, addDrawingPoint, handlePointTap, finishDrawing } from './drawing.js';
 import { clearPendingBox, updatePendingBoxManipulation, updateSelectedBoxManipulation, confirmBoxPlacement, endPendingBoxManipulation, endSelectedBoxManipulation, setBoxEditCallbacks, handleUnlockedBoxClickElsewhere, beginBoxPlacement, toggleExistingBoxLock, handlePendingBoxPointerDown, beginBoxHandleDrag, beginBoxBodyDrag } from './box-edit.js';
 
 // Late-bound references (set from main.js to avoid circular deps)
@@ -25,8 +25,9 @@ export function setEditingCallbacks({ openAnnotationPopup, openAnnotationPopupFo
     _openAnnotationPopupForEdit = openAnnotationPopupForEdit;
     _finishSurfacePainting = finishSurfacePainting;
     _setTool = setTool;
-    setSurfacePaintCallbacks({ openAnnotationPopup });
+    setSurfacePaintCallbacks({ openAnnotationPopup, setTool });
     setBoxEditCallbacks({ openAnnotationPopup, setTool });
+    setDrawingCallbacks({ openAnnotationPopup, setTool });
 }
 
 export function clearTempDrawing() {
@@ -82,25 +83,13 @@ export function onCanvasTap(event) {
     if (!point) return;
 
     if (state.currentTool === 'point') {
-        const pointToUse = state.pendingPointPosition || point;
-        state.pendingPointPosition = null;
-        if (!pointToUse) return;
-        _openAnnotationPopup(event, 'point', [toStorageCoords(pointToUse)]);
-        _setTool(null);
-    } else if (state.currentTool === 'line') {
-        state.tempPoints.push(point);
-        updateTempLine();
-    } else if (state.currentTool === 'polygon') {
-        state.tempPoints.push(point);
-        updateTempLine();
+        handlePointTap(event, point);
+    } else if (state.currentTool === 'line' || state.currentTool === 'polygon') {
+        addDrawingPoint(point);
     } else if (state.currentTool === 'measure') {
         handleMeasureTap(event, point);
     } else if (state.currentTool === 'surface') {
-        state.isErasingMode = event.shiftKey;
-        const hitInfo = getIntersectionWithFace(event);
-        if (hitInfo) {
-            paintAtPoint(hitInfo.point, hitInfo.mesh, hitInfo.faceIndex);
-        }
+        handleSurfaceTap(event);
     } else if (state.currentTool === 'box') {
         beginBoxPlacement(event, point);
     }
@@ -110,17 +99,11 @@ export function onCanvasDoubleTap(event) {
     if (!state.currentModel) return;
 
     if (state.currentTool === 'line' && state.tempPoints.length >= 2) {
-        // Convert from world space to storage (non-flipped) space
-        const storagePoints = state.tempPoints.map(p => toStorageCoords(p));
-        _openAnnotationPopup(event, 'line', storagePoints);
-        _setTool(null);
+        finishDrawing(event, 'line');
     } else if (state.currentTool === 'polygon' && state.tempPoints.length >= 3) {
-        const storagePoints = state.tempPoints.map(p => toStorageCoords(p));
-        _openAnnotationPopup(event, 'polygon', storagePoints);
-        _setTool(null);
+        finishDrawing(event, 'polygon');
     } else if (state.currentTool === 'surface' && state.paintedFaces.size > 0) {
-        finishSurfacePainting(event);
-        _setTool(null);
+        handleSurfaceDoubleTap(event);
     } else if (state.isBoxPlacementMode && state.pendingBoxData) {
         confirmBoxPlacement(event);
     } else if (!state.currentTool) {
