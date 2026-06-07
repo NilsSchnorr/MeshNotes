@@ -1,0 +1,24 @@
+{
+  "@context": {
+    "meshnotes": "https://meshnotes.org/ns/",
+    "schema": "https://schema.org/",
+    "dcterms": "http://purl.org/dc/terms/",
+    "geo": "http://www.opengis.net/ont/geosparql#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+
+    "dcterms:conformsTo": { "@type": "@id" },
+    "geo:asWKT": { "@type": "geo:wktLiteral" },
+
+    "upAxis": "meshnotes:upAxis",
+    "unit": "meshnotes:unit",
+    "crs": { "@id": "meshnotes:crs", "@type": "@id" },
+    "modelSource": "meshnotes:modelSource",
+    "annotationType": "meshnotes:annotationType",
+    "surfaceProjection": "meshnotes:surfaceProjection",
+    "modelInfo": "meshnotes:modelInfo",
+    "metadata": "meshnotes:metadata",
+
+    "meshnotes:rotation": { "@container": "@list" },
+    "meshnotes:faces": { "@container": "@set" }
+  }
+}

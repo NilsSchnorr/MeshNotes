@@ -1,6 +1,72 @@
 // js/export/w3c-format.js - W3C Web Annotation format conversion
+import * as THREE from 'three';
 import { state } from '../state.js';
 import { generateUUID, getModelMimeType } from '../utils/helpers.js';
+
+// URI of the published MeshNotes 3D Selector Specification that every selector
+// declares conformance to. See https://meshnotes.org/spec/selector/v1/
+const SELECTOR_SPEC = 'https://meshnotes.org/spec/selector/v1/';
+
+// ============ WKT + quaternion helpers ============
+
+// Basis-change quaternion mapping the internal Three.js (Y-up) frame to the
+// exported Z-up frame: a +90 deg rotation about X (matches pointToZUp).
+function basisYupToZup() {
+    return new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+}
+
+// Formats a number for WKT output without exponential notation.
+// 6 decimals is sub-micron at metre scale; trailing zeros are trimmed.
+function wktNum(n) {
+    if (typeof n !== 'number' || !isFinite(n)) return '0';
+    const s = n.toFixed(6).replace(/\.?0+$/, '');
+    return (s === '' || s === '-0') ? '0' : s;
+}
+
+// Builds a WKT "POINT Z (x y z)" string from a {x,y,z} point.
+function wktPointZ(p) {
+    return `POINT Z (${wktNum(p.x)} ${wktNum(p.y)} ${wktNum(p.z)})`;
+}
+
+// Parses the first parenthesised coordinate triple of a WKT string into {x,y,z}.
+// Tolerates an optional leading CRS URI, e.g. "<...> POINT Z (...)".
+function parsePointZ(wkt) {
+    if (typeof wkt !== 'string') return null;
+    const m = wkt.match(/\(([^()]*)\)/);
+    if (!m) return null;
+    const n = m[1].trim().split(/[\s,]+/).map(Number);
+    if (n.length < 3 || n.some(isNaN)) return null;
+    return { x: n[0], y: n[1], z: n[2] };
+}
+
+// Parses a WKT POINT / LINESTRING / POLYGON (Z) string into { type, points }.
+// Coordinates are returned as stored (Z-up); frame conversion happens later.
+function parseWKT(wkt) {
+    if (typeof wkt !== 'string') return null;
+    let s = wkt.trim();
+    if (s.startsWith('<')) { const i = s.indexOf('>'); if (i >= 0) s = s.slice(i + 1).trim(); }
+    const head = s.toUpperCase();
+    const toPt = (pair) => { const n = pair.trim().split(/\s+/).map(Number); return { x: n[0], y: n[1], z: n[2] }; };
+    if (head.startsWith('POINT')) {
+        const p = parsePointZ(s);
+        return p ? { type: 'point', points: [p] } : null;
+    }
+    if (head.startsWith('LINESTRING')) {
+        const inner = s.slice(s.indexOf('(') + 1, s.lastIndexOf(')'));
+        return { type: 'line', points: inner.split(',').map(toPt) };
+    }
+    if (head.startsWith('POLYGON')) {
+        const inner = s.slice(s.indexOf('((') + 2, s.lastIndexOf('))'));
+        let pts = inner.split(',').map(toPt);
+        // Drop the OGC closing duplicate vertex for the internal model.
+        if (pts.length > 1) {
+            const a = pts[0], b = pts[pts.length - 1];
+            if (a.x === b.x && a.y === b.y && a.z === b.z) pts = pts.slice(0, -1);
+        }
+        return { type: 'polygon', points: pts };
+    }
+    return null;
+}
 
 // ============ Coordinate Transforms ============
 
@@ -31,69 +97,66 @@ export function pointFromZUp(p) {
 // ============ Selector Formatting ============
 
 /**
- * Converts an annotation's geometry into a W3C Web Annotation selector.
- * All coordinates are transformed to Z-up space for export.
- * Uses FragmentSelector with IIIF 3D conformance for point/line/polygon types,
- * and a custom MeshNotes surface selector for painted face annotations.
- * @see https://www.w3.org/TR/annotation-model/#fragment-selector
+ * Converts an annotation's geometry into a MeshNotes 3D selector
+ * (https://meshnotes.org/spec/selector/v1/). Linear geometry (point, polyline,
+ * polygon) is encoded as WKT; surface and box are parametric. All coordinates
+ * are transformed from the internal Three.js Y-up frame to the exported Z-up frame.
  * @param {Object} ann - Internal annotation object with type and points/faceData
- * @returns {Object} W3C-compliant selector object
+ * @returns {Object|null} MeshNotes selector object
  */
 export function formatPointsAsSelector(ann) {
-    // Create W3C-compliant selector for 3D geometry
-    // All coordinates are transformed from Three.js Y-up to Z-up for export
     if (ann.type === 'point') {
-        const p = pointToZUp(ann.points[0]);
         return {
-            type: 'PointSelector',
-            refinedBy: {
-                type: 'FragmentSelector',
-                conformsTo: 'https://github.com/IIIF/3d',
-                value: `point=${p.x},${p.y},${p.z}`
-            }
+            type: 'meshnotes:PointSelector',
+            'dcterms:conformsTo': SELECTOR_SPEC,
+            'meshnotes:wkt': wktPointZ(pointToZUp(ann.points[0]))
         };
     } else if (ann.type === 'line') {
-        const coords = ann.points.map(p => { const z = pointToZUp(p); return `${z.x},${z.y},${z.z}`; }).join(';');
+        const coords = ann.points
+            .map(p => { const z = pointToZUp(p); return `${wktNum(z.x)} ${wktNum(z.y)} ${wktNum(z.z)}`; })
+            .join(', ');
         return {
-            type: 'SvgSelector',
-            refinedBy: {
-                type: 'FragmentSelector',
-                conformsTo: 'https://github.com/IIIF/3d',
-                value: `polyline=${coords}`
-            }
+            type: 'meshnotes:PolylineSelector',
+            'dcterms:conformsTo': SELECTOR_SPEC,
+            'meshnotes:wkt': `LINESTRING Z (${coords})`
         };
     } else if (ann.type === 'polygon') {
-        const coords = ann.points.map(p => { const z = pointToZUp(p); return `${z.x},${z.y},${z.z}`; }).join(';');
+        const coordList = ann.points
+            .map(p => { const z = pointToZUp(p); return `${wktNum(z.x)} ${wktNum(z.y)} ${wktNum(z.z)}`; });
+        // Close the ring per OGC Simple Features: repeat the first vertex.
+        if (coordList.length > 0) coordList.push(coordList[0]);
         return {
-            type: 'SvgSelector',
-            refinedBy: {
-                type: 'FragmentSelector',
-                conformsTo: 'https://github.com/IIIF/3d',
-                value: `polygon=${coords}`
-            }
+            type: 'meshnotes:PolygonSelector',
+            'dcterms:conformsTo': SELECTOR_SPEC,
+            'meshnotes:wkt': `POLYGON Z ((${coordList.join(', ')}))`
         };
     } else if (ann.type === 'surface' && ann.faceData) {
-        // Face indices don't need transformation, only the centroid point
-        const centroid = ann.points.length > 0 ? pointToZUp(ann.points[0]) : null;
-        return {
-            type: 'FragmentSelector',
-            conformsTo: 'https://github.com/IIIF/3d',
-            value: `faces=${ann.faceData.join(',')}`,
-            refinedBy: centroid ? {
-                type: 'PointSelector',
-                value: `centroid=${centroid.x},${centroid.y},${centroid.z}`
-            } : undefined
+        const sel = {
+            type: 'meshnotes:SurfaceSelector',
+            'dcterms:conformsTo': SELECTOR_SPEC,
+            'meshnotes:faces': ann.faceData
         };
+        // Centroid is the durable, mesh-independent anchor for the region.
+        if (ann.points.length > 0) {
+            sel['meshnotes:centroid'] = wktPointZ(pointToZUp(ann.points[0]));
+        }
+        return sel;
     } else if (ann.type === 'box' && ann.boxData) {
-        // Box: center, size, and rotation (Euler angles in radians)
         const center = pointToZUp(ann.boxData.center);
-        const size = ann.boxData.size;
-        const rot = ann.boxData.rotation || { x: 0, y: 0, z: 0 };
-        // Size stays the same, rotation needs Y/Z swap for Z-up coordinate system
+        const size = ann.boxData.size; // box-local extents, frame-invariant
+        const e = ann.boxData.rotation || { x: 0, y: 0, z: 0 };
+        // Orientation: q_zup = r * q_three, where r is the Y-up -> Z-up basis change.
+        const qThree = new THREE.Quaternion().setFromEuler(new THREE.Euler(e.x, e.y, e.z, 'XYZ'));
+        const qZ = basisYupToZup().multiply(qThree);
         return {
-            type: 'FragmentSelector',
-            conformsTo: 'https://github.com/IIIF/3d',
-            value: `box=${center.x},${center.y},${center.z};${size.x},${size.z},${size.y};${rot.x},${rot.z},${rot.y}`
+            type: 'meshnotes:BoxSelector',
+            'dcterms:conformsTo': SELECTOR_SPEC,
+            'meshnotes:center': wktPointZ(center),
+            'meshnotes:size': `POINT Z (${wktNum(size.x)} ${wktNum(size.y)} ${wktNum(size.z)})`,
+            'meshnotes:rotation': [
+                Number(qZ.x.toFixed(8)), Number(qZ.y.toFixed(8)),
+                Number(qZ.z.toFixed(8)), Number(qZ.w.toFixed(8))
+            ]
         };
     }
     return null;
@@ -102,9 +165,50 @@ export function formatPointsAsSelector(ann) {
 // ============ Selector Parsing ============
 
 export function parseSelector(selector, ann) {
-    // Parse W3C selector back to internal format
     if (!selector) return;
 
+    const type = selector.type || '';
+
+    // ---- MeshNotes 3D selectors v1 (WKT-hybrid) ----
+    if (type === 'meshnotes:PointSelector' ||
+        type === 'meshnotes:PolylineSelector' ||
+        type === 'meshnotes:PolygonSelector') {
+        const parsed = parseWKT(selector['meshnotes:wkt'] || selector['geo:asWKT']);
+        if (parsed) { ann.type = parsed.type; ann.points = parsed.points; }
+        return;
+    }
+    if (type === 'meshnotes:SurfaceSelector') {
+        ann.type = 'surface';
+        ann.faceData = selector['meshnotes:faces'] || [];
+        ann.points = [];
+        const c = parsePointZ(selector['meshnotes:centroid']);
+        if (c) ann.points = [c];
+        return;
+    }
+    if (type === 'meshnotes:BoxSelector') {
+        ann.type = 'box';
+        const center = parsePointZ(selector['meshnotes:center']) || { x: 0, y: 0, z: 0 };
+        const size = parsePointZ(selector['meshnotes:size']) || { x: 0, y: 0, z: 0 };
+        const q = Array.isArray(selector['meshnotes:rotation']) ? selector['meshnotes:rotation'] : [0, 0, 0, 1];
+        // Inverse of export: q_three = r^-1 * q_zup, then back to Euler (XYZ).
+        // New selectors are always Z-up, so the basis inverse always applies here.
+        const qZ = new THREE.Quaternion(q[0] || 0, q[1] || 0, q[2] || 0, q[3] !== undefined ? q[3] : 1);
+        const qThree = basisYupToZup().invert().multiply(qZ);
+        const e = new THREE.Euler().setFromQuaternion(qThree, 'XYZ');
+        // Center stays Z-up here; import-json.js converts it to Y-up with the points.
+        ann.points = [center];
+        ann.boxData = { center: center, size: size, rotation: { x: e.x, y: e.y, z: e.z } };
+        return;
+    }
+
+    // ---- Legacy v1.0.0 selectors (string fragments) ----
+    parseLegacySelector(selector, ann);
+}
+
+// Parses legacy v1.0.0 string-fragment selectors (the pre-1.0 spec used
+// PointSelector/SvgSelector/FragmentSelector carrying point=/polyline=/polygon=/
+// faces=/box= values). Retained so existing exports continue to import.
+function parseLegacySelector(selector, ann) {
     // Get main selector value - check direct value first, then refinedBy
     // (Surface annotations have value at top level, others have it in refinedBy)
     let fragmentValue = null;
@@ -197,7 +301,6 @@ export function parseSelector(selector, ann) {
 export function convertToW3CAnnotation(ann, group) {
     // Convert internal annotation to W3C Web Annotation format
     const w3cAnn = {
-        '@context': 'http://www.w3.org/ns/anno.jsonld',
         type: 'Annotation',
         id: `urn:meshnotes:annotation:${ann.uuid || generateUUID()}`,
         motivation: ann.type === 'surface' ? 'tagging' : 'describing',

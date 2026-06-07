@@ -27,16 +27,7 @@ export function buildAnnotationJSON() {
     const collection = {
         '@context': [
             'http://www.w3.org/ns/anno.jsonld',
-            {
-                'meshnotes': 'https://github.com/NilsSchnorr/MeshNotes#',
-                'schema': 'http://schema.org/',
-                'upAxis': 'meshnotes:upAxis',
-                'modelSource': 'meshnotes:modelSource',
-                'annotationType': 'meshnotes:annotationType',
-                'surfaceProjection': 'meshnotes:surfaceProjection',
-                'modelInfo': 'meshnotes:modelInfo',
-                'metadata': 'meshnotes:metadata'
-            }
+            'https://meshnotes.org/ns/context-v1.jsonld'
         ],
         type: 'AnnotationCollection',
         id: collectionId,
