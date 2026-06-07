@@ -696,11 +696,6 @@ export function showAddEntryForm() {
     dom.annDescription.focus();
 }
 
-export function hideAddEntryForm() {
-    state.isAddingEntry = false;
-    dom.newEntryForm.style.display = 'none';
-}
-
 export function updateLinksDisplay() {
     dom.annLinks.innerHTML = state.pendingLinks.map((link, i) => `
         <div class="link-item">

@@ -1,12 +1,9 @@
 // js/annotation-tools/editing.js
 import * as THREE from 'three';
-import { Line2 } from 'three/addons/lines/Line2.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state, dom } from '../state.js';
 import { showStatus, toStorageCoords } from '../utils/helpers.js';
-import { getIntersection, getIntersectionFull, createScaledTextSprite } from '../core/scene.js';
-import { projectEdgeToSurface, isProjectionAcceptable, computeProjectedEdges, recomputeAdjacentEdges, computeProjectedEdgesFlipAware, recomputeAdjacentEdgesFlipAware } from './projection.js';
+import { getIntersection } from '../core/scene.js';
+import { computeProjectedEdgesFlipAware, recomputeAdjacentEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
 import { handleMeasureTap, clearActiveMeasurement } from './measure.js';

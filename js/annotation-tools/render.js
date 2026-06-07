@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
-import { state, dom } from '../state.js';
+import { state } from '../state.js';
 import { createScaledTextSprite } from '../core/scene.js';
 import { toDisplayCoords, boxDisplayQuaternion } from '../utils/helpers.js';
 import { forceOcclusionUpdate } from '../utils/label-occlusion.js';
