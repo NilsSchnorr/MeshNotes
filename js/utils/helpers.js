@@ -1,4 +1,5 @@
 // js/utils/helpers.js - Utility functions and constants
+import * as THREE from 'three';
 import { state, dom } from '../state.js';
 
 // ============ Constants ============
@@ -164,6 +165,25 @@ export function toDisplayCoords(p) {
 export function toStorageCoords(p) {
     if (!state.isFlipped) return { x: p.x, y: p.y, z: p.z };
     return flipTransform(p);
+}
+
+/**
+ * Returns the on-screen orientation of a stored box as a quaternion.
+ * Storage rotation is an XYZ Euler. When the model is flipped it is rotated 180
+ * degrees about X, so a box rigidly carried by that flip has display orientation
+ * Rx(PI) * R (pre-multiply). Single source of truth shared by the box renderer
+ * (body / wireframe / handles) and the box resize math, so they always agree.
+ * @param {{x:number,y:number,z:number}|null} rotation - stored box rotation (XYZ euler)
+ * @returns {THREE.Quaternion} display-space orientation
+ */
+export function boxDisplayQuaternion(rotation) {
+    const r = rotation || { x: 0, y: 0, z: 0 };
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(r.x, r.y, r.z, 'XYZ'));
+    if (state.isFlipped) {
+        const qFlip = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+        q.premultiply(qFlip);
+    }
+    return q;
 }
 
 export function getModelMimeType() {

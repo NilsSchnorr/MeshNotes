@@ -5,7 +5,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state, dom } from '../state.js';
 import { createScaledTextSprite } from '../core/scene.js';
-import { toDisplayCoords } from '../utils/helpers.js';
+import { toDisplayCoords, boxDisplayQuaternion } from '../utils/helpers.js';
 import { forceOcclusionUpdate } from '../utils/label-occlusion.js';
 
 // Late-bound reference to avoid circular dependency
@@ -305,14 +305,9 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
 
     const boxMesh = new THREE.Mesh(boxGeometry.clone(), fillMaterial);
     boxMesh.position.set(dc.x, dc.y, dc.z);
-    if (rotation) {
-        // When flipped, invert Y and Z rotation components for correct visual
-        if (state.isFlipped) {
-            boxMesh.rotation.set(-rotation.x, -rotation.y, rotation.z);
-        } else {
-            boxMesh.rotation.set(rotation.x, rotation.y, rotation.z);
-        }
-    }
+    // Display orientation = stored rotation, rigidly carried by the flip when active.
+    const displayQuat = boxDisplayQuaternion(rotation);
+    boxMesh.quaternion.copy(displayQuat);
     boxMesh.userData.isBoxBody = true;
     boxMesh.renderOrder = 1;
     objects.push(boxMesh);
@@ -328,7 +323,7 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
     });
     const wireframe = new THREE.LineSegments(edgesGeometry, edgesMaterial);
     wireframe.position.copy(boxMesh.position);
-    wireframe.rotation.copy(boxMesh.rotation);
+    wireframe.quaternion.copy(boxMesh.quaternion);
     wireframe.renderOrder = 2;
     objects.push(wireframe);
 
@@ -356,18 +351,8 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
             corner[1] * size.y,
             corner[2] * size.z
         );
-
-        if (rotation) {
-            const euler = state.isFlipped
-                ? new THREE.Euler(-rotation.x, -rotation.y, rotation.z)
-                : new THREE.Euler(rotation.x, rotation.y, rotation.z);
-            localPos.applyEuler(euler);
-        }
-        // In flipped mode, local Y and Z offsets need to be negated
-        if (state.isFlipped) {
-            localPos.y = -localPos.y;
-            localPos.z = -localPos.z;
-        }
+        // Same display orientation as the body, so handles sit on its corners.
+        localPos.applyQuaternion(displayQuat);
         handle.position.set(
             dc.x + localPos.x,
             dc.y + localPos.y,

@@ -4,7 +4,7 @@
 // Pure behaviour-identical relocation: code moved, not changed.
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
-import { showStatus, toStorageCoords } from '../utils/helpers.js';
+import { showStatus, toStorageCoords, toDisplayCoords, boxDisplayQuaternion } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
 import { showBoxEditHelp, hideToolHelp } from '../ui/tool-help.js';
@@ -38,6 +38,104 @@ function computeBoxGrabOffset(plane, startCenter) {
         return hitAtStart.sub(startCenter);
     }
     return new THREE.Vector3(0, 0, 0);
+}
+
+// Unit-box corner factors (x size = local corner offset from center).
+// Shared by renderPendingBox and the resize math below.
+const BOX_CORNERS = [
+    [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
+    [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
+    [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
+    [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+];
+
+// --- Shared box manipulation math (world/display space, flip-agnostic) ---
+// These pure helpers hold the geometry that was previously duplicated between
+// updatePendingBoxManipulation and updateSelectedBoxManipulation. They take and
+// return world-space values; each caller owns its flip handling on read
+// (toDisplayCoords) and storage conversion on write (toStorageCoords) -- the
+// part that genuinely differs between the pending and selected paths.
+
+// Move: returns the new world-space center for the pointer position, or null if
+// the pointer ray misses the camera-facing move plane.
+function computeBoxMove(mouse, startCenter) {
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, state.camera);
+
+    const cameraDir = new THREE.Vector3();
+    state.camera.getWorldDirection(cameraDir);
+    const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
+    const grabOffset = computeBoxGrabOffset(movePlane, startCenter);
+
+    const intersection = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(movePlane, intersection)) {
+        return intersection.clone().sub(grabOffset);
+    }
+    return null;
+}
+
+// Resize: returns { center, size } in world space for the dragged corner, or
+// null if the pointer ray misses the camera-facing drag plane. The opposite
+// corner stays fixed; the box rebuilds around the new diagonal.
+function computeBoxResize(mouse, startCenter, startSize, displayQuat, activeHandle) {
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, state.camera);
+
+    const draggedCornerFactors = BOX_CORNERS[activeHandle];
+    const oppositeCornerFactors = BOX_CORNERS[7 - activeHandle];
+
+    const oppositeCornerLocal = new THREE.Vector3(
+        oppositeCornerFactors[0] * startSize.x,
+        oppositeCornerFactors[1] * startSize.y,
+        oppositeCornerFactors[2] * startSize.z
+    );
+    oppositeCornerLocal.applyQuaternion(displayQuat);
+    const fixedCorner = oppositeCornerLocal.add(startCenter);
+
+    const draggedCornerLocal = new THREE.Vector3(
+        draggedCornerFactors[0] * startSize.x,
+        draggedCornerFactors[1] * startSize.y,
+        draggedCornerFactors[2] * startSize.z
+    );
+    draggedCornerLocal.applyQuaternion(displayQuat);
+    const draggedCornerWorld = draggedCornerLocal.clone().add(startCenter);
+
+    const cameraDir = new THREE.Vector3();
+    state.camera.getWorldDirection(cameraDir);
+    const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, draggedCornerWorld);
+
+    const newCornerPos = new THREE.Vector3();
+    if (raycaster.ray.intersectPlane(dragPlane, newCornerPos)) {
+        const newCenter = new THREE.Vector3().addVectors(fixedCorner, newCornerPos).multiplyScalar(0.5);
+
+        const diagonal = new THREE.Vector3().subVectors(newCornerPos, fixedCorner);
+        const inverseQuat = displayQuat.clone().invert();
+        diagonal.applyQuaternion(inverseQuat);
+
+        const newSize = {
+            x: Math.max(0.01, Math.abs(diagonal.x)),
+            y: Math.max(0.01, Math.abs(diagonal.y)),
+            z: Math.max(0.01, Math.abs(diagonal.z))
+        };
+        return { center: newCenter, size: newSize };
+    }
+    return null;
+}
+
+// Rotate: returns a new { x, y, z } euler from the pointer deltas, with optional
+// 15-degree snapping while Shift is held. Rotation is screen-space and flip-agnostic.
+function computeBoxRotation(startRotation, deltaX, deltaY, shiftKey) {
+    const rotationSpeed = 0.01;
+    let rotX = (startRotation?.x || 0) + deltaY * rotationSpeed;
+    let rotY = (startRotation?.y || 0) + deltaX * rotationSpeed;
+    const rotZ = startRotation?.z || 0;
+
+    if (shiftKey) {
+        const snapAngle = Math.PI / 12;
+        rotX = Math.round(rotX / snapAngle) * snapAngle;
+        rotY = Math.round(rotY / snapAngle) * snapAngle;
+    }
+    return { x: rotX, y: rotY, z: rotZ };
 }
 
 /**
@@ -107,12 +205,7 @@ export function renderPendingBox() {
     state.annotationObjects.add(wireframe);
 
     // Create corner handles
-    const corners = [
-        [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
-        [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
-        [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
-        [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
-    ];
+    const corners = BOX_CORNERS;
 
     const handleGeometry = new THREE.SphereGeometry(0.02, 12, 12);
 
@@ -202,112 +295,28 @@ export function updatePendingBoxManipulation(event, mouse) {
     const deltaY = event.clientY - state.boxDragStartMouse.y;
 
     if (state.boxManipulationMode === 'move') {
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, state.camera);
-
-        const startCenter = new THREE.Vector3(
-            state.boxDragStartData.center.x,
-            state.boxDragStartData.center.y,
-            state.boxDragStartData.center.z
-        );
-        const cameraDir = new THREE.Vector3();
-        state.camera.getWorldDirection(cameraDir);
-        const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
-        const grabOffset = computeBoxGrabOffset(movePlane, startCenter);
-
-        const intersection = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(movePlane, intersection)) {
-            const newCenter = intersection.clone().sub(grabOffset);
-            state.pendingBoxData.center = {
-                x: newCenter.x,
-                y: newCenter.y,
-                z: newCenter.z
-            };
+        const sc = state.boxDragStartData.center;
+        const startCenter = new THREE.Vector3(sc.x, sc.y, sc.z);
+        const newCenter = computeBoxMove(mouse, startCenter);
+        if (newCenter) {
+            state.pendingBoxData.center = { x: newCenter.x, y: newCenter.y, z: newCenter.z };
             renderPendingBox();
         }
     } else if (state.boxManipulationMode === 'resize') {
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, state.camera);
-
-        const corners = [
-            [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
-            [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
-            [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
-            [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
-        ];
-
-        const draggedCornerFactors = corners[state.activeBoxHandle];
-        const oppositeIndex = 7 - state.activeBoxHandle;
-        const oppositeCornerFactors = corners[oppositeIndex];
-
-        const startCenter = new THREE.Vector3(
-            state.boxDragStartData.center.x,
-            state.boxDragStartData.center.y,
-            state.boxDragStartData.center.z
-        );
+        const sc = state.boxDragStartData.center;
+        const startCenter = new THREE.Vector3(sc.x, sc.y, sc.z);
         const startSize = state.boxDragStartData.size;
-        const startRotation = state.boxDragStartData.rotation || { x: 0, y: 0, z: 0 };
-        const euler = new THREE.Euler(startRotation.x, startRotation.y, startRotation.z);
-
-        const oppositeCornerLocal = new THREE.Vector3(
-            oppositeCornerFactors[0] * startSize.x,
-            oppositeCornerFactors[1] * startSize.y,
-            oppositeCornerFactors[2] * startSize.z
-        );
-        oppositeCornerLocal.applyEuler(euler);
-        const fixedCorner = oppositeCornerLocal.add(startCenter);
-
-        const draggedCornerLocal = new THREE.Vector3(
-            draggedCornerFactors[0] * startSize.x,
-            draggedCornerFactors[1] * startSize.y,
-            draggedCornerFactors[2] * startSize.z
-        );
-        draggedCornerLocal.applyEuler(euler);
-        const draggedCornerWorld = draggedCornerLocal.clone().add(startCenter);
-
-        const cameraDir = new THREE.Vector3();
-        state.camera.getWorldDirection(cameraDir);
-        const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, draggedCornerWorld);
-
-        const newCornerPos = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(dragPlane, newCornerPos)) {
-            const newCenter = new THREE.Vector3().addVectors(fixedCorner, newCornerPos).multiplyScalar(0.5);
-
-            const diagonal = new THREE.Vector3().subVectors(newCornerPos, fixedCorner);
-            const inverseEuler = new THREE.Euler(-startRotation.x, -startRotation.y, -startRotation.z, 'ZYX');
-            diagonal.applyEuler(inverseEuler);
-
-            const newSize = {
-                x: Math.max(0.01, Math.abs(diagonal.x)),
-                y: Math.max(0.01, Math.abs(diagonal.y)),
-                z: Math.max(0.01, Math.abs(diagonal.z))
-            };
-
-            state.pendingBoxData.center = {
-                x: newCenter.x,
-                y: newCenter.y,
-                z: newCenter.z
-            };
-            state.pendingBoxData.size = newSize;
+        // Pending box lives in display space already, so no flip pre-multiply here.
+        const r = state.boxDragStartData.rotation || { x: 0, y: 0, z: 0 };
+        const displayQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(r.x, r.y, r.z, 'XYZ'));
+        const result = computeBoxResize(mouse, startCenter, startSize, displayQuat, state.activeBoxHandle);
+        if (result) {
+            state.pendingBoxData.center = { x: result.center.x, y: result.center.y, z: result.center.z };
+            state.pendingBoxData.size = result.size;
             renderPendingBox();
         }
     } else if (state.boxManipulationMode === 'rotate') {
-        const rotationSpeed = 0.01;
-        let rotX = (state.boxDragStartData.rotation?.x || 0) + deltaY * rotationSpeed;
-        let rotY = (state.boxDragStartData.rotation?.y || 0) + deltaX * rotationSpeed;
-        let rotZ = state.boxDragStartData.rotation?.z || 0;
-
-        if (event.shiftKey) {
-            const snapAngle = Math.PI / 12;
-            rotX = Math.round(rotX / snapAngle) * snapAngle;
-            rotY = Math.round(rotY / snapAngle) * snapAngle;
-        }
-
-        state.pendingBoxData.rotation = {
-            x: rotX,
-            y: rotY,
-            z: rotZ
-        };
+        state.pendingBoxData.rotation = computeBoxRotation(state.boxDragStartData.rotation, deltaX, deltaY, event.shiftKey);
         renderPendingBox();
     }
 }
@@ -317,116 +326,35 @@ export function updateSelectedBoxManipulation(event, mouse) {
     const deltaY = event.clientY - state.boxDragStartMouse.y;
 
     if (state.boxManipulationMode === 'move') {
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, state.camera);
-
-        // Convert stored center to display (world) space for plane positioning
-        const sc = state.boxDragStartData.center;
-        const dc = state.isFlipped ? { x: sc.x, y: -sc.y, z: -sc.z } : sc;
+        // Stored center -> display (world) space for the manipulation math.
+        const dc = toDisplayCoords(state.boxDragStartData.center);
         const startCenter = new THREE.Vector3(dc.x, dc.y, dc.z);
-        const cameraDir = new THREE.Vector3();
-        state.camera.getWorldDirection(cameraDir);
-        const movePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, startCenter);
-        const grabOffset = computeBoxGrabOffset(movePlane, startCenter);
-
-        const intersection = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(movePlane, intersection)) {
-            const newCenterWorld = intersection.clone().sub(grabOffset);
+        const newCenterWorld = computeBoxMove(mouse, startCenter);
+        if (newCenterWorld) {
             // Convert from world space back to storage
             const stored = toStorageCoords(newCenterWorld);
-            state.selectedBoxAnnotation.boxData.center = {
-                x: stored.x,
-                y: stored.y,
-                z: stored.z
-            };
+            state.selectedBoxAnnotation.boxData.center = { x: stored.x, y: stored.y, z: stored.z };
             state.selectedBoxAnnotation.points[0] = { ...state.selectedBoxAnnotation.boxData.center };
             renderAnnotations();
         }
     } else if (state.boxManipulationMode === 'resize') {
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, state.camera);
-
-        const corners = [
-            [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5],
-            [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5],
-            [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5],
-            [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
-        ];
-
-        const draggedCornerFactors = corners[state.activeBoxHandle];
-        const oppositeIndex = 7 - state.activeBoxHandle;
-        const oppositeCornerFactors = corners[oppositeIndex];
-
-        // Convert stored center to display (world) space for manipulation
-        const sc = state.boxDragStartData.center;
-        const dc = state.isFlipped ? { x: sc.x, y: -sc.y, z: -sc.z } : sc;
+        // Stored center -> display (world) space for the manipulation math.
+        const dc = toDisplayCoords(state.boxDragStartData.center);
         const startCenter = new THREE.Vector3(dc.x, dc.y, dc.z);
         const startSize = state.boxDragStartData.size;
-        const startRotation = state.boxDragStartData.rotation || { x: 0, y: 0, z: 0 };
-        const euler = new THREE.Euler(startRotation.x, startRotation.y, startRotation.z);
-
-        const oppositeCornerLocal = new THREE.Vector3(
-            oppositeCornerFactors[0] * startSize.x,
-            oppositeCornerFactors[1] * startSize.y,
-            oppositeCornerFactors[2] * startSize.z
-        );
-        oppositeCornerLocal.applyEuler(euler);
-        const fixedCorner = oppositeCornerLocal.add(startCenter);
-
-        const draggedCornerLocal = new THREE.Vector3(
-            draggedCornerFactors[0] * startSize.x,
-            draggedCornerFactors[1] * startSize.y,
-            draggedCornerFactors[2] * startSize.z
-        );
-        draggedCornerLocal.applyEuler(euler);
-        const draggedCornerWorld = draggedCornerLocal.clone().add(startCenter);
-
-        const cameraDir = new THREE.Vector3();
-        state.camera.getWorldDirection(cameraDir);
-        const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(cameraDir, draggedCornerWorld);
-
-        const newCornerPos = new THREE.Vector3();
-        if (raycaster.ray.intersectPlane(dragPlane, newCornerPos)) {
-            const newCenter = new THREE.Vector3().addVectors(fixedCorner, newCornerPos).multiplyScalar(0.5);
-
-            const diagonal = new THREE.Vector3().subVectors(newCornerPos, fixedCorner);
-            const inverseEuler = new THREE.Euler(-startRotation.x, -startRotation.y, -startRotation.z, 'ZYX');
-            diagonal.applyEuler(inverseEuler);
-
-            const newSize = {
-                x: Math.max(0.01, Math.abs(diagonal.x)),
-                y: Math.max(0.01, Math.abs(diagonal.y)),
-                z: Math.max(0.01, Math.abs(diagonal.z))
-            };
-
+        // Display orientation (flip-aware) so the math matches the rendered body.
+        const displayQuat = boxDisplayQuaternion(state.boxDragStartData.rotation);
+        const result = computeBoxResize(mouse, startCenter, startSize, displayQuat, state.activeBoxHandle);
+        if (result) {
             // Convert from world space back to storage
-            const stored = toStorageCoords(newCenter);
-            state.selectedBoxAnnotation.boxData.center = {
-                x: stored.x,
-                y: stored.y,
-                z: stored.z
-            };
-            state.selectedBoxAnnotation.boxData.size = newSize;
+            const stored = toStorageCoords(result.center);
+            state.selectedBoxAnnotation.boxData.center = { x: stored.x, y: stored.y, z: stored.z };
+            state.selectedBoxAnnotation.boxData.size = result.size;
             state.selectedBoxAnnotation.points[0] = { ...state.selectedBoxAnnotation.boxData.center };
             renderAnnotations();
         }
     } else if (state.boxManipulationMode === 'rotate') {
-        const rotationSpeed = 0.01;
-        let rotX = (state.boxDragStartData.rotation?.x || 0) + deltaY * rotationSpeed;
-        let rotY = (state.boxDragStartData.rotation?.y || 0) + deltaX * rotationSpeed;
-        let rotZ = state.boxDragStartData.rotation?.z || 0;
-
-        if (event.shiftKey) {
-            const snapAngle = Math.PI / 12;
-            rotX = Math.round(rotX / snapAngle) * snapAngle;
-            rotY = Math.round(rotY / snapAngle) * snapAngle;
-        }
-
-        state.selectedBoxAnnotation.boxData.rotation = {
-            x: rotX,
-            y: rotY,
-            z: rotZ
-        };
+        state.selectedBoxAnnotation.boxData.rotation = computeBoxRotation(state.boxDragStartData.rotation, deltaX, deltaY, event.shiftKey);
         renderAnnotations();
     }
 }
