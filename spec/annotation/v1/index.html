@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeshNotes Annotation Format Specification — Version 1.0</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#555; --rule:#ddd; --accent:#0b5; --code-bg:#f6f8fa; }
+  * { box-sizing: border-box; }
+  body { font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--ink); max-width: 820px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .4rem; }
+  h2 { font-size: 1.35rem; margin: 2.4rem 0 .8rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+  h3 { font-size: 1.1rem; margin: 1.6rem 0 .5rem; }
+  a { color: #0645ad; }
+  .meta { color: var(--muted); font-size: .92rem; margin: 0 0 1.6rem; }
+  .meta dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .9rem; margin: .6rem 0 0; }
+  .meta dt { font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; word-break: break-all; }
+  .status { background: #fffbe6; border: 1px solid #f0e0a0; border-radius: 6px; padding: .6rem .9rem; font-size: .9rem; margin: 1.4rem 0; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: .85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0; font-size: .92rem; }
+  th, td { text-align: left; border: 1px solid var(--rule); padding: .45rem .6rem; vertical-align: top; }
+  th { background: #fafafa; }
+  .note { border-left: 3px solid var(--accent); padding: .4rem 0 .4rem .9rem; margin: 1rem 0; color: #333; background: #f7fdfa; }
+  .rfc { font-variant: small-caps; font-weight: 600; }
+  .opt { color: var(--muted); font-weight: normal; font-style: italic; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<h1>MeshNotes Annotation Format Specification</h1>
+<p class="meta"><strong>Version 1.0</strong></p>
+
+<div class="meta">
+  <dl>
+    <dt>This version</dt><dd><a href="https://meshnotes.org/spec/annotation/v1/">https://meshnotes.org/spec/annotation/v1/</a></dd>
+    <dt>Latest version</dt><dd><a href="https://meshnotes.org/spec/annotation/">https://meshnotes.org/spec/annotation/</a></dd>
+    <dt>JSON Schema</dt><dd><a href="https://meshnotes.org/spec/annotation/v1/schema.json">https://meshnotes.org/spec/annotation/v1/schema.json</a></dd>
+    <dt>JSON-LD context</dt><dd><a href="https://meshnotes.org/ns/context-v1.jsonld">https://meshnotes.org/ns/context-v1.jsonld</a></dd>
+    <dt>Selector specification</dt><dd><a href="https://meshnotes.org/spec/selector/v1/">https://meshnotes.org/spec/selector/v1/</a></dd>
+    <dt>Term namespace</dt><dd><code>https://meshnotes.org/ns/</code> (prefix <code>meshnotes:</code>)</dd>
+    <dt>Editor</dt><dd>Nils Schnorr (<a href="https://orcid.org/0009-0003-7750-2818">0009-0003-7750-2818</a>), Department of Classical Archaeology, Saarland University</dd>
+    <dt>Date</dt><dd>2026-06-08</dd>
+    <dt>License</dt><dd>CC BY 4.0</dd>
+  </dl>
+</div>
+
+<div class="status">
+  <strong>Status of this document.</strong> This is a published, versioned specification. Version 1.0 is stable: the identifiers and required structure defined here will not change. Any breaking change will be published as a new version (<code>/spec/annotation/v2/</code>) at a new URL, leaving this version permanently resolvable for files that reference it. The format is under active development and may gain further <em>optional</em> members within version 1; see §10.
+</div>
+
+<h2>1. Introduction</h2>
+<p>
+This document specifies the JSON-LD document that MeshNotes produces and consumes as its native annotation format. A MeshNotes export is a single
+<a href="https://www.w3.org/TR/annotation-model/">W3C Web Annotation Data Model</a> [WADM] <code>AnnotationCollection</code> that gathers the annotations placed on one 3D model, together with the description of that model, the annotation groups, optional model-level notes, and an optional structured metadata report.
+</p>
+<p>
+The format is W3C Web Annotation at its core, extended in two controlled ways. First, the geometry of each annotation is identified by a <strong>MeshNotes 3D selector</strong>, defined in the companion <a href="https://meshnotes.org/spec/selector/v1/">MeshNotes 3D Selector Specification</a> [SEL]; that document is normative for everything inside an annotation's <code>selector</code>, including the coordinate frame, WKT notation, CRS handling and model-binding hash, and is not repeated here. Second, MeshNotes-specific information that the W3C model does not cover is carried under the <code>meshnotes:</code> namespace, resolved through the JSON-LD context at <code>https://meshnotes.org/ns/context-v1.jsonld</code>.
+</p>
+<p>
+The design goal is interoperability: a consumer that understands only the W3C Web Annotation Data Model can read every annotation, its target, its bodies and its grouping, and ignore the <code>meshnotes:</code> extensions; a consumer that understands the extensions additionally recovers the full editing state for a faithful round-trip. The format is designed to be cleanly mappable to CIDOC CRM and ingestible by infrastructure such as NFDI4Objects, though it emits neither RDF nor LIDO directly in this version.
+</p>
+
+<h2>2. Namespaces and conformance</h2>
+<table>
+  <tr><th>Prefix</th><th>IRI</th></tr>
+  <tr><td><code>meshnotes:</code></td><td><code>https://meshnotes.org/ns/</code></td></tr>
+  <tr><td><code>oa:</code></td><td><code>http://www.w3.org/ns/oa#</code></td></tr>
+  <tr><td><code>dcterms:</code></td><td><code>http://purl.org/dc/terms/</code></td></tr>
+  <tr><td><code>schema:</code></td><td><code>https://schema.org/</code></td></tr>
+  <tr><td><code>geo:</code></td><td><code>http://www.opengis.net/ont/geosparql#</code></td></tr>
+  <tr><td><code>xsd:</code></td><td><code>http://www.w3.org/2001/XMLSchema#</code></td></tr>
+</table>
+<p>
+A document conforms to this specification when:
+</p>
+<ul>
+  <li>its top-level resource is an <code>AnnotationCollection</code> carrying the members marked <span class="rfc">must</span> in §3;</li>
+  <li>it declares <code>"dcterms:conformsTo": "https://meshnotes.org/spec/annotation/v1/"</code> at the collection level;</li>
+  <li>every annotation it contains is a W3C <code>Annotation</code> whose <code>target.selector</code> conforms to [SEL];</li>
+  <li>its terms resolve through the JSON-LD context at <code>https://meshnotes.org/ns/context-v1.jsonld</code>;</li>
+  <li>it validates against the JSON Schema at <code>https://meshnotes.org/spec/annotation/v1/schema.json</code>.</li>
+</ul>
+<p>
+A few coordinate-frame and identity terms — <code>upAxis</code>, <code>unit</code>, <code>annotationType</code>, <code>surfaceProjection</code> — are intentionally exposed <strong>without</strong> the <code>meshnotes:</code> prefix (the context aliases them) so that non-JSON-LD consumers can read them as plain keys; all MeshNotes-implementation-specific members retain the prefix. A consumer <span class="rfc">should</span> tolerate either the aliased or the fully-qualified <code>meshnotes:</code> form of these terms.
+</p>
+<p>The key words <span class="rfc">must</span>, <span class="rfc">must not</span>, <span class="rfc">should</span>, <span class="rfc">should not</span> and <span class="rfc">may</span> are used as defined in <a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>.</p>
+
+<h2>3. The AnnotationCollection envelope</h2>
+<p>
+The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) holding a single embedded <code>AnnotationPage</code>. Its members:
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>@context</code></td><td><span class="rfc">must</span></td><td>array</td><td>The W3C Web Annotation context followed by the MeshNotes context: <code>["http://www.w3.org/ns/anno.jsonld", "https://meshnotes.org/ns/context-v1.jsonld"]</code>.</td></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">must</span></td><td>string</td><td>The literal <code>"AnnotationCollection"</code>.</td></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>IRI</td><td>Collection identifier, of the form <code>urn:meshnotes:collection:{uuid}</code>.</td></tr>
+  <tr><td><code>label</code></td><td><span class="rfc">should</span></td><td>string</td><td>Human-readable label, e.g. <code>"MeshNotes: skyphos.glb"</code>.</td></tr>
+  <tr><td><code>dcterms:conformsTo</code></td><td><span class="rfc">must</span></td><td>IRI</td><td>This specification's URL. Identifies the annotation-format version, independent of the producing application's version.</td></tr>
+  <tr><td><code>generator</code></td><td><span class="opt">may</span></td><td>object</td><td>The producing software: <code>{ "type": "Software", "name", "schema:version", "homepage" }</code>.</td></tr>
+  <tr><td><code>generated</code></td><td><span class="rfc">should</span></td><td>xsd:dateTime</td><td>Export timestamp (ISO 8601).</td></tr>
+  <tr><td><code>modelSource</code></td><td><span class="rfc">should</span></td><td>object</td><td>Canonical description of the annotated model; see §4.</td></tr>
+  <tr><td><code>stylesheet</code></td><td><span class="opt">may</span></td><td>object</td><td>An <code>oa:CssStylesheet</code> giving each group its colour; see §7.</td></tr>
+  <tr><td><code>meshnotes:groups</code></td><td><span class="opt">may</span></td><td>array</td><td>Group definitions; see §7.</td></tr>
+  <tr><td><code>modelInfo</code></td><td><span class="opt">may</span></td><td>object</td><td>Free-text notes about the whole model; see §8.</td></tr>
+  <tr><td><code>metadata</code></td><td><span class="opt">may</span></td><td>object</td><td>Structured meta- and paradata report; see §8.</td></tr>
+  <tr><td><code>total</code></td><td><span class="rfc">must</span></td><td>integer</td><td>Number of annotations in the collection.</td></tr>
+  <tr><td><code>first</code></td><td><span class="rfc">must</span></td><td>object</td><td>An <code>AnnotationPage</code>: <code>{ "type": "AnnotationPage", "items": [ Annotation, ... ] }</code>.</td></tr>
+</table>
+
+<pre><code>{
+  "@context": [
+    "http://www.w3.org/ns/anno.jsonld",
+    "https://meshnotes.org/ns/context-v1.jsonld"
+  ],
+  "type": "AnnotationCollection",
+  "id": "urn:meshnotes:collection:7b1f…",
+  "label": "MeshNotes: skyphos.glb",
+  "dcterms:conformsTo": "https://meshnotes.org/spec/annotation/v1/",
+  "generator": { "type": "Software", "name": "MeshNotes",
+                 "schema:version": "1.1.0", "homepage": "https://meshnotes.org" },
+  "generated": "2026-06-08T09:14:00.000Z",
+  "modelSource": { … },
+  "stylesheet": { "type": "CssStylesheet", "value": ".group-1 { color: #EDC040; }" },
+  "meshnotes:groups": [ … ],
+  "modelInfo": { … },
+  "metadata": { … },
+  "total": 12,
+  "first": { "type": "AnnotationPage", "items": [ … ] }
+}</code></pre>
+
+<h2>4. The model description (modelSource)</h2>
+<p>
+<code>modelSource</code> is the single canonical description of the annotated model. Every annotation's <code>target.source</code> references the same model by the same <code>id</code>, so the coordinate frame, unit and integrity hash are stated once, here.
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>IRI</td><td><code>urn:meshnotes:model:{filename}</code>. The same value appears in each <code>target.source.id</code>.</td></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"Dataset"</code> (schema.org).</td></tr>
+  <tr><td><code>schema:name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Model file name.</td></tr>
+  <tr><td><code>format</code></td><td><span class="rfc">should</span></td><td>string</td><td>Media type of the model (e.g. <code>model/gltf-binary</code>).</td></tr>
+  <tr><td><code>upAxis</code></td><td><span class="rfc">should</span></td><td>string</td><td>Coordinate up-axis of the exported coordinates. MeshNotes always emits <code>"Z"</code>. See [SEL] §3.</td></tr>
+  <tr><td><code>unit</code></td><td><span class="opt">may</span></td><td>string</td><td>Real-world linear unit of the coordinates (e.g. <code>"m"</code>, <code>"cm"</code>, <code>"mm"</code>). Omitted when the producer has no declared unit; a consumer <span class="rfc">should not</span> assume one when absent.</td></tr>
+  <tr><td><code>meshnotes:crs</code></td><td><span class="opt">may</span></td><td>IRI</td><td>OGC CRS URI when the model is georeferenced; governs the georeferenced selector form in [SEL] §3.3.</td></tr>
+  <tr><td><code>schema:sha256</code></td><td><span class="rfc">should</span></td><td>string</td><td>SHA-256 hex digest of the canonical model file, binding annotations (and face hints, [SEL] §5) to this exact mesh. Omitted when not available.</td></tr>
+</table>
+<pre><code>"modelSource": {
+  "id": "urn:meshnotes:model:skyphos.glb",
+  "type": "Dataset",
+  "schema:name": "skyphos.glb",
+  "format": "model/gltf-binary",
+  "upAxis": "Z",
+  "unit": "cm",
+  "schema:sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+}</code></pre>
+
+<h2>5. The Annotation object</h2>
+<p>
+Each entry in <code>first.items</code> is a standard W3C <code>Annotation</code>.
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">must</span></td><td>string</td><td><code>"Annotation"</code>.</td></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>IRI</td><td><code>urn:meshnotes:annotation:{uuid}</code>. The UUID is persistent and is the merge key for collaborative round-trips.</td></tr>
+  <tr><td><code>target</code></td><td><span class="rfc">must</span></td><td>object</td><td>A <code>SpecificResource</code>; see §5.1.</td></tr>
+  <tr><td><code>motivation</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"tagging"</code> for surface regions, otherwise <code>"describing"</code>.</td></tr>
+  <tr><td><code>schema:name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Annotation name.</td></tr>
+  <tr><td><code>created</code></td><td><span class="rfc">should</span></td><td>xsd:dateTime</td><td>Creation timestamp.</td></tr>
+  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>Last-modified timestamp, when the annotation has more than one entry.</td></tr>
+  <tr><td><code>body</code></td><td><span class="opt">may</span></td><td>array</td><td>Zero or more <code>TextualBody</code> entries; see §6.</td></tr>
+  <tr><td><code>annotationType</code></td><td><span class="rfc">should</span></td><td>string</td><td>One of <code>point</code>, <code>line</code>, <code>polygon</code>, <code>surface</code>, <code>box</code>. Redundant with, but more convenient than, inspecting the selector type.</td></tr>
+  <tr><td><code>meshnotes:groupUuid</code></td><td><span class="opt">may</span></td><td>string</td><td>UUID of the group this annotation belongs to (see §7). This is the durable group reference.</td></tr>
+  <tr><td><code>surfaceProjection</code></td><td><span class="opt">may</span></td><td>boolean</td><td>Emitted as <code>false</code> only when surface projection is disabled for a line/polygon; absence means the default (projected).</td></tr>
+  <tr><td><code>meshnotes:nameVersions</code></td><td><span class="opt">may</span></td><td>array</td><td>Prior values of the annotation name, each <code>{ "value", "meshnotes:savedAt" }</code>.</td></tr>
+  <tr><td><code>meshnotes:groupVersions</code></td><td><span class="opt">may</span></td><td>array</td><td>Prior group assignments, each <code>{ "groupId", "meshnotes:savedAt" }</code>. <code>groupId</code> is a producer-internal reference and is not a durable identifier.</td></tr>
+</table>
+
+<h3>5.1 target</h3>
+<p>
+The <code>target</code> is an <code>oa:SpecificResource</code> whose <code>source</code> references the model and whose <code>selector</code> identifies the geometry.
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">must</span></td><td>string</td><td><code>"SpecificResource"</code>.</td></tr>
+  <tr><td><code>source</code></td><td><span class="rfc">must</span></td><td>object</td><td>Reference to the model: <code>{ "id", "type": "Dataset", "format" }</code>. <code>id</code> equals <code>modelSource.id</code>.</td></tr>
+  <tr><td><code>selector</code></td><td><span class="rfc">must</span></td><td>object</td><td>A MeshNotes 3D selector conforming to [SEL].</td></tr>
+  <tr><td><code>styleClass</code></td><td><span class="opt">may</span></td><td>string</td><td>CSS class linking to the group colour in the collection <code>stylesheet</code>, e.g. <code>"group-1"</code>.</td></tr>
+</table>
+<pre><code>{
+  "type": "Annotation",
+  "id": "urn:meshnotes:annotation:3c9a…",
+  "motivation": "describing",
+  "schema:name": "Handle attachment scar",
+  "created": "2026-06-08T09:10:11.000Z",
+  "annotationType": "point",
+  "meshnotes:groupUuid": "b2e1…",
+  "target": {
+    "type": "SpecificResource",
+    "source": { "id": "urn:meshnotes:model:skyphos.glb",
+                "type": "Dataset", "format": "model/gltf-binary" },
+    "styleClass": "group-1",
+    "selector": {
+      "type": "meshnotes:PointSelector",
+      "dcterms:conformsTo": "https://meshnotes.org/spec/selector/v1/",
+      "meshnotes:wkt": "POINT Z (12.4 -3.15 8.02)"
+    }
+  },
+  "body": [ … ]
+}</code></pre>
+
+<h2>6. Bodies</h2>
+<p>
+Each observation on an annotation is one <code>oa:TextualBody</code> in the <code>body</code> array. Multiple bodies represent multiple entries (e.g. from different contributors) on the same feature.
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">must</span></td><td>string</td><td><code>"TextualBody"</code>.</td></tr>
+  <tr><td><code>value</code></td><td><span class="rfc">must</span></td><td>string</td><td>The description text.</td></tr>
+  <tr><td><code>format</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"text/plain"</code>.</td></tr>
+  <tr><td><code>language</code></td><td><span class="opt">may</span></td><td>string</td><td>BCP-47 language tag of <code>value</code>. Omitted when unknown; a consumer <span class="rfc">should not</span> assume a language when absent.</td></tr>
+  <tr><td><code>creator</code></td><td><span class="opt">may</span></td><td>object</td><td>The author; see §6.1.</td></tr>
+  <tr><td><code>created</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>Entry timestamp.</td></tr>
+  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>Entry last-modified timestamp.</td></tr>
+  <tr><td><code>schema:url</code></td><td><span class="opt">may</span></td><td>array</td><td>External links attached to the entry.</td></tr>
+  <tr><td><code>meshnotes:entryUuid</code></td><td><span class="rfc">should</span></td><td>string</td><td>Persistent UUID of the entry; the merge key for entry-level round-trips.</td></tr>
+  <tr><td><code>meshnotes:versions</code></td><td><span class="opt">may</span></td><td>array</td><td>Prior states of the entry; see §6.2.</td></tr>
+</table>
+
+<h3>6.1 creator</h3>
+<p>
+<code>creator</code> identifies the author of an entry as a person.
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"Person"</code>.</td></tr>
+  <tr><td><code>name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Author display name.</td></tr>
+  <tr><td><code>id</code></td><td><span class="opt">may</span></td><td>IRI</td><td>An <a href="https://orcid.org/">ORCID</a> URI (<code>https://orcid.org/0000-…</code>) identifying the author. Asserted only when known to belong to that author.</td></tr>
+</table>
+<pre><code>"creator": {
+  "id": "https://orcid.org/0009-0003-7750-2818",
+  "type": "Person",
+  "name": "Nils Schnorr"
+}</code></pre>
+<p class="note">Because <code>id</code> maps to <code>@id</code> in the W3C Web Annotation context, the ORCID URI is a first-class node identifier for the author — the conventional, interoperable way to attach an ORCID to a Web Annotation creator, and a clean attachment point for a CIDOC CRM <code>E21 Person</code> mapping.</p>
+
+<h3>6.2 meshnotes:versions</h3>
+<p>
+Each element of <code>meshnotes:versions</code> records a superseded state of the entry, oldest to newest, as <code>{ "value", "creator" (optional), "schema:url" (optional), "meshnotes:savedAt" }</code>. This preserves the edit history for accountability in collaborative documentation.
+</p>
+
+<h2>7. Groups</h2>
+<p>
+Annotations are organised into named, colour-coded groups. Group definitions are carried in <code>meshnotes:groups</code>; each annotation references its group by UUID (<code>meshnotes:groupUuid</code>), and group colours are also expressed as an <code>oa:CssStylesheet</code> so that a generic W3C consumer can render them via each target's <code>styleClass</code>.
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">should</span></td><td>number</td><td>Producer-internal group id; matches the <code>styleClass</code> suffix and the stylesheet selector. Not a durable identifier.</td></tr>
+  <tr><td><code>meshnotes:uuid</code></td><td><span class="rfc">should</span></td><td>string</td><td>Persistent group UUID; the value referenced by <code>meshnotes:groupUuid</code> on annotations.</td></tr>
+  <tr><td><code>schema:name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Group name.</td></tr>
+  <tr><td><code>schema:color</code></td><td><span class="rfc">should</span></td><td>string</td><td>Group colour (CSS hex).</td></tr>
+  <tr><td><code>meshnotes:visible</code></td><td><span class="opt">may</span></td><td>boolean</td><td>Group visibility state.</td></tr>
+  <tr><td><code>meshnotes:opacity</code></td><td><span class="opt">may</span></td><td>number</td><td>Group opacity, 0.0–1.0.</td></tr>
+</table>
+
+<h2>8. Model Information and Metadata</h2>
+<p>
+<code>modelInfo</code> carries free-text notes about the model as a whole. It is shaped as a W3C <code>Annotation</code> with <code>"motivation": "describing"</code> and a <code>body</code> array of <code>TextualBody</code> entries identical in structure to §6, but it has no geometric <code>target</code> — it describes the model rather than a region of it.
+</p>
+<p>
+<code>metadata</code> carries the structured meta- and paradata report (project, capture, reference, processing, paradata and legal information). Its internal field structure is producer-defined and is treated as an open object by this version of the format; a consumer <span class="rfc">may</span> preserve it verbatim on round-trip and <span class="rfc">should not</span> reject unknown members within it. A future version may give this block a normative schema and a CIDOC CRM / LIDO crosswalk.
+</p>
+
+<h2>9. Coordinate frame, units and model binding</h2>
+<p>
+All geometric coordinates in this format — within selectors and their embedded points — follow the coordinate frame, WKT notation, CRS rules, rotation convention and model-binding hash defined normatively in [SEL] §3 and §5. In summary: coordinates are Z-up and right-handed in the model's local frame; the up-axis and unit are declared on <code>modelSource</code> (§4); face identifiers in surface selectors are a non-authoritative hint valid only against the mesh identified by <code>modelSource.schema:sha256</code>.
+</p>
+
+<h2>10. Extensibility and unknown terms</h2>
+<p>
+The format is deliberately open. A conforming consumer <span class="rfc">must</span> ignore members it does not recognise rather than reject the document, and <span class="rfc">should</span> preserve them on round-trip where feasible. Within version 1, MeshNotes <span class="rfc">may</span> add further <em>optional</em> members (in the <code>meshnotes:</code> namespace, or as context-aliased plain keys) without a version bump; it will not add new required members, remove members, or change the meaning of an existing member within version 1. The accompanying JSON Schema (§12) is correspondingly lenient: it validates the required core and the shape of known members, and permits additional properties.
+</p>
+
+<h2>11. Versioning policy</h2>
+<p>
+The term namespace <code>https://meshnotes.org/ns/</code> is unversioned and append-only: identifiers, once published, keep their meaning permanently, and new terms are only ever added. This specification, its JSON Schema, the companion JSON-LD context and the selector specification are versioned and frozen: a breaking change is published at a new version path and the prior version remains resolvable indefinitely, so that files referencing it continue to validate.
+</p>
+
+<h2>12. Conformance and validation</h2>
+<p>
+A document can be validated structurally against the JSON Schema at <a href="https://meshnotes.org/spec/annotation/v1/schema.json">https://meshnotes.org/spec/annotation/v1/schema.json</a> (JSON Schema draft 2020-12). The schema is forward-compatible: it checks the required members of the collection, the model description, annotations, targets, selectors and bodies, applies light pattern checks to WKT and identifier strings, and otherwise permits additional properties. Semantic rules that JSON Schema cannot express — polygon ring closure, quaternion normalisation, the hint status of face identifiers — are stated normatively in [SEL] and are not enforced by the schema.
+</p>
+
+<h2>13. References</h2>
+<ul>
+  <li>[WADM] <a href="https://www.w3.org/TR/annotation-model/">Web Annotation Data Model</a>. W3C Recommendation, 23 February 2017.</li>
+  <li><a href="https://www.w3.org/TR/annotation-vocab/">Web Annotation Vocabulary</a>. W3C Recommendation, 23 February 2017.</li>
+  <li>[SEL] <a href="https://meshnotes.org/spec/selector/v1/">MeshNotes 3D Selector Specification</a>, Version 1.0. Normative for selector geometry, coordinate frame, CRS and model binding.</li>
+  <li><a href="https://www.w3.org/TR/json-ld11/">JSON-LD 1.1</a>. W3C Recommendation, 16 July 2020.</li>
+  <li><a href="https://json-schema.org/draft/2020-12/release-notes">JSON Schema 2020-12</a>.</li>
+  <li><a href="https://schema.org/">Schema.org</a> vocabulary (<code>Person</code>, <code>Dataset</code>, <code>sha256</code>, <code>name</code>, <code>color</code>, <code>url</code>, <code>version</code>).</li>
+  <li><a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>: Key words for use in RFCs to Indicate Requirement Levels.</li>
+  <li><a href="https://www.rfc-editor.org/info/bcp47">BCP 47</a>: Tags for Identifying Languages.</li>
+  <li><a href="https://orcid.org/">ORCID</a>: Open Researcher and Contributor ID.</li>
+</ul>
+
+<footer>
+Part of the <a href="https://meshnotes.org">MeshNotes</a> project. This document defines the annotation document referenced by <code>dcterms:conformsTo</code> in MeshNotes exports; geometry selectors are defined in the <a href="https://meshnotes.org/spec/selector/v1/">MeshNotes 3D Selector Specification</a>.
+</footer>
+
+</body>
+</html>

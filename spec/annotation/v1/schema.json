@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meshnotes.org/spec/annotation/v1/schema.json",
+  "title": "MeshNotes Annotation Format v1.0",
+  "description": "Schema for a MeshNotes W3C Web Annotation Collection (https://meshnotes.org/spec/annotation/v1/). Forward-compatible: required core members are validated, known members are shape-checked, and additional properties are permitted throughout.",
+  "type": "object",
+  "required": ["@context", "type", "id", "dcterms:conformsTo", "total", "first"],
+  "additionalProperties": true,
+  "properties": {
+    "@context": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "minItems": 1, "items": { "type": ["string", "object"] } }
+      ]
+    },
+    "type": { "const": "AnnotationCollection" },
+    "id": { "type": "string" },
+    "label": { "type": "string" },
+    "dcterms:conformsTo": { "const": "https://meshnotes.org/spec/annotation/v1/" },
+    "generator": { "type": "object" },
+    "generated": { "type": "string" },
+    "modelSource": { "$ref": "#/$defs/modelSource" },
+    "stylesheet": { "type": "object" },
+    "meshnotes:groups": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "modelInfo": { "type": "object" },
+    "metadata": { "type": "object" },
+    "total": { "type": "integer", "minimum": 0 },
+    "first": {
+      "type": "object",
+      "required": ["items"],
+      "additionalProperties": true,
+      "properties": {
+        "type": { "const": "AnnotationPage" },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/annotation" } }
+      }
+    }
+  },
+  "$defs": {
+    "modelSource": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "schema:name": { "type": "string" },
+        "format": { "type": "string" },
+        "upAxis": { "type": "string" },
+        "unit": { "type": "string" },
+        "meshnotes:crs": { "type": "string" },
+        "schema:sha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "number" },
+        "meshnotes:uuid": { "type": "string" },
+        "schema:name": { "type": "string" },
+        "schema:color": { "type": "string" },
+        "meshnotes:visible": { "type": "boolean" },
+        "meshnotes:opacity": { "type": "number" }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": true,
+      "properties": {
+        "type": { "const": "Annotation" },
+        "id": { "type": "string" },
+        "motivation": { "type": "string" },
+        "schema:name": { "type": "string" },
+        "created": { "type": "string" },
+        "modified": { "type": "string" },
+        "annotationType": { "enum": ["point", "line", "polygon", "surface", "box"] },
+        "meshnotes:groupUuid": { "type": "string" },
+        "surfaceProjection": { "type": "boolean" },
+        "target": { "$ref": "#/$defs/target" },
+        "body": {
+          "oneOf": [
+            { "$ref": "#/$defs/textualBody" },
+            { "type": "array", "items": { "$ref": "#/$defs/textualBody" } }
+          ]
+        },
+        "meshnotes:nameVersions": { "type": "array" },
+        "meshnotes:groupVersions": { "type": "array" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "required": ["type", "selector"],
+      "additionalProperties": true,
+      "properties": {
+        "type": { "const": "SpecificResource" },
+        "source": { "type": ["object", "string"] },
+        "styleClass": { "type": "string" },
+        "selector": { "$ref": "#/$defs/selector" }
+      }
+    },
+    "selector": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "enum": [
+            "meshnotes:PointSelector",
+            "meshnotes:PolylineSelector",
+            "meshnotes:PolygonSelector",
+            "meshnotes:SurfaceSelector",
+            "meshnotes:BoxSelector"
+          ]
+        },
+        "dcterms:conformsTo": { "type": "string" },
+        "meshnotes:wkt": { "type": "string", "pattern": "^(POINT|LINESTRING|POLYGON) Z \\(.*\\)$" },
+        "geo:asWKT": { "type": "string" },
+        "meshnotes:centroid": { "$ref": "#/$defs/wktPointZ" },
+        "meshnotes:normal": { "$ref": "#/$defs/wktPointZ" },
+        "meshnotes:faces": { "type": "array", "items": { "type": "string" } },
+        "meshnotes:center": { "$ref": "#/$defs/wktPointZ" },
+        "meshnotes:size": { "$ref": "#/$defs/wktPointZ" },
+        "meshnotes:rotation": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "number" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "meshnotes:SurfaceSelector" } }, "required": ["type"] },
+          "then": { "required": ["meshnotes:faces"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "meshnotes:BoxSelector" } }, "required": ["type"] },
+          "then": { "required": ["meshnotes:center", "meshnotes:size", "meshnotes:rotation"] }
+        }
+      ]
+    },
+    "wktPointZ": { "type": "string", "pattern": "^POINT Z \\([^()]*\\)$" },
+    "textualBody": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "const": "TextualBody" },
+        "value": { "type": "string" },
+        "format": { "type": "string" },
+        "language": { "type": "string" },
+        "creator": { "$ref": "#/$defs/creator" },
+        "created": { "type": "string" },
+        "modified": { "type": "string" },
+        "schema:url": { "type": "array", "items": { "type": "string" } },
+        "meshnotes:entryUuid": { "type": "string" },
+        "meshnotes:versions": { "type": "array" }
+      }
+    },
+    "creator": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "type": { "type": "string" },
+        "name": { "type": "string" },
+        "id": { "type": "string" }
+      }
+    }
+  }
+}
