@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.0] — 2026-06-08
+
+This release overhauls the metadata and export backend for standards conformance and interoperability, and makes structured metadata documentation a first-class feature.
+
+### Added
+
+- **Structured Metadata Report** — the metadata form is now a structured, machine-readable record (replacing the previous free-text block), organized into seven sections: General Information, Object Context, Capture, Reference, Processing, Paradata, and Legal.
+- **Subject kind** selector — declares what the documented subject is (movable object, feature, building, site, landscape, or mixed), setting the CIDOC CRM root class used on export.
+- **Authority URI fields** — optional links to controlled vocabularies (Getty AAT, PeriodO, gazetteers) on Object Type, Material, Dating/Period, Location, and Find Spot.
+- **Published format specifications** — versioned, citable specifications for the annotation, selector, and metadata formats at `meshnotes.org/spec/`, each with a JSON Schema, plus a resolvable JSON-LD context and a CIDOC CRM / CRMdig crosswalk (with a LIDO mapping) for the metadata.
+- **ORCID** identification for authors, recorded on exported annotation entries.
+- **Model integrity in exports** — a SHA-256 hash of the model file, the up-axis, and the unit are recorded so annotations can be reliably bound to the correct model.
+- **Per-model metadata safeguard** — loading a new model (or refreshing the page) now warns when annotations, metadata, or model information would be cleared, offering to export the work as JSON-LD, discard it, or cancel.
+- **PDF metadata export** — the fillable metadata PDF and the metadata pages of the report now include the Subject kind (an interactive dropdown in the form), any authority URIs, and a conformance note.
+
+### Changed
+
+- **Standards-conformant annotation export** — geometry is now stored in namespaced MeshNotes selectors with coordinates encoded as 3D WKT and a `dcterms:conformsTo` pointer, replacing the previously mislabeled 2D selector types; box rotation is stored as a quaternion; the `@context` is a resolvable URL.
+- **Metadata is now per-model** and resets when a new model is loaded (guarded by the safeguard dialog above), rather than persisting silently across loads.
+- **Annotation body language** is taken from the browser locale instead of being hardcoded to English.
+- **All third-party libraries are self-hosted** under `vendor/` with no third-party CDN requests; the Legal / Data policy was updated accordingly.
+- **Manual and About** expanded to document the standards, the Subject kind / Object Type fields, and the published specifications.
+
+### Fixed
+
+- Metadata filled in before loading a model is no longer silently discarded when the model loads.
+- Corrected the two conformance issues from the format review: non-conformant 2D selector labeling on 3D geometry, and the opaque metadata block.
+
+
 ## [1.1.0] — 2026-05-15
 
 ### Added
@@ -57,5 +86,6 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.2.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.2.0
 [1.1.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.1.0
 [1.0.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.0.0

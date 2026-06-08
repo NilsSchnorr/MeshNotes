@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "MeshNotes"
 type: software
-version: 1.1.0
-date-released: "2026-05-15"
+version: 1.2.0
+date-released: "2026-06-08"
 license: Apache-2.0
 repository-code: "https://github.com/NilsSchnorr/MeshNotes"
 url: "https://meshnotes.org"
@@ -24,6 +24,7 @@ keywords:
   - Web Annotation Data Model
   - W3C
   - IIIF
+  - CIDOC CRM
   - Three.js
   - photogrammetry
   - digital humanities
