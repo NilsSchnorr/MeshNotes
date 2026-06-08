@@ -123,10 +123,11 @@ export function buildAnnotationJSON() {
         return value;
     }, 2);
 
-    // Collapse the (often very long) meshnotes:faces arrays onto a single line
-    // for readability. Face IDs are simple quoted tokens containing no ']',
-    // so matching up to the first ']' is safe and won't catch nested arrays.
-    json = json.replace(/("meshnotes:faces": \[)([^\]]*)(\])/g, (m, open, body, close) => {
+    // Collapse the meshnotes:faces (often very long) and meshnotes:rotation
+    // (4-number quaternion) arrays onto a single line for readability. Both
+    // hold only simple tokens with no ']' inside, so matching up to the first
+    // ']' is safe and won't catch nested arrays.
+    json = json.replace(/("meshnotes:(?:faces|rotation)": \[)([^\]]*)(\])/g, (m, open, body, close) => {
         return open + body.replace(/\s+/g, ' ').trim() + close;
     });
 

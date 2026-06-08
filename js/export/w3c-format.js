@@ -325,12 +325,18 @@ export function convertToW3CAnnotation(ann, group) {
 
     // Convert entries to body array
     if (ann.entries && ann.entries.length > 0) {
+        // Content language defaults to the authoring browser's language (BCP-47
+        // primary subtag, e.g. 'de', 'en') rather than a hardcoded 'en'. Omitted
+        // entirely if the environment exposes no language.
+        const bodyLanguage = (typeof navigator !== 'undefined' && navigator.language)
+            ? navigator.language.split('-')[0]
+            : undefined;
         w3cAnn.body = ann.entries.map(entry => {
             const body = {
                 type: 'TextualBody',
                 value: entry.description || '',
                 format: 'text/plain',
-                language: 'en',
+                language: bodyLanguage,
                 'meshnotes:entryUuid': entry.uuid
             };
 
@@ -368,9 +374,10 @@ export function convertToW3CAnnotation(ann, group) {
         });
     }
 
-    // Store internal ID mapping for round-trip
-    w3cAnn['meshnotes:internalId'] = ann.id;
-    w3cAnn['meshnotes:groupId'] = ann.groupId;
+    // Group reference for round-trip. The UUID is the durable, portable key;
+    // the legacy numeric meshnotes:groupId and the ephemeral meshnotes:internalId
+    // are no longer emitted (import resolves groups by UUID, with the numeric id
+    // kept only as a fallback when reading older files).
     w3cAnn['meshnotes:groupUuid'] = group ? group.uuid : undefined;
     w3cAnn['annotationType'] = ann.type;
     if (ann.surfaceProjection === false) {
