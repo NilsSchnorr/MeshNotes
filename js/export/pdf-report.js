@@ -6,7 +6,7 @@ import { toggleCamera } from '../core/camera.js';
 import { updateFixedLightDirection, getDpiMultiplier } from '../core/lighting.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showScalebarConfirm, drawScalebarOnCanvas } from '../annotation-tools/data.js';
-import { getFieldDefinition, getMetadataStats, DATA_MANAGEMENT_GUIDELINE } from '../metadata/templates.js';
+import { getFieldDefinition, getMetadataStats, DATA_MANAGEMENT_GUIDELINE, SUBJECT_KINDS, METADATA_SPEC } from '../metadata/templates.js';
 
 // ============ PDF Settings Helpers ============
 
@@ -672,6 +672,25 @@ function pdfRenderMetadataPages(pdf, layout) {
     pdf.line(layout.margin, y, layout.margin + layout.contentWidth, y);
     y += 8;
 
+    // Subject kind (CIDOC CRM root class) — static, read-only in the report
+    const subjectKind = SUBJECT_KINDS.find(k => k.id === (metadata.subjectKind || 'mixed'))
+        || SUBJECT_KINDS.find(k => k.id === 'mixed');
+    if (subjectKind) {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(9);
+        pdf.setTextColor(60, 60, 60);
+        pdf.text(`Subject kind: ${subjectKind.label} \u2014 CIDOC CRM ${subjectKind.crm}`, layout.margin, y);
+        y += 5;
+    }
+
+    // Conformance note (fine print)
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(120, 120, 120);
+    pdf.text(`Conforms to MeshNotes Metadata Format v1 \u2014 ${METADATA_SPEC.replace(/^https?:\/\//, '')}`, layout.margin, y);
+    y += 8;
+    pdf.setFont('helvetica', 'normal');
+
     for (const section of metadata.sections) {
         // Collect only filled fields (template + custom)
         const filledFields = [];
@@ -716,7 +735,10 @@ function pdfRenderMetadataPages(pdf, layout) {
             // Estimate height needed
             pdf.setFontSize(9);
             const valueLines = pdf.splitTextToSize(field.value, valueWidth);
-            const rowHeight = Math.max(6, valueLines.length * 4 + 2);
+            const hasUri = field.uri && field.uri.trim();
+            const uriLines = hasUri ? pdf.splitTextToSize(field.uri.trim(), valueWidth) : [];
+            const valueBlockH = valueLines.length * 4;
+            const rowHeight = Math.max(6, valueBlockH + 2) + (hasUri ? uriLines.length * 3.4 + 1 : 0);
 
             if (y + rowHeight > layout.pageHeight - layout.margin) {
                 pdf.addPage();
@@ -734,6 +756,14 @@ function pdfRenderMetadataPages(pdf, layout) {
             pdf.setFontSize(9);
             pdf.setTextColor(0, 0, 0);
             pdf.text(valueLines, valueX, y + 3.5);
+
+            // Authority URI (when present)
+            if (hasUri) {
+                pdf.setFont('courier', 'normal');
+                pdf.setFontSize(7);
+                pdf.setTextColor(110, 110, 110);
+                pdf.text(uriLines, valueX, y + 3.5 + valueBlockH);
+            }
 
             y += rowHeight;
         }

@@ -1,7 +1,7 @@
 // js/metadata/metadata-io.js - Metadata JSON and PDF export/import
 import { state } from '../state.js';
 import { showStatus } from '../utils/helpers.js';
-import { TEMPLATES, DATA_MANAGEMENT_GUIDELINE, createEmptyMetadata, getMetadataStats, normalizeMetadata } from './templates.js';
+import { TEMPLATES, DATA_MANAGEMENT_GUIDELINE, createEmptyMetadata, getMetadataStats, normalizeMetadata, SUBJECT_KINDS, DEFAULT_SUBJECT_KIND, METADATA_SPEC } from './templates.js';
 import { updateMetadataDisplay, openMetadataPopup } from './metadata-ui.js';
 
 // ============ JSON Export ============
@@ -152,11 +152,13 @@ export async function downloadMetadataPDF() {
             }
         };
 
-        // Draws a label + fillable form field and advances cursorY
-        const drawFormField = (key, value, hint, multiline) => {
+        // Draws a label + fillable form field and advances cursorY. When an
+        // authority `uri` is present, prints it as a small read-only line below.
+        const drawFormField = (key, value, hint, multiline, uri) => {
             const fieldHeight = multiline ? PT.multilineHeight : PT.lineHeight;
+            const hasUri = uri && uri.trim();
 
-            ensureSpace(fieldHeight + PT.fieldGap);
+            ensureSpace(fieldHeight + PT.fieldGap + (hasUri ? 11 : 0));
 
             // Label — baseline aligned near the top of the field
             page.drawText(key, {
@@ -193,6 +195,18 @@ export async function downloadMetadataPDF() {
             }
 
             cursorY += fieldHeight + PT.fieldGap;
+
+            // Authority URI (read-only display, when present)
+            if (hasUri) {
+                page.drawText(uri.trim(), {
+                    x: PT.fieldX,
+                    y: fromTop(cursorY + 7),
+                    size: 7,
+                    font: fontMono,
+                    color: gray
+                });
+                cursorY += 11;
+            }
         };
 
         // ---- Title ----
@@ -216,6 +230,55 @@ export async function downloadMetadataPDF() {
             });
             cursorY += 18;
         }
+
+        // Subject kind (document-level): an interactive dropdown that sets the
+        // CIDOC CRM root class. Defaults to the E24 umbrella on an empty form.
+        {
+            const kindId = metadata.subjectKind || DEFAULT_SUBJECT_KIND;
+            const kindOptions = SUBJECT_KINDS.map(k => `${k.label} \u2014 ${k.crm}`);
+            let kindIdx = SUBJECT_KINDS.findIndex(k => k.id === kindId);
+            if (kindIdx < 0) kindIdx = SUBJECT_KINDS.findIndex(k => k.id === DEFAULT_SUBJECT_KIND);
+            if (kindIdx < 0) kindIdx = 0;
+
+            ensureSpace(PT.lineHeight + PT.fieldGap);
+            page.drawText('Subject kind', {
+                x: PT.margin,
+                y: fromTop(cursorY + PT.fontSize + 3),
+                size: PT.fontSize,
+                font: fontBold,
+                color: black
+            });
+            const ddBottomY = fromTop(cursorY + PT.lineHeight);
+            const dropdown = form.createDropdown('subject_kind');
+            dropdown.setOptions(kindOptions);
+            dropdown.select(kindOptions[kindIdx]);
+            dropdown.addToPage(page, {
+                x: PT.fieldX,
+                y: ddBottomY,
+                width: PT.fieldWidth,
+                height: PT.lineHeight,
+                borderWidth: 0.5,
+                borderColor: lightGray,
+                font: font
+            });
+            // setFontSize needs the field's /DA entry, which addToPage creates;
+            // call it afterwards (guarded so a stray build can't abort export).
+            try { dropdown.setFontSize(PT.fontSize); } catch (e) { /* keep auto size */ }
+            cursorY += PT.lineHeight + PT.fieldGap;
+        }
+
+        // Conformance note (document-level, fine print)
+        page.drawText(
+            `Conforms to MeshNotes Metadata Format v1 \u2014 ${METADATA_SPEC.replace(/^https?:\/\//, '')}`,
+            {
+                x: PT.margin,
+                y: fromTop(cursorY + 8),
+                size: 8,
+                font: fontItalic,
+                color: gray
+            }
+        );
+        cursorY += 16;
 
         // Gold separator line
         page.drawLine({
@@ -262,13 +325,13 @@ export async function downloadMetadataPDF() {
                 const multiline = def ? def.multiline : false;
                 const label = def ? def.label : (field.label || field.id);
 
-                drawFormField(label, field.value, hint, multiline);
+                drawFormField(label, field.value, hint, multiline, field.uri);
             }
 
             // Custom fields
             if (section.customFields) {
                 for (const field of section.customFields) {
-                    drawFormField(field.label || 'Custom', field.value, '', false);
+                    drawFormField(field.label || 'Custom', field.value, '', false, field.uri);
                 }
             }
 
