@@ -1,7 +1,7 @@
 // js/metadata/metadata-ui.js - Metadata popup rendering and interaction
 import { state, dom } from '../state.js';
 import { escapeHtml, showStatus } from '../utils/helpers.js';
-import { TEMPLATES, DATA_MANAGEMENT_GUIDELINE, getFieldDefinition, getMetadataStats, createEmptyMetadata } from './templates.js';
+import { TEMPLATES, DATA_MANAGEMENT_GUIDELINE, getFieldDefinition, getMetadataStats, createEmptyMetadata, SUBJECT_KINDS } from './templates.js';
 
 /**
  * Initialize the metadata system. Creates empty metadata if none exists.
@@ -82,6 +82,17 @@ function renderMetadataPopup() {
     const templateId = metadata.template || '3d-documentation';
 
     let html = '';
+
+    // Subject kind selector — sets the CIDOC CRM root class of the documented
+    // subject. It does NOT reshape the form: all sections and fields still show.
+    const currentKind = metadata.subjectKind || 'mixed';
+    html += `<div class="metadata-subject-kind">
+        <label class="metadata-subject-kind-label" for="metadata-subject-kind-select">Subject kind</label>
+        <select id="metadata-subject-kind-select" class="metadata-subject-kind-select">
+            ${SUBJECT_KINDS.map(k => `<option value="${k.id}"${k.id === currentKind ? ' selected' : ''}>${escapeHtml(k.label)}</option>`).join('')}
+        </select>
+        <span class="metadata-subject-kind-hint">Sets the CIDOC CRM class of the documented subject for export. All fields remain available.</span>
+    </div>`;
 
     for (let si = 0; si < metadata.sections.length; si++) {
         const section = metadata.sections[si];
@@ -201,6 +212,12 @@ function renderField(sectionIndex, fieldIndex, key, value, hint, multiline, isCu
 function saveFieldsToState() {
     const body = document.getElementById('metadata-popup-body');
     if (!body || !state.modelInfo.metadata) return;
+
+    // Read subject kind
+    const kindSelect = body.querySelector('#metadata-subject-kind-select');
+    if (kindSelect) {
+        state.modelInfo.metadata.subjectKind = kindSelect.value;
+    }
 
     // Read template field values
     body.querySelectorAll('.metadata-input[data-field-index]').forEach(input => {

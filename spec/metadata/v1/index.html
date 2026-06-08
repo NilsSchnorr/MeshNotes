@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeshNotes Metadata Format Specification — Version 1.0</title>
+<style>
+  :root { --ink:#1a1a1a; --muted:#555; --rule:#ddd; --accent:#0b5; --code-bg:#f6f8fa; }
+  * { box-sizing: border-box; }
+  body { font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--ink); max-width: 820px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .4rem; }
+  h2 { font-size: 1.35rem; margin: 2.4rem 0 .8rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+  h3 { font-size: 1.1rem; margin: 1.6rem 0 .5rem; }
+  a { color: #0645ad; }
+  .meta { color: var(--muted); font-size: .92rem; margin: 0 0 1.6rem; }
+  .meta dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem .9rem; margin: .6rem 0 0; }
+  .meta dt { font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; word-break: break-all; }
+  .status { background: #fffbe6; border: 1px solid #f0e0a0; border-radius: 6px; padding: .6rem .9rem; font-size: .9rem; margin: 1.4rem 0; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { background: var(--code-bg); padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: .85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: .8rem 0; font-size: .92rem; }
+  th, td { text-align: left; border: 1px solid var(--rule); padding: .45rem .6rem; vertical-align: top; }
+  th { background: #fafafa; }
+  .note { border-left: 3px solid var(--accent); padding: .4rem 0 .4rem .9rem; margin: 1rem 0; color: #333; background: #f7fdfa; }
+  .rfc { font-variant: small-caps; font-weight: 600; }
+  .opt { color: var(--muted); font-weight: normal; font-style: italic; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<h1>MeshNotes Metadata Format Specification</h1>
+<p class="meta"><strong>Version 1.0</strong></p>
+
+<div class="meta">
+  <dl>
+    <dt>This version</dt><dd><a href="https://meshnotes.org/spec/metadata/v1/">https://meshnotes.org/spec/metadata/v1/</a></dd>
+    <dt>Latest version</dt><dd><a href="https://meshnotes.org/spec/metadata/">https://meshnotes.org/spec/metadata/</a></dd>
+    <dt>JSON Schema</dt><dd><a href="https://meshnotes.org/spec/metadata/v1/schema.json">https://meshnotes.org/spec/metadata/v1/schema.json</a></dd>
+    <dt>Annotation specification</dt><dd><a href="https://meshnotes.org/spec/annotation/v1/">https://meshnotes.org/spec/annotation/v1/</a></dd>
+    <dt>Term namespace</dt><dd><code>https://meshnotes.org/ns/</code> (prefix <code>meshnotes:</code>)</dd>
+    <dt>Editor</dt><dd>Nils Schnorr (<a href="https://orcid.org/0009-0003-7750-2818">0009-0003-7750-2818</a>), Department of Classical Archaeology, Saarland University</dd>
+    <dt>Date</dt><dd>2026-06-08</dd>
+    <dt>License</dt><dd>CC BY 4.0</dd>
+  </dl>
+</div>
+
+<div class="status">
+  <strong>Status of this document.</strong> This is a published, versioned specification. Version 1.0 is stable: the field identifiers and structure defined here will not change. Any breaking change will be published as a new version (<code>/spec/metadata/v2/</code>) at a new URL, leaving this version permanently resolvable for files that reference it. The format is under active development and may gain further <em>optional</em> members within version 1; see §8. The CIDOC CRM crosswalk in §6 is a documented mapping intended to guide a future RDF/LIDO exporter; this version of MeshNotes emits the metadata as the JSON object described here and does not itself emit RDF.
+</div>
+
+<h2>1. Introduction</h2>
+<p>
+This document specifies the <code>metadata</code> member that MeshNotes embeds in its annotation export (the <code>AnnotationCollection</code> defined by the <a href="https://meshnotes.org/spec/annotation/v1/">MeshNotes Annotation Format Specification</a> [ANN] §8) and that MeshNotes also reads and writes as a standalone metadata-report JSON file. The block records the structured meta- and paradata of a 3D documentation project: general project information, the object's archaeological context, capture and processing parameters, referencing, paradata (the reasoning behind the documentation), and legal information.
+</p>
+<p>
+The block is organised into <strong>sections</strong> of <strong>fields</strong>. Every field has a stable identifier that is independent of its display label, so labels can be edited or translated without breaking the data; selected fields additionally carry an optional <strong>authority URI</strong> linking their free-text value to a controlled vocabulary. The whole block is, and remains, fully optional: any field may be empty, and an empty report is valid.
+</p>
+<p>
+The design goal is that the metadata, while a plain JSON object, is <em>cleanly mappable</em> to <a href="https://www.cidoc-crm.org/">CIDOC CRM</a> and ingestible by infrastructure such as <a href="https://www.nfdi4objects.net/">NFDI4Objects</a>. §5 (subject kind) and §6 (the crosswalk) define that mapping. The mapping is documented here rather than serialised per-field in the export: an exported field carries only its identifier, label, value and optional URI; the CRM path for each identifier is given by this specification.
+</p>
+
+<h2>2. Conformance</h2>
+<p>
+A metadata block conforms to this specification when:
+</p>
+<ul>
+  <li>it is a JSON object with a <code>sections</code> array of the shape defined in §4;</li>
+  <li>it declares <code>"dcterms:conformsTo": "https://meshnotes.org/spec/metadata/v1/"</code>;</li>
+  <li>every field carries a stable <code>id</code> and a <code>value</code> (possibly empty), as in §4;</li>
+  <li>where present, <code>subjectKind</code> is one of the values in §5;</li>
+  <li>it validates against the JSON Schema at <code>https://meshnotes.org/spec/metadata/v1/schema.json</code>.</li>
+</ul>
+<p>
+No field is ever required to be non-empty. The schema validates the <em>shape</em> of what is present; it never requires any particular field to be filled. A consumer <span class="rfc">must</span> ignore members it does not recognise rather than reject the block, and <span class="rfc">should</span> preserve them on round-trip.
+</p>
+<p>The key words <span class="rfc">must</span>, <span class="rfc">must not</span>, <span class="rfc">should</span>, <span class="rfc">should not</span> and <span class="rfc">may</span> are used as defined in <a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>.</p>
+
+<h2>3. Relationship to the annotation format</h2>
+<p>
+Within a MeshNotes export, this block is the value of the <code>metadata</code> member of the <code>AnnotationCollection</code> ([ANN] §8). It is self-describing through its own <code>dcterms:conformsTo</code>, independent of the collection's. The same block is also the content of the standalone metadata-report file (wrapped as <code>{ "generator", "type": "MetadataReport", "exported", "model", "metadata": { … } }</code>). The two are byte-for-byte the same object, so a report can be round-tripped between the two carriers without loss.
+</p>
+
+<h2>4. The metadata block</h2>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>dcterms:conformsTo</code></td><td><span class="rfc">must</span></td><td>IRI</td><td>This specification's URL. Identifies the metadata-format version.</td></tr>
+  <tr><td><code>template</code></td><td><span class="rfc">should</span></td><td>string</td><td>Identifier of the field template in use. This version defines one: <code>"3d-documentation"</code>.</td></tr>
+  <tr><td><code>subjectKind</code></td><td><span class="opt">may</span></td><td>string</td><td>The nature of the documented subject, which fixes its CIDOC CRM root class; see §5. Defaults to <code>"mixed"</code> (the E24 umbrella) when absent.</td></tr>
+  <tr><td><code>sections</code></td><td><span class="rfc">must</span></td><td>array</td><td>The report sections; see §4.1.</td></tr>
+</table>
+
+<h3>4.1 Section</h3>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>string</td><td>Stable section identifier (e.g. <code>object_context</code>). Never changes.</td></tr>
+  <tr><td><code>title</code></td><td><span class="rfc">should</span></td><td>string</td><td>Display name of the section (e.g. <code>"Object Context"</code>). Editable/translatable.</td></tr>
+  <tr><td><code>fields</code></td><td><span class="rfc">must</span></td><td>array</td><td>Template fields; see §4.2.</td></tr>
+  <tr><td><code>customFields</code></td><td><span class="opt">may</span></td><td>array</td><td>User-added fields; see §4.3.</td></tr>
+</table>
+<p>This version defines seven sections: <code>general</code>, <code>object_context</code>, <code>capture</code>, <code>reference</code>, <code>processing</code>, <code>paradata</code>, <code>legal</code>.</p>
+
+<h3>4.2 Field</h3>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>string</td><td>Stable field identifier, unique within its section (e.g. <code>dating_period</code>). This is the machine name; it never changes and is the key for the CRM crosswalk in §6. The same <code>id</code> (e.g. <code>additional_notes</code>) may recur in different sections.</td></tr>
+  <tr><td><code>label</code></td><td><span class="rfc">should</span></td><td>string</td><td>Display name (e.g. <code>"Dating / Period"</code>). Editable/translatable; carries no identity.</td></tr>
+  <tr><td><code>value</code></td><td><span class="rfc">must</span></td><td>string</td><td>The field value. May be the empty string.</td></tr>
+  <tr><td><code>uri</code></td><td><span class="opt">may</span></td><td>IRI</td><td>An authority reference for the value, drawn from the controlled vocabulary appropriate to the field (see §6 / §7). Present only when supplied; omitted (not emptied) otherwise.</td></tr>
+</table>
+
+<h3>4.3 Custom field</h3>
+<p>User-added fields have no stable identifier; their <code>label</code> is their identity.</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>label</code></td><td><span class="rfc">must</span></td><td>string</td><td>The user-given field name.</td></tr>
+  <tr><td><code>value</code></td><td><span class="rfc">must</span></td><td>string</td><td>The field value. May be empty.</td></tr>
+  <tr><td><code>uri</code></td><td><span class="opt">may</span></td><td>IRI</td><td>Optional authority reference.</td></tr>
+</table>
+
+<pre><code>"metadata": {
+  "dcterms:conformsTo": "https://meshnotes.org/spec/metadata/v1/",
+  "template": "3d-documentation",
+  "subjectKind": "object",
+  "sections": [
+    {
+      "id": "object_context",
+      "title": "Object Context",
+      "fields": [
+        { "id": "object_type", "label": "Object Type / Classification",
+          "value": "skyphos", "uri": "http://vocab.getty.edu/aat/300043171" },
+        { "id": "dating_period", "label": "Dating / Period",
+          "value": "Augustan", "uri": "http://n2t.net/ark:/99152/p0qhb66kmtr" },
+        { "id": "additional_notes", "label": "Additional Notes", "value": "" }
+      ],
+      "customFields": [
+        { "label": "Ware", "value": "Eastern Sigillata A" }
+      ]
+    }
+  ]
+}</code></pre>
+
+<h2>5. Subject kind</h2>
+<p>
+A 3D model may document a movable artefact, a fixed architectural feature, a whole building, an excavation site or city, or a tract of landscape. These are not the same kind of entity in CIDOC CRM, and forcing them all to a single class would mis-state most of them. The <code>subjectKind</code> member therefore declares what is being documented, and that single choice fixes the CRM <strong>root class</strong> of the subject. It does <span class="rfc">not</span> change which fields exist or which are shown — every field remains available and optional for every kind. Only the class of the root node onto which the §6 properties hang is substituted.
+</p>
+<table>
+  <tr><th><code>subjectKind</code></th><th>CIDOC CRM root class</th><th>Typical use</th></tr>
+  <tr><td><code>object</code></td><td>E22 Human-Made Object</td><td>A movable artefact: vessel, coin, statue, tool.</td></tr>
+  <tr><td><code>feature</code></td><td>E25 Human-Made Feature</td><td>An immovable installation: wall, mosaic floor, relief, rock-cut tomb.</td></tr>
+  <tr><td><code>building</code></td><td>E25 Human-Made Feature</td><td>A standing building or monument.</td></tr>
+  <tr><td><code>site</code></td><td>E27 Site</td><td>An excavation area, ruin complex, or (part of) an ancient city.</td></tr>
+  <tr><td><code>landscape</code></td><td>E26 Physical Feature</td><td>A natural feature or tract of landscape.</td></tr>
+  <tr><td><code>mixed</code> <span class="opt">(default)</span></td><td>E24 Physical Human-Made Thing</td><td>Mixed or unspecified subjects; the safe umbrella that is never mis-asserted.</td></tr>
+</table>
+<p class="note">
+Because the §6 field properties are defined on common CRM ancestors (E18 Physical Thing, E24 Physical Human-Made Thing), they apply unchanged whether the root is an E22 artefact, an E25 feature or an E27 site. Only the root class differs. One consequence: for an <code>E27 Site</code> the <code>find_spot</code> field (§6, P53) is conceptually redundant, since the site <em>is</em> its place; a CRM exporter <span class="rfc">may</span> omit the P53 assertion in that case rather than create a place distinct from the site.
+</p>
+
+<h2>6. CIDOC CRM crosswalk</h2>
+<p>
+This section maps each template field, by its stable <code>id</code>, to a CIDOC CRM property path rooted at the subject (the class chosen in §5, generically &ldquo;subject&rdquo; below) or at one of the events that produced or processed it. The mapping is based on <a href="https://www.cidoc-crm.org/Version/version-7.1.3">CIDOC CRM 7.1.3</a>; the digitization tier additionally uses <a href="https://www.cidoc-crm.org/crmdig/">CRMdig</a> classes. Where a field is genuinely free reasoning or administrative text, it maps to <code>P3 has note</code>; <strong>any field not listed below, and any custom field, defaults to P3 has note</strong> (typed by the field label).
+</p>
+
+<h3>6.1 Object tier</h3>
+<p>Properties of the subject itself.</p>
+<table>
+  <tr><th>Field <code>id</code></th><th>CIDOC CRM path</th><th>LIDO element</th><th>Vocabulary</th></tr>
+  <tr><td><code>object</code></td><td>subject → P1 is identified by → E41 Appellation</td><td>titleSet / appellation</td><td>—</td></tr>
+  <tr><td><code>object_type</code></td><td>subject → P2 has type → E55 Type</td><td>objectWorkType</td><td>Getty AAT</td></tr>
+  <tr><td><code>material</code></td><td>subject → P45 consists of → E57 Material</td><td>materialsTech</td><td>Getty AAT</td></tr>
+  <tr><td><code>dimensions</code></td><td>subject → P43 has dimension → E54 Dimension</td><td>objectMeasurements</td><td>—</td></tr>
+  <tr><td><code>inventory_number</code></td><td>subject → P1 is identified by → E42 Identifier</td><td>repositoryWorkID</td><td>—</td></tr>
+  <tr><td><code>current_location</code></td><td>subject → P55 has current location → E53 Place</td><td>repositoryLocation</td><td>GND / Wikidata</td></tr>
+  <tr><td><code>find_spot</code></td><td>subject → P53 has former or current location → E53 Place</td><td>eventPlace (finding)</td><td>gazetteer</td></tr>
+  <tr><td><code>dating_period</code></td><td>subject → P108i was produced by → E12 Production → P4 has time-span → E52 Time-Span</td><td>eventDate / periodName</td><td>PeriodO</td></tr>
+  <tr><td><code>conservation_state</code></td><td>subject → P44 has condition → E3 Condition State</td><td>—</td><td>—</td></tr>
+  <tr><td><code>copyright</code></td><td>subject → P104 is subject to → E30 Right</td><td>rightsType</td><td>—</td></tr>
+</table>
+<p class="note">
+Dating is modelled through the production event (P108i → E12 → P4 → E52), not attached directly to the object, because in CIDOC CRM time-spans belong to events. A PeriodO URI on <code>dating_period</code> identifies the period concept that the time-span instantiates.
+</p>
+
+<h3>6.2 Digitization tier (CRMdig)</h3>
+<p>
+The capture and processing of the model are modelled as events that produced the 3D model as a CRMdig <code>D9 Data Object</code>: a digitization event (capture) and a processing event. These fields describe those events. They use CRM-base properties (P14, P16, P32, P4, P7), which apply to CRMdig D-classes by inheritance; the precise CRMdig L-properties (e.g. for &ldquo;used software&rdquo;) follow <a href="https://www.cidoc-crm.org/crmdig/">CRMdig v5.0</a> and are left to the exporter where a base property does not suffice.
+</p>
+<table>
+  <tr><th>Field <code>id</code></th><th>Event</th><th>CIDOC CRM / CRMdig path</th></tr>
+  <tr><td><code>documentation_method</code></td><td>digitization</td><td>event → P32 used general technique → E55 Type</td></tr>
+  <tr><td><code>registration_method</code></td><td>digitization</td><td>event → P32 used general technique → E55 Type</td></tr>
+  <tr><td><code>capture_operator</code></td><td>digitization</td><td>event → P14 carried out by → E21 Person</td></tr>
+  <tr><td><code>instrument</code></td><td>digitization</td><td>event → P16 used specific object → D8 Digital Device</td></tr>
+  <tr><td><code>fieldwork_timeline</code></td><td>digitization</td><td>event → P4 has time-span → E52 Time-Span</td></tr>
+  <tr><td><code>location</code></td><td>digitization</td><td>event → P7 took place at → E53 Place</td></tr>
+  <tr><td><code>processing_operator</code></td><td>processing</td><td>event → P14 carried out by → E21 Person</td></tr>
+  <tr><td><code>software</code></td><td>processing</td><td>event → used software → D14 Software</td></tr>
+  <tr><td><code>model_details</code></td><td>—</td><td>P3 has note (on the D9 Data Object)</td></tr>
+  <tr><td><code>project_lead</code></td><td>project</td><td>activity → P14 carried out by → E21 Person</td></tr>
+</table>
+<p class="note">
+Person fields (<code>capture_operator</code>, <code>processing_operator</code>, <code>project_lead</code>) are free text that may name several people; this version does not attach ORCID identifiers to them in the metadata block. Authorship of annotations carries ORCID separately ([ANN] §6.1). The fine capture parameters (<code>lens</code>, <code>iso</code>, <code>aperture</code>, <code>focal_length</code>, <code>filter</code>, <code>color_card</code>, <code>scan_resolution</code>, <code>working_distance</code>, <code>calibration</code>, <code>number_of_captures</code>) are deliberately mapped at note level (P3) on the digitization event rather than given a property each, to avoid over-modelling.
+</p>
+
+<h3>6.3 Note tier</h3>
+<p>
+The following fields map to <code>P3 has note</code> (typed by the field label), on the subject or the relevant event. They record free reasoning or administrative text for which a more specific CRM property would over-state structure in version 1:
+</p>
+<p>
+<code>project_title</code>, <code>project_description</code>, <code>documentation_purpose</code>, <code>excavation_reference</code>, <code>referenced_by</code>, <code>image_preprocessing</code>, <code>versions</code>, <code>algorithm_parameters</code>, <code>workflow_description</code>, <code>postprocessing_information</code>, <code>quality_summary</code>, <code>lighting_conditions</code>, <code>technical_notes</code>, <code>funding</code>, <code>acknowledgments</code>, every <code>additional_notes</code>, and all <strong>Paradata</strong> fields (<code>method_rationale</code>, <code>sources_consulted</code>, <code>interpretive_decisions</code>, <code>known_limitations</code>, <code>uncertainty_notes</code>).
+</p>
+<p>
+Two of these are flagged for future, more expressive modelling rather than P3 in a later version: <code>stratigraphic_context</code> is a target for <a href="https://www.cidoc-crm.org/crmarchaeo/">CRMarchaeo</a> (stratigraphic units), and the Paradata fields are targets for <a href="https://www.cidoc-crm.org/crminf/">CRMinf</a> (belief and argumentation). Until then they are honest free-text notes.
+</p>
+
+<h2>7. Authority vocabularies</h2>
+<p>
+Five fields accept an optional <code>uri</code> linking their value to a controlled vocabulary. The vocabulary is a recommendation, not a constraint: any resolvable URI is accepted, and the field stays usable with no URI at all.
+</p>
+<table>
+  <tr><th>Field <code>id</code></th><th>Recommended vocabulary</th><th>Examples</th></tr>
+  <tr><td><code>object_type</code></td><td>Getty AAT</td><td><code>http://vocab.getty.edu/aat/…</code></td></tr>
+  <tr><td><code>material</code></td><td>Getty AAT</td><td><code>http://vocab.getty.edu/aat/…</code></td></tr>
+  <tr><td><code>dating_period</code></td><td>PeriodO</td><td><code>http://n2t.net/ark:/99152/p0…</code></td></tr>
+  <tr><td><code>find_spot</code></td><td>Gazetteer</td><td>iDAI.gazetteer, Pleiades, GeoNames</td></tr>
+  <tr><td><code>location</code></td><td>Gazetteer</td><td>iDAI.gazetteer, Pleiades, GeoNames</td></tr>
+</table>
+
+<h2>8. Extensibility and unknown terms</h2>
+<p>
+The format is deliberately open. A conforming consumer <span class="rfc">must</span> ignore members it does not recognise rather than reject the block, and <span class="rfc">should</span> preserve them on round-trip. Within version 1, MeshNotes <span class="rfc">may</span> add further <em>optional</em> members (new fields, new section members, new field descriptors such as <code>uri</code>) without a version bump; it will not change the meaning of an existing field <code>id</code>, remove a field <code>id</code>, or make any field required to be non-empty within version 1. The JSON Schema (§10) is correspondingly lenient: it validates the shape of known members and permits additional properties.
+</p>
+
+<h2>9. Versioning policy</h2>
+<p>
+Field and section identifiers, once published, keep their meaning permanently. This specification and its JSON Schema are versioned and frozen: a breaking change — renaming or removing an identifier, or changing a field's CRM mapping in an incompatible way — is published at a new version path (<code>/spec/metadata/v2/</code>), and this version remains resolvable indefinitely so that files referencing it continue to validate.
+</p>
+
+<h2>10. Conformance and validation</h2>
+<p>
+A metadata block can be validated structurally against the JSON Schema at <a href="https://meshnotes.org/spec/metadata/v1/schema.json">https://meshnotes.org/spec/metadata/v1/schema.json</a> (JSON Schema draft 2020-12). The schema checks the block structure (sections, fields, custom fields), the <code>subjectKind</code> enumeration and the conformance target, applies a light pattern check to <code>uri</code> values, and otherwise permits additional properties. It never requires any field value to be non-empty.
+</p>
+
+<h2>11. References</h2>
+<ul>
+  <li>[ANN] <a href="https://meshnotes.org/spec/annotation/v1/">MeshNotes Annotation Format Specification</a>, Version 1.0.</li>
+  <li><a href="https://www.cidoc-crm.org/Version/version-7.1.3">CIDOC Conceptual Reference Model</a>, version 7.1.3.</li>
+  <li><a href="https://www.cidoc-crm.org/crmdig/">CRMdig</a>, an extension of CIDOC CRM for provenance metadata of digitization, version 5.0.</li>
+  <li><a href="https://www.cidoc-crm.org/crmarchaeo/">CRMarchaeo</a>, an extension for archaeological excavation (future target for stratigraphy).</li>
+  <li><a href="https://www.cidoc-crm.org/crminf/">CRMinf</a>, an extension for argumentation and inference (future target for paradata).</li>
+  <li><a href="https://lido-schema.org/">LIDO</a> — Lightweight Information Describing Objects, version 1.1.</li>
+  <li><a href="http://vocab.getty.edu/">Getty Vocabularies</a> — Art &amp; Architecture Thesaurus (AAT).</li>
+  <li><a href="https://perio.do/">PeriodO</a> — a gazetteer of period definitions.</li>
+  <li><a href="https://gazetteer.dainst.org/">iDAI.gazetteer</a>, <a href="https://pleiades.stoa.org/">Pleiades</a>, <a href="https://www.geonames.org/">GeoNames</a> — place authorities.</li>
+  <li><a href="https://www.nfdi4objects.net/">NFDI4Objects</a> — research data infrastructure for the material remains of human history.</li>
+  <li><a href="https://www.rfc-editor.org/rfc/rfc2119">RFC 2119</a>: Key words for use in RFCs to Indicate Requirement Levels.</li>
+</ul>
+
+<footer>
+Part of the <a href="https://meshnotes.org">MeshNotes</a> project. This document defines the <code>metadata</code> block referenced by <code>dcterms:conformsTo</code> in MeshNotes metadata reports and in the <code>metadata</code> member of MeshNotes annotation exports (<a href="https://meshnotes.org/spec/annotation/v1/">Annotation Format Specification</a> §8).
+</footer>
+
+</body>
+</html>

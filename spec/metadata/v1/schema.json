@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://meshnotes.org/spec/metadata/v1/schema.json",
+  "title": "MeshNotes Metadata Format v1",
+  "description": "Structural schema for the MeshNotes metadata block (the value of the AnnotationCollection 'metadata' member, and the content of the standalone metadata-report file). Lenient and forward-compatible: it validates the shape of known members and permits additional properties. It never requires any field value to be non-empty. See https://meshnotes.org/spec/metadata/v1/.",
+  "type": "object",
+  "required": ["dcterms:conformsTo", "sections"],
+  "properties": {
+    "dcterms:conformsTo": {
+      "type": "string",
+      "description": "Metadata-format version identifier.",
+      "pattern": "^https?://"
+    },
+    "template": {
+      "type": "string",
+      "description": "Field-template identifier (this version defines '3d-documentation')."
+    },
+    "subjectKind": {
+      "type": "string",
+      "description": "Nature of the documented subject; fixes the CIDOC CRM root class.",
+      "enum": ["object", "feature", "building", "site", "landscape", "mixed"]
+    },
+    "meshnotes:subjectKind": {
+      "type": "string",
+      "description": "Prefixed alias of subjectKind (forward-compatibility).",
+      "enum": ["object", "feature", "building", "site", "landscape", "mixed"]
+    },
+    "sections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/section" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "section": {
+      "type": "object",
+      "required": ["id", "fields"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable section identifier."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display name of the section."
+        },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        },
+        "customFields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/customField" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "field": {
+      "type": "object",
+      "required": ["id", "value"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable field identifier, unique within its section."
+        },
+        "label": {
+          "type": "string",
+          "description": "Display name; carries no identity."
+        },
+        "value": {
+          "type": "string",
+          "description": "Field value; may be the empty string."
+        },
+        "uri": {
+          "type": "string",
+          "description": "Optional authority reference for the value.",
+          "pattern": "^\\S+$"
+        }
+      },
+      "additionalProperties": true
+    },
+    "customField": {
+      "type": "object",
+      "required": ["label", "value"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "User-given field name (its identity)."
+        },
+        "value": {
+          "type": "string",
+          "description": "Field value; may be the empty string."
+        },
+        "uri": {
+          "type": "string",
+          "description": "Optional authority reference for the value.",
+          "pattern": "^\\S+$"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

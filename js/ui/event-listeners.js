@@ -15,6 +15,7 @@ import { exportPdfReport } from '../export/pdf-report.js';
 import { importAnnotations } from '../export/import-json.js';
 import { openMetadataPopup, closeMetadataPopup, saveMetadata, initMetadata, updateMetadataDisplay } from '../metadata/metadata-ui.js';
 import { downloadMetadataJSON, downloadMetadataPDF, importMetadataJSON } from '../metadata/metadata-io.js';
+import { getMetadataStats } from '../metadata/templates.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
 import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink, toggleHistory } from '../export/share.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
@@ -81,8 +82,9 @@ function clearAnnotationsAndGroups() {
     state.groups = [];
     state.selectedAnnotation = null;
     state.editingAnnotation = null;
-    const preservedMetadata = state.modelInfo.metadata;
-    state.modelInfo = { entries: [], metadata: preservedMetadata };
+    // New model = fresh metadata (metadata is per-model). The loader resets
+    // modelInfo too; resetting here keeps the sidebar in sync immediately.
+    state.modelInfo = { entries: [] };
     initMetadata();
     updateMetadataDisplay();
 
@@ -160,11 +162,41 @@ function downloadModelFiles() {
 }
 
 /**
- * Wraps loadModel() with a check for existing annotations.
- * If annotations exist, prompts the user to export, clear, or cancel.
+ * Returns true if the current session holds work that loading a new model (or
+ * refreshing) would discard: annotations, model-information notes, or filled
+ * metadata.
+ */
+function sessionHasContent() {
+    if (state.annotations.length > 0) return true;
+    if (state.modelInfo.entries && state.modelInfo.entries.length > 0) return true;
+    if (state.modelInfo.metadata && getMetadataStats(state.modelInfo.metadata).filled > 0) return true;
+    return false;
+}
+
+/**
+ * Builds a human-readable description of the work currently held in the
+ * session, e.g. "12 annotations, metadata and model information".
+ */
+function describeSessionContent() {
+    const parts = [];
+    const a = state.annotations.length;
+    if (a > 0) parts.push(`${a} annotation${a !== 1 ? 's' : ''}`);
+    const filled = state.modelInfo.metadata ? getMetadataStats(state.modelInfo.metadata).filled : 0;
+    if (filled > 0) parts.push('metadata');
+    const e = state.modelInfo.entries ? state.modelInfo.entries.length : 0;
+    if (e > 0) parts.push('model information');
+    if (parts.length === 0) return 'unsaved work';
+    if (parts.length === 1) return parts[0];
+    return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+}
+
+/**
+ * Wraps loadModel() with a check for existing session content (annotations,
+ * model-info notes, or filled metadata). If any exists, prompts the user to
+ * export (JSON-LD), discard, or cancel before the load clears it.
  */
 function handleModelLoad(file) {
-    if (state.annotations.length === 0) {
+    if (!sessionHasContent()) {
         loadModel(file);
         return;
     }
@@ -172,10 +204,9 @@ function handleModelLoad(file) {
     // Store file reference and show the three-option dialog
     const pendingFile = file;
 
-    // Update message with annotation count
-    const count = state.annotations.length;
+    // Describe what the load will clear (annotations, metadata, model info)
     document.getElementById('annotation-clear-message').textContent =
-        `You have ${count} annotation${count !== 1 ? 's' : ''} from the current model. What would you like to do?`;
+        `You have ${describeSessionContent()} in the current session. Loading a new model will clear it. What would you like to do?`;
 
     dom.annotationClearOverlay.classList.add('visible');
 
@@ -619,16 +650,15 @@ export function setupEventListeners() {
         if (e.target === dom.annotationClearOverlay) hideAnnotationClearDialog();
     });
 
-    // Logo click — refresh with confirmation if annotations exist
+    // Logo click — refresh with confirmation if the session holds work
     document.getElementById('header-logo').addEventListener('click', () => {
-        if (state.annotations.length === 0) {
+        if (!sessionHasContent()) {
             location.reload();
             return;
         }
 
-        const count = state.annotations.length;
         document.getElementById('refresh-confirm-message').textContent =
-            `You have ${count} annotation${count !== 1 ? 's' : ''} in the current session. What would you like to do before refreshing?`;
+            `You have ${describeSessionContent()} in the current session. What would you like to do before refreshing?`;
 
         dom.refreshConfirmOverlay.classList.add('visible');
     });
