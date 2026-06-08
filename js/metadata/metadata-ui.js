@@ -91,7 +91,7 @@ function renderMetadataPopup() {
         <select id="metadata-subject-kind-select" class="metadata-subject-kind-select">
             ${SUBJECT_KINDS.map(k => `<option value="${k.id}"${k.id === currentKind ? ' selected' : ''}>${escapeHtml(k.label)}</option>`).join('')}
         </select>
-        <span class="metadata-subject-kind-hint">Sets the CIDOC CRM class of the documented subject for export. All fields remain available.</span>
+        <span class="metadata-subject-kind-hint">Sets the CIDOC CRM class of the documented subject for export (e.g. movable object &rarr; E22, site &rarr; E27, mixed &rarr; E24). It does not change which fields appear &mdash; all stay available. <a class="metadata-spec-link" href="https://meshnotes.org/spec/metadata/v1/" target="_blank" rel="noopener">Metadata specification &rarr;</a></span>
     </div>`;
 
     for (let si = 0; si < metadata.sections.length; si++) {
@@ -108,7 +108,10 @@ function renderMetadataPopup() {
             const multiline = def ? def.multiline : false;
             const label = def ? def.label : (field.label || field.id);
             const authority = def ? def.authority : null;
-            html += renderField(si, fi, label, field.value, hint, multiline, false, authority, field.uri);
+            const specNote = field.id === 'object_type'
+                ? 'Maps to a Getty AAT concept (CIDOC CRM <code>P2 has type</code> &rarr; <code>E55 Type</code>). <a class="metadata-spec-link" href="https://meshnotes.org/spec/metadata/v1/" target="_blank" rel="noopener">See the metadata specification &rarr;</a>'
+                : '';
+            html += renderField(si, fi, label, field.value, hint, multiline, false, authority, field.uri, specNote);
         }
 
         // Custom fields
@@ -156,7 +159,7 @@ function renderMetadataPopup() {
 /**
  * Renders a single editable field row.
  */
-function renderField(sectionIndex, fieldIndex, key, value, hint, multiline, isCustom, authority, uri) {
+function renderField(sectionIndex, fieldIndex, key, value, hint, multiline, isCustom, authority, uri, specNote) {
     const dataAttr = isCustom
         ? `data-section="${sectionIndex}" data-custom-index="${fieldIndex}"`
         : `data-section="${sectionIndex}" data-field-index="${fieldIndex}"`;
@@ -199,10 +202,16 @@ function renderField(sectionIndex, fieldIndex, key, value, hint, multiline, isCu
         uriHtml = `<input type="text" class="metadata-uri-input" data-section="${sectionIndex}" data-field-index="${fieldIndex}" data-role="uri" value="${escapedUri}" placeholder="${escapedPlaceholder}" title="${escapedAuthLabel}" aria-label="${escapedAuthLabel}">`;
     }
 
+    let specHtml = '';
+    if (specNote) {
+        specHtml = `<span class="metadata-spec-note">${specNote}</span>`;
+    }
+
     return `<div class="metadata-field-row">
         <label class="metadata-label">${escapeHtml(key)}${hint ? ` <span class="metadata-hint">(${escapedHint})</span>` : ''}</label>
         ${inputHtml}
         ${uriHtml}
+        ${specHtml}
     </div>`;
 }
 

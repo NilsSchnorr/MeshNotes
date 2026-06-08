@@ -48,6 +48,24 @@
                 </section>
 
                 <section>
+                    <h3>Standards &amp; Interoperability</h3>
+                    <p>
+                        MeshNotes is built on open standards so that annotations and metadata stay usable outside the tool.
+                        Annotations follow the <a href="https://www.w3.org/TR/annotation-model/" target="_blank">W3C Web Annotation Data Model</a>,
+                        and the structured metadata maps to <a href="https://cidoc-crm.org/" target="_blank">CIDOC CRM</a> (with CRMdig for the
+                        digitisation process), using community vocabularies such as <a href="https://www.getty.edu/research/tools/vocabularies/aat/" target="_blank">Getty AAT</a>,
+                        <a href="https://perio.do/" target="_blank">PeriodO</a>, and gazetteers (iDAI.gazetteer, Pleiades, GeoNames) for authority links.
+                    </p>
+                    <p>The exact formats MeshNotes writes are documented in three versioned specifications:</p>
+                    <ul style="margin: 12px 0 12px 20px; color: #ccc;">
+                        <li><a href="https://meshnotes.org/spec/annotation/v1/" target="_blank">Annotation format</a> &mdash; the W3C AnnotationCollection MeshNotes exports (.jsonld)</li>
+                        <li><a href="https://meshnotes.org/spec/selector/v1/" target="_blank">Selector format</a> &mdash; how 3D geometry (points, lines, polygons, surfaces, boxes) is encoded</li>
+                        <li><a href="https://meshnotes.org/spec/metadata/v1/" target="_blank">Metadata format</a> &mdash; the structured metadata block and its CIDOC CRM crosswalk</li>
+                    </ul>
+                    <p style="font-size: 12px; color: #888;">These choices target interoperability with IIIF-based systems and infrastructures such as NFDI4Objects, and keep the data citable and archivable.</p>
+                </section>
+
+                <section>
                     <h3>Contact</h3>
                     <div class="contact-info">
                         <p><strong>Developer:</strong> Nils Schnorr</p>
@@ -321,20 +339,24 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Below Model Information, the <strong>Metadata Report</strong> provides a structured form for documenting the technical metadata of your 3D documentation project. Click the edit button or double-click to open it. The form covers five sections: <strong>General Information</strong> (project title, location, timeline), <strong>Capture Metadata</strong> (documentation method, instrument, camera/scanner settings), <strong>Reference Metadata</strong> (GPS, scalebars, GCPs), <strong>Processing Metadata</strong> (software, algorithms, model details), and <strong>Legal</strong> (project lead, funding, copyright).</p>
+                            <p>Below Model Information, the <strong>Metadata Report</strong> provides a structured form for documenting the technical metadata of your 3D documentation project. Click the edit button or double-click to open it. The form covers seven sections: <strong>General Information</strong> (project title, location, timeline), <strong>Object Context</strong> (object type, material, dating, find spot, inventory number), <strong>Capture Metadata</strong> (documentation method, instrument, camera/scanner settings), <strong>Reference Metadata</strong> (GPS, scalebars, GCPs), <strong>Processing Metadata</strong> (software, algorithms, model details), <strong>Paradata</strong> (method rationale, sources, interpretive decisions, known limitations), and <strong>Legal</strong> (project lead, funding, copyright).</p>
+
+                            <p style="margin-top: 10px;"><strong>Subject kind &amp; controlled vocabularies:</strong> At the top of the form, the <strong>Subject kind</strong> selector records what the documented subject is (movable object, feature, building, site, landscape, or mixed). This sets the CIDOC CRM root class used when the metadata is exported &mdash; it does not change which fields are shown. Several fields (Object Type, Material, Dating/Period, Location, Find Spot) also offer an optional <strong>authority URI</strong> input for linking to a controlled vocabulary such as Getty AAT, PeriodO, or a gazetteer. All of this is optional; the precise mapping is documented in the <a href="https://meshnotes.org/spec/metadata/v1/" target="_blank">MeshNotes Metadata Format specification</a>.</p>
 
                             <p style="margin-top: 10px;">The template supports all common 3D documentation methods: photogrammetry, structured light scanning, LiDAR, and terrestrial laser scanning (TLS). Fields that don’t apply to your method can simply be left empty. Each section also allows adding <strong>custom fields</strong> for project-specific needs. A non-editable <strong>Data Management</strong> guideline with a recommended folder structure is shown at the bottom for reference.</p>
 
                             <p style="margin-top: 10px;"><strong>Export &amp; Import:</strong> The metadata popup has three buttons at the top:</p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
                                 <li><strong>JSON (download)</strong> — Downloads the metadata as a JSON file. This is the round-trip format: re-import it into MeshNotes to restore all fields. If the form is empty, you get the blank template to fill out in a text editor.</li>
-                                <li><strong>PDF (download)</strong> — Downloads a fillable PDF form with all fields. Pre-filled values are included if available. The PDF can be opened in any PDF viewer, filled out by hand or digitally, and used as a standalone documentation form outside of MeshNotes.</li>
+                                <li><strong>PDF (download)</strong> — Downloads a fillable PDF form with all fields, including the subject-kind dropdown and any authority URIs. Pre-filled values are included if available. The PDF can be opened in any PDF viewer, filled out by hand or digitally, and used as a standalone documentation form outside of MeshNotes.</li>
                                 <li><strong>JSON (upload)</strong> — Imports a previously exported JSON metadata file, replacing the current metadata after confirmation.</li>
                             </ul>
 
-                            <p style="margin-top: 10px;"><strong>Integration:</strong> Metadata is automatically included in the JSON-LD annotation export and restored on import. It also appears at the end of PDF reports (only filled fields are shown). The metadata persists when loading a new model — you can fill it in before loading your 3D file.</p>
+                            <p style="margin-top: 10px;"><strong>Integration:</strong> Metadata is automatically included in the JSON-LD annotation export and restored on import. It also appears at the end of PDF reports (only filled fields are shown).</p>
 
-                            <p style="margin-top: 10px;">The sidebar shows how many fields are filled (e.g., “5 of 39 fields filled”) with a preview of the first filled value.</p>
+                            <p style="margin-top: 10px;"><strong>Per-model:</strong> Metadata belongs to the model you are documenting. You can fill it in before loading a 3D file, but loading a new model (or refreshing) clears the current metadata &mdash; MeshNotes warns you first and offers to export your work (annotations and metadata together, as JSON-LD) before continuing.</p>
+
+                            <p style="margin-top: 10px;">The sidebar shows how many fields are filled, with a preview of the first filled value.</p>
                         </div>
                     </div>
 
@@ -451,9 +473,10 @@
                         </div>
                         <div class="manual-item-content">
                             <p>MeshNotes exports annotations following the <a href="https://www.w3.org/TR/annotation-model/" target="_blank">W3C Web Annotation Data Model</a>, an internationally recognized standard for representing annotations on digital resources. This was a deliberate choice to ensure long-term interoperability and academic credibility.</p>
-                            <p style="margin-top: 10px;"><strong>What gets stored:</strong> Each annotation is a self-contained JSON-LD object containing its geometry (as a Fragment Selector with 3D coordinates), all entries with author, description, links, and timestamps, as well as the group assignment and annotation type. The exported file is a standard <code>AnnotationCollection</code> that also includes group definitions and model information.</p>
+                            <p style="margin-top: 10px;"><strong>What gets stored:</strong> Each annotation is a self-contained JSON-LD object containing its geometry (as a typed geometry selector whose coordinates are encoded as 3D <a href="https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry" target="_blank">WKT</a>), all entries with author, description, links, and timestamps, as well as the group assignment and annotation type. The exported file is a standard <code>AnnotationCollection</code> that also includes group definitions, model information, and the metadata report.</p>
                             <p style="margin-top: 10px;"><strong>Why it matters:</strong> Using a W3C standard means your annotation data is not locked into MeshNotes. The JSON-LD files are human-readable, can be parsed by any programming language, and are compatible with the broader ecosystem of IIIF-based annotation tools and digital humanities infrastructure. This makes MeshNotes annotations suitable for academic publication, archival, and integration into larger research data management workflows.</p>
-                            <p style="margin-top: 10px; font-size: 12px; color: #888;">The exported <code>.jsonld</code> files can be opened in any text editor to inspect their contents. Each annotation's geometry is stored as coordinate strings in the <code>FragmentSelector</code> value field.</p>
+                            <p style="margin-top: 10px;"><strong>Formal specifications:</strong> The exact formats MeshNotes writes are documented in three versioned, citable specifications: the <a href="https://meshnotes.org/spec/annotation/v1/" target="_blank">Annotation format</a> (the AnnotationCollection structure), the <a href="https://meshnotes.org/spec/selector/v1/" target="_blank">Selector format</a> (how each geometry type is encoded), and the <a href="https://meshnotes.org/spec/metadata/v1/" target="_blank">Metadata format</a> (the structured metadata block and its CIDOC CRM crosswalk). These let other software read MeshNotes files reliably.</p>
+                            <p style="margin-top: 10px; font-size: 12px; color: #888;">The exported <code>.jsonld</code> files can be opened in any text editor to inspect their contents. Each annotation's geometry is stored as a WKT string in the selector's <code>meshnotes:wkt</code> field.</p>
                         </div>
                     </div>
 
