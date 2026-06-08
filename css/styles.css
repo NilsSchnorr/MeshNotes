@@ -879,6 +879,30 @@
             outline: none;
         }
 
+        .metadata-uri-input {
+            width: 100%;
+            margin-top: 3px;
+            padding: 3px 6px;
+            font-size: 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            background: var(--color-bg);
+            color: var(--color-text-muted);
+            border: 1px dashed var(--color-blue);
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .metadata-uri-input::placeholder {
+            color: var(--color-text-muted);
+            opacity: 0.6;
+        }
+
+        .metadata-uri-input:focus {
+            border-color: var(--color-gold);
+            color: var(--color-text);
+            outline: none;
+        }
+
         .metadata-custom-row {
             display: flex;
             gap: 4px;

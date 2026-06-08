@@ -96,7 +96,8 @@ function renderMetadataPopup() {
             const hint = def ? def.hint : '';
             const multiline = def ? def.multiline : false;
             const label = def ? def.label : (field.label || field.id);
-            html += renderField(si, fi, label, field.value, hint, multiline, false);
+            const authority = def ? def.authority : null;
+            html += renderField(si, fi, label, field.value, hint, multiline, false, authority, field.uri);
         }
 
         // Custom fields
@@ -144,7 +145,7 @@ function renderMetadataPopup() {
 /**
  * Renders a single editable field row.
  */
-function renderField(sectionIndex, fieldIndex, key, value, hint, multiline, isCustom) {
+function renderField(sectionIndex, fieldIndex, key, value, hint, multiline, isCustom, authority, uri) {
     const dataAttr = isCustom
         ? `data-section="${sectionIndex}" data-custom-index="${fieldIndex}"`
         : `data-section="${sectionIndex}" data-field-index="${fieldIndex}"`;
@@ -177,9 +178,20 @@ function renderField(sectionIndex, fieldIndex, key, value, hint, multiline, isCu
         }
     }
 
+    // Optional authority-URI input, shown beneath template fields that declare
+    // an `authority` descriptor. Value is stored on field.uri (see save logic).
+    let uriHtml = '';
+    if (authority && !isCustom) {
+        const escapedUri = escapeHtml(uri || '');
+        const escapedPlaceholder = escapeHtml(authority.placeholder || '');
+        const escapedAuthLabel = escapeHtml(authority.label || 'Authority URI');
+        uriHtml = `<input type="text" class="metadata-uri-input" data-section="${sectionIndex}" data-field-index="${fieldIndex}" data-role="uri" value="${escapedUri}" placeholder="${escapedPlaceholder}" title="${escapedAuthLabel}" aria-label="${escapedAuthLabel}">`;
+    }
+
     return `<div class="metadata-field-row">
         <label class="metadata-label">${escapeHtml(key)}${hint ? ` <span class="metadata-hint">(${escapedHint})</span>` : ''}</label>
         ${inputHtml}
+        ${uriHtml}
     </div>`;
 }
 
@@ -198,6 +210,17 @@ function saveFieldsToState() {
         if (state.modelInfo.metadata.sections[si] && state.modelInfo.metadata.sections[si].fields[fi]) {
             state.modelInfo.metadata.sections[si].fields[fi].value = value;
         }
+    });
+
+    // Read template field authority URIs (set when non-empty, removed when cleared)
+    body.querySelectorAll('.metadata-uri-input[data-field-index]').forEach(input => {
+        const si = parseInt(input.dataset.section);
+        const fi = parseInt(input.dataset.fieldIndex);
+        const field = state.modelInfo.metadata.sections[si] && state.modelInfo.metadata.sections[si].fields[fi];
+        if (!field) return;
+        const uri = input.value.trim();
+        if (uri) field.uri = uri;
+        else delete field.uri;
     });
 
     // Read custom field values and keys

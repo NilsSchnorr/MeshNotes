@@ -24,7 +24,7 @@ export const TEMPLATES = {
                     { id: 'project_description', label: 'Project Description', hint: '', multiline: true },
                     { id: 'documentation_purpose', label: 'Documentation Purpose', hint: 'e.g., as part of a larger project, conservation, research' },
                     { id: 'fieldwork_timeline', label: 'Fieldwork Timeline', hint: 'Dates and times of documentation' },
-                    { id: 'location', label: 'Location', hint: 'Country, city, building, coordinates' },
+                    { id: 'location', label: 'Location', hint: 'Country, city, building, coordinates', authority: { kind: 'gazetteer', label: 'Gazetteer URI', placeholder: 'https://gazetteer.dainst.org/place/...' } },
                     { id: 'object', label: 'Object', hint: 'Name and/or short description' },
                     { id: 'additional_notes', label: 'Additional Notes', hint: '', multiline: true }
                 ]
@@ -33,11 +33,11 @@ export const TEMPLATES = {
                 id: 'object_context',
                 title: 'Object Context',
                 fields: [
-                    { id: 'object_type', label: 'Object Type / Classification', hint: 'e.g., vessel, coin, sculpture, architectural element' },
-                    { id: 'material', label: 'Material', hint: 'e.g., marble, bronze, ceramic, mixed' },
+                    { id: 'object_type', label: 'Object Type / Classification', hint: 'e.g., vessel, coin, sculpture, architectural element', authority: { kind: 'aat', label: 'Getty AAT URI', placeholder: 'http://vocab.getty.edu/aat/...' } },
+                    { id: 'material', label: 'Material', hint: 'e.g., marble, bronze, ceramic, mixed', authority: { kind: 'aat', label: 'Getty AAT URI', placeholder: 'http://vocab.getty.edu/aat/...' } },
                     { id: 'dimensions', label: 'Dimensions', hint: 'Physical dimensions of the object (L × W × H), units' },
-                    { id: 'dating_period', label: 'Dating / Period', hint: 'e.g., 2nd c. BCE, La Tène D1, Augustan' },
-                    { id: 'find_spot', label: 'Find Spot / Provenance', hint: 'Site name, gazetteer URI (e.g., iDAI.gazetteer, Pleiades, GeoNames)' },
+                    { id: 'dating_period', label: 'Dating / Period', hint: 'e.g., 2nd c. BCE, La Tène D1, Augustan', authority: { kind: 'period', label: 'PeriodO URI', placeholder: 'http://n2t.net/ark:/99152/p0...' } },
+                    { id: 'find_spot', label: 'Find Spot / Provenance', hint: 'Site name or place', authority: { kind: 'gazetteer', label: 'Gazetteer URI', placeholder: 'https://gazetteer.dainst.org/place/...' } },
                     { id: 'stratigraphic_context', label: 'Stratigraphic Context', hint: 'Excavation unit, SU number, trench, grid square' },
                     { id: 'excavation_reference', label: 'Excavation / Project Reference', hint: 'Project name, campaign year, director' },
                     { id: 'current_location', label: 'Current Location', hint: 'Repository, museum, storeroom' },
