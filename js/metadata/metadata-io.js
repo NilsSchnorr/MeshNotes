@@ -1,7 +1,7 @@
 // js/metadata/metadata-io.js - Metadata JSON and PDF export/import
 import { state } from '../state.js';
 import { showStatus } from '../utils/helpers.js';
-import { TEMPLATES, DATA_MANAGEMENT_GUIDELINE, createEmptyMetadata, getMetadataStats } from './templates.js';
+import { TEMPLATES, DATA_MANAGEMENT_GUIDELINE, createEmptyMetadata, getMetadataStats, normalizeMetadata } from './templates.js';
 import { updateMetadataDisplay, openMetadataPopup } from './metadata-ui.js';
 
 // ============ JSON Export ============
@@ -63,8 +63,9 @@ export function importMetadataJSON(file) {
                 }
             }
 
-            // Apply imported metadata
-            state.modelInfo.metadata = data.metadata;
+            // Apply imported metadata (normalized: legacy label-keyed files are
+            // mapped to the current id-keyed structure, all values preserved).
+            state.modelInfo.metadata = normalizeMetadata(data.metadata);
             updateMetadataDisplay();
             showStatus('Metadata imported successfully');
 
@@ -228,7 +229,7 @@ export async function downloadMetadataPDF() {
         // ---- Sections ----
         for (let si = 0; si < metadata.sections.length; si++) {
             const section = metadata.sections[si];
-            const templateSection = template.sections.find(s => s.title === section.title);
+            const templateSection = template.sections.find(s => s.id === section.id);
 
             ensureSpace(30);
 
@@ -255,18 +256,19 @@ export async function downloadMetadataPDF() {
             for (let fi = 0; fi < section.fields.length; fi++) {
                 const field = section.fields[fi];
                 const def = templateSection
-                    ? templateSection.fields.find(f => f.key === field.key)
+                    ? templateSection.fields.find(f => f.id === field.id)
                     : null;
                 const hint = def ? def.hint : '';
                 const multiline = def ? def.multiline : false;
+                const label = def ? def.label : (field.label || field.id);
 
-                drawFormField(field.key, field.value, hint, multiline);
+                drawFormField(label, field.value, hint, multiline);
             }
 
             // Custom fields
             if (section.customFields) {
                 for (const field of section.customFields) {
-                    drawFormField(field.key || 'Custom', field.value, '', false);
+                    drawFormField(field.label || 'Custom', field.value, '', false);
                 }
             }
 

@@ -92,17 +92,18 @@ function renderMetadataPopup() {
         // Template fields
         for (let fi = 0; fi < section.fields.length; fi++) {
             const field = section.fields[fi];
-            const def = getFieldDefinition(templateId, section.title, field.key);
+            const def = getFieldDefinition(templateId, section.id, field.id);
             const hint = def ? def.hint : '';
             const multiline = def ? def.multiline : false;
-            html += renderField(si, fi, field.key, field.value, hint, multiline, false);
+            const label = def ? def.label : (field.label || field.id);
+            html += renderField(si, fi, label, field.value, hint, multiline, false);
         }
 
         // Custom fields
         if (section.customFields) {
             for (let ci = 0; ci < section.customFields.length; ci++) {
                 const field = section.customFields[ci];
-                html += renderField(si, ci, field.key, field.value, '', false, true);
+                html += renderField(si, ci, field.label, field.value, '', false, true);
             }
         }
 
@@ -204,7 +205,7 @@ function saveFieldsToState() {
         const si = parseInt(input.dataset.section);
         const ci = parseInt(input.dataset.customIndex);
         if (state.modelInfo.metadata.sections[si] && state.modelInfo.metadata.sections[si].customFields[ci]) {
-            state.modelInfo.metadata.sections[si].customFields[ci].key = input.value;
+            state.modelInfo.metadata.sections[si].customFields[ci].label = input.value;
         }
     });
     body.querySelectorAll('.metadata-input[data-custom-index]').forEach(input => {
@@ -234,7 +235,7 @@ function addCustomField(sectionIndex) {
     const section = state.modelInfo.metadata.sections[sectionIndex];
     if (!section) return;
     if (!section.customFields) section.customFields = [];
-    section.customFields.push({ key: '', value: '' });
+    section.customFields.push({ label: '', value: '' });
     renderMetadataPopup();
 
     // Focus the new key input

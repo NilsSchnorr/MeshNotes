@@ -727,7 +727,7 @@ function pdfRenderMetadataPages(pdf, layout) {
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(9);
             pdf.setTextColor(60, 60, 60);
-            pdf.text(field.key, layout.margin, y + 3.5);
+            pdf.text(field.label || '', layout.margin, y + 3.5);
 
             // Value
             pdf.setFont('helvetica', 'normal');

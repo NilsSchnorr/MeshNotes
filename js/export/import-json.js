@@ -4,6 +4,7 @@ import { generateUUID, showStatus } from '../utils/helpers.js';
 import { convertFromW3CAnnotation, pointFromZUp, creatorToAuthor } from './w3c-format.js';
 import { updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { updateMetadataDisplay, initMetadata } from '../metadata/metadata-ui.js';
+import { normalizeMetadata } from '../metadata/templates.js';
 import { updateGroupsList } from '../annotation-tools/groups.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { reprojectAllAnnotations } from '../annotation-tools/projection.js';
@@ -202,7 +203,7 @@ function importW3CAnnotations(data) {
             doImport = confirm('Imported file contains metadata. Replace current metadata?');
         }
         if (doImport) {
-            state.modelInfo.metadata = importedMetadata;
+            state.modelInfo.metadata = normalizeMetadata(importedMetadata);
             updateMetadataDisplay();
         }
     }
@@ -344,7 +345,7 @@ function importLegacyAnnotations(data) {
 
     // Import metadata if present (legacy format)
     if (data.modelInfo && data.modelInfo.metadata && data.modelInfo.metadata.sections) {
-        state.modelInfo.metadata = data.modelInfo.metadata;
+        state.modelInfo.metadata = normalizeMetadata(data.modelInfo.metadata);
         updateMetadataDisplay();
     }
 
