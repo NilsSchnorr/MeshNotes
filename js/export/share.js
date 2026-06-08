@@ -7,6 +7,7 @@ import { state, dom } from '../state.js';
 import { showStatus, escapeHtml } from '../utils/helpers.js';
 import { buildAnnotationBlob } from './export-json.js';
 import { buildShareUrl, buildDirectUrl } from '../core/url-params.js';
+import { getMetadataStats } from '../metadata/templates.js';
 
 const SHARE_API_URL = '/api/share';
 const HISTORY_STORAGE_KEY = 'meshnotes_shareHistory';
@@ -237,9 +238,14 @@ export async function generateEphemeralLink() {
             formData.append('model', file, file.name);
         }
 
-        // Add annotations JSON-LD (if there are annotations)
-        if (state.annotations.length > 0) {
-            progressText.textContent = 'Preparing annotations...';
+        // Add annotations JSON-LD when there is anything worth preserving.
+        // The .jsonld also carries the Metadata Report and Model Information,
+        // so a model with metadata (or model-info notes) but no annotations
+        // must still ship the file — otherwise that data is lost on reopen.
+        const hasMetadata = !!(state.modelInfo.metadata && getMetadataStats(state.modelInfo.metadata).filled > 0);
+        const hasModelInfo = !!(state.modelInfo.entries && state.modelInfo.entries.length > 0);
+        if (state.annotations.length > 0 || hasMetadata || hasModelInfo) {
+            progressText.textContent = 'Preparing annotations & metadata...';
             const annotationBlob = buildAnnotationBlob();
             const annotationFilename = `${state.modelFileName || 'annotations'}.jsonld`;
             formData.append('annotations', annotationBlob, annotationFilename);
