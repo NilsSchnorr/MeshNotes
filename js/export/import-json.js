@@ -51,7 +51,7 @@ function importW3CAnnotations(data) {
     // Files with upAxis 'Z' (or 'z') contain Z-up coordinates that need
     // transformation to Three.js Y-up space. Legacy files (upAxis 'Y',
     // 'y', or missing) are already in Y-up space and need no transform.
-    const importedUpAxis = (data['upAxis'] || data['meshnotes:upAxis'] || '').toString().toUpperCase();
+    const importedUpAxis = ((data.modelSource && data.modelSource.upAxis) || data['upAxis'] || data['meshnotes:upAxis'] || '').toString().toUpperCase();
     const needsTransform = (importedUpAxis === 'Z');
 
     // Helper: transform all coordinates in an annotation from Z-up to Three.js Y-up

@@ -40,16 +40,26 @@ export function buildAnnotationJSON() {
         },
         generated: new Date().toISOString(),
 
-        // Coordinate system: MeshNotes always exports Z-up coordinates
-        // for interoperability with photogrammetry/archaeology tools
-        'upAxis': 'Z',
+        // Format identity: the annotation-format version this file conforms to,
+        // independent of the MeshNotes application version.
+        'dcterms:conformsTo': 'https://meshnotes.org/spec/annotation/v1/',
 
-        // Target model
+        // Target model — canonical description of the annotated model.
+        // Coordinate frame, unit, and integrity hash live here.
         'modelSource': {
             id: `urn:meshnotes:model:${state.modelFileName || 'unknown'}`,
             type: 'Dataset',
             'schema:name': state.modelFileName,
-            format: getModelMimeType()
+            format: getModelMimeType(),
+            // MeshNotes always exports Z-up coordinates for interoperability
+            // with photogrammetry/archaeology tools.
+            'upAxis': 'Z',
+            // Real-world unit of the coordinates, when the user declared one in
+            // settings ('units' is the unset placeholder and is omitted).
+            'unit': (state.measurementUnit && state.measurementUnit !== 'units') ? state.measurementUnit : undefined,
+            // SHA-256 of the primary model file, binding annotations to this exact
+            // mesh (omitted if not yet computed).
+            'schema:sha256': state.modelHash || undefined
         },
 
         // Stylesheet for group colors
@@ -107,11 +117,20 @@ export function buildAnnotationJSON() {
         }
     };
 
-    // Clean up undefined values
-    return JSON.stringify(collection, (key, value) => {
+    // Serialize, stripping undefined values
+    let json = JSON.stringify(collection, (key, value) => {
         if (value === undefined) return undefined;
         return value;
     }, 2);
+
+    // Collapse the (often very long) meshnotes:faces arrays onto a single line
+    // for readability. Face IDs are simple quoted tokens containing no ']',
+    // so matching up to the first ']' is safe and won't catch nested arrays.
+    json = json.replace(/("meshnotes:faces": \[)([^\]]*)(\])/g, (m, open, body, close) => {
+        return open + body.replace(/\s+/g, ' ').trim() + close;
+    });
+
+    return json;
 }
 
 /**

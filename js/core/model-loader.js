@@ -29,6 +29,19 @@ export function setUpdateModelInfoDisplay(fn) {
     _updateModelInfoDisplay = fn;
 }
 
+// Computes a SHA-256 hex digest of a File's bytes, used to bind exported
+// annotations to the exact model they target. Returns null on failure.
+async function computeModelHash(file) {
+    try {
+        const buf = await file.arrayBuffer();
+        const digest = await crypto.subtle.digest('SHA-256', buf);
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+        console.warn('Model hash computation failed:', e);
+        return null;
+    }
+}
+
 export function loadModel(file) {
     const ext = file.name.split('.').pop().toLowerCase();
 
@@ -129,6 +142,15 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     
     // Store the model's original up-axis for coordinate transforms in export/import
     state.modelUpAxis = upAxis || 'y-up';
+
+    // Compute a SHA-256 of the primary model file for annotation/model binding.
+    // Async: state.modelHash is populated when ready and read at export time.
+    // (Skipped in viewer mode, where loadedModelFiles is not populated.)
+    state.modelHash = null;
+    const primaryModelFile = state.loadedModelFiles && state.loadedModelFiles[0];
+    if (primaryModelFile) {
+        computeModelHash(primaryModelFile).then(h => { state.modelHash = h; });
+    }
     
     // Reset flip state for new model
     state.isFlipped = false;

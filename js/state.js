@@ -43,6 +43,7 @@ export const state = {
     webglContextLost: false,
     bvhAvailable: false,        // Whether BVH acceleration is available for current model
     loadedModelFiles: [],       // Original File objects for model export
+    modelHash: null,            // SHA-256 hex of the primary model file (for annotation/model binding)
 
     // UI Multipliers
     pointSizeMultiplier: 1.0,
