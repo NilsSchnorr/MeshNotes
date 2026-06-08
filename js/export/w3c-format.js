@@ -7,6 +7,40 @@ import { generateUUID, getModelMimeType } from '../utils/helpers.js';
 // declares conformance to. See https://meshnotes.org/spec/selector/v1/
 const SELECTOR_SPEC = 'https://meshnotes.org/spec/selector/v1/';
 
+// ============ Author / ORCID helpers ============
+
+// Normalizes a raw ORCID input (bare iD or full URL) to a canonical
+// https://orcid.org/ URI, or returns undefined when it contains no
+// well-formed 16-digit ORCID iD.
+function normalizeOrcid(raw) {
+    if (typeof raw !== 'string') return undefined;
+    const m = raw.match(/(\d{4}-\d{4}-\d{4}-\d{3}[\dX])/i);
+    return m ? `https://orcid.org/${m[1].toUpperCase()}` : undefined;
+}
+
+// Builds a W3C/schema creator object from an author name. An ORCID URI is
+// attached when one is supplied (e.g. preserved from a prior import) or when
+// the name matches the user's configured default author — the ORCID mapping
+// rule: identifiers are only asserted for the local user's own entries.
+export function authorToCreator(name, orcid) {
+    if (!name) return undefined;
+    const resolved = (typeof orcid === 'string' && orcid)
+        ? orcid
+        : (name === state.defaultAuthor ? normalizeOrcid(state.defaultAuthorOrcid) : undefined);
+    const creator = { type: 'Person', name };
+    if (resolved) creator.id = resolved;
+    return creator;
+}
+
+// Extracts { name, orcid } from a W3C creator object on import. The ORCID is
+// read from creator.id (or schema:identifier) only when it is an orcid.org URI.
+export function creatorToAuthor(creator) {
+    if (!creator) return { name: '', orcid: undefined };
+    const rawId = creator.id || creator['schema:identifier'] || '';
+    const orcid = (typeof rawId === 'string' && rawId.includes('orcid.org')) ? rawId : undefined;
+    return { name: creator.name || '', orcid };
+}
+
 // ============ WKT + quaternion helpers ============
 
 // Basis-change quaternion mapping the internal Three.js (Y-up) frame to the
@@ -340,11 +374,9 @@ export function convertToW3CAnnotation(ann, group) {
                 'meshnotes:entryUuid': entry.uuid
             };
 
-            if (entry.author) {
-                body.creator = {
-                    type: 'Person',
-                    name: entry.author
-                };
+            const entryCreator = authorToCreator(entry.author, entry.authorOrcid);
+            if (entryCreator) {
+                body.creator = entryCreator;
             }
 
             if (entry.timestamp) {
@@ -364,7 +396,7 @@ export function convertToW3CAnnotation(ann, group) {
             if (entry.versions && entry.versions.length > 0) {
                 body['meshnotes:versions'] = entry.versions.map(v => ({
                     value: v.description || '',
-                    creator: v.author ? { type: 'Person', name: v.author } : undefined,
+                    creator: authorToCreator(v.author, v.authorOrcid),
                     'schema:url': v.links && v.links.length > 0 ? v.links : undefined,
                     'meshnotes:savedAt': v.savedAt
                 }));
@@ -443,11 +475,13 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
     if (w3cAnn.body) {
         const bodies = Array.isArray(w3cAnn.body) ? w3cAnn.body : [w3cAnn.body];
         ann.entries = bodies.map((body, idx) => {
+            const { name: entryAuthor, orcid: entryAuthorOrcid } = creatorToAuthor(body.creator);
             const entry = {
                 id: Date.now() + idx + Math.floor(Math.random() * 1000),
                 uuid: body['meshnotes:entryUuid'] || generateUUID(),
                 description: body.value || '',
-                author: body.creator ? body.creator.name : '',
+                author: entryAuthor,
+                authorOrcid: entryAuthorOrcid,
                 timestamp: body.created || w3cAnn.created || new Date().toISOString(),
                 modified: body.modified || undefined,
                 links: body['schema:url'] || []
@@ -457,7 +491,8 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
             if (body['meshnotes:versions'] && body['meshnotes:versions'].length > 0) {
                 entry.versions = body['meshnotes:versions'].map(v => ({
                     description: v.value || '',
-                    author: v.creator ? v.creator.name : '',
+                    author: creatorToAuthor(v.creator).name,
+                    authorOrcid: creatorToAuthor(v.creator).orcid,
                     links: v['schema:url'] || [],
                     savedAt: v['meshnotes:savedAt']
                 }));

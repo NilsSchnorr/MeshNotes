@@ -292,6 +292,13 @@ function loadSavedSettings() {
         dom.settingsDefaultAuthor.value = savedDefaultAuthor;
     }
     
+    // Default author ORCID
+    const savedDefaultAuthorOrcid = localStorage.getItem('meshnotes_defaultAuthorOrcid');
+    if (savedDefaultAuthorOrcid) {
+        state.defaultAuthorOrcid = savedDefaultAuthorOrcid;
+        dom.settingsDefaultAuthorOrcid.value = savedDefaultAuthorOrcid;
+    }
+    
     // Measurement unit
     const savedMeasurementUnit = localStorage.getItem('meshnotes_measurementUnit');
     if (savedMeasurementUnit) {

@@ -206,6 +206,11 @@ export function setDefaultAuthor(name) {
     localStorage.setItem('meshnotes_defaultAuthor', name);
 }
 
+export function setDefaultAuthorOrcid(orcid) {
+    state.defaultAuthorOrcid = (orcid || '').trim();
+    localStorage.setItem('meshnotes_defaultAuthorOrcid', state.defaultAuthorOrcid);
+}
+
 export function setMeasurementUnit(unit, isCustom = false) {
     state.measurementUnit = unit;
     localStorage.setItem('meshnotes_measurementUnit', unit);
@@ -241,6 +246,7 @@ export function resetAllSettings() {
     state.pointSizeMultiplier = 1.0;
     state.textSizeMultiplier = 1.0;
     state.defaultAuthor = '';
+    state.defaultAuthorOrcid = '';
     state.measurementUnit = 'units';
     state.measurementLineColor = '#AA8101';
     state.measurementPointColor = '#FFFFFF';
@@ -264,6 +270,7 @@ export function resetAllSettings() {
     dom.textSizeSlider.value = 100;
     dom.textSizeValue.textContent = '×1.0';
     dom.settingsDefaultAuthor.value = '';
+    dom.settingsDefaultAuthorOrcid.value = '';
     dom.settingsMeasurementUnit.value = 'units';
     dom.settingsMeasurementUnitCustom.value = '';
     dom.settingsMeasurementUnitCustom.style.display = 'none';

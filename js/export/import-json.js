@@ -1,7 +1,7 @@
 // js/export/import-json.js - W3C and legacy annotation import with merge support
 import { state } from '../state.js';
 import { generateUUID, showStatus } from '../utils/helpers.js';
-import { convertFromW3CAnnotation, pointFromZUp } from './w3c-format.js';
+import { convertFromW3CAnnotation, pointFromZUp, creatorToAuthor } from './w3c-format.js';
 import { updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { updateMetadataDisplay, initMetadata } from '../metadata/metadata-ui.js';
 import { updateGroupsList } from '../annotation-tools/groups.js';
@@ -153,11 +153,13 @@ function importW3CAnnotations(data) {
             : [importedModelInfo.body];
 
         const importedEntries = bodies.map((body, idx) => {
+            const { name: miAuthor, orcid: miAuthorOrcid } = creatorToAuthor(body.creator);
             const entry = {
                 id: Date.now() + idx + Math.floor(Math.random() * 1000),
                 uuid: body['meshnotes:entryUuid'] || generateUUID(),
                 description: body.value || '',
-                author: body.creator ? body.creator.name : '',
+                author: miAuthor,
+                authorOrcid: miAuthorOrcid,
                 timestamp: body.created || new Date().toISOString(),
                 modified: body.modified || undefined,
                 links: body['schema:url'] || []
@@ -167,7 +169,8 @@ function importW3CAnnotations(data) {
             if (body['meshnotes:versions'] && body['meshnotes:versions'].length > 0) {
                 entry.versions = body['meshnotes:versions'].map(v => ({
                     description: v.value || '',
-                    author: v.creator ? v.creator.name : '',
+                    author: creatorToAuthor(v.creator).name,
+                    authorOrcid: creatorToAuthor(v.creator).orcid,
                     links: v['schema:url'] || [],
                     savedAt: v['meshnotes:savedAt']
                 }));

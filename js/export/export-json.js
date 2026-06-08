@@ -1,7 +1,7 @@
 // js/export/export-json.js - W3C Web Annotation Collection export
 import { state, APP_VERSION } from '../state.js';
 import { generateUUID, getModelMimeType, showStatus } from '../utils/helpers.js';
-import { convertToW3CAnnotation } from './w3c-format.js';
+import { convertToW3CAnnotation, authorToCreator } from './w3c-format.js';
 
 /**
  * Builds the W3C Web Annotation Collection JSON string.
@@ -86,7 +86,7 @@ export function buildAnnotationJSON() {
                     value: entry.description || '',
                     format: 'text/plain',
                     'meshnotes:entryUuid': entry.uuid,
-                    creator: entry.author ? { type: 'Person', name: entry.author } : undefined,
+                    creator: authorToCreator(entry.author, entry.authorOrcid),
                     created: entry.timestamp,
                     modified: entry.modified || undefined,
                     'schema:url': entry.links && entry.links.length > 0 ? entry.links : undefined
@@ -96,7 +96,7 @@ export function buildAnnotationJSON() {
                 if (entry.versions && entry.versions.length > 0) {
                     bodyObj['meshnotes:versions'] = entry.versions.map(v => ({
                         value: v.description || '',
-                        creator: v.author ? { type: 'Person', name: v.author } : undefined,
+                        creator: authorToCreator(v.author, v.authorOrcid),
                         'schema:url': v.links && v.links.length > 0 ? v.links : undefined,
                         'meshnotes:savedAt': v.savedAt
                     }));

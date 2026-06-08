@@ -51,6 +51,7 @@ export const state = {
     
     // User preferences
     defaultAuthor: '',
+    defaultAuthorOrcid: '',
     measurementUnit: 'units',
     measurementLineColor: '#AA8101',
     measurementPointColor: '#FFFFFF',
@@ -343,6 +344,7 @@ export function initDomReferences() {
     dom.settingsOverlay = document.getElementById('settings-overlay');
     dom.settingsModalClose = document.getElementById('settings-modal-close');
     dom.settingsDefaultAuthor = document.getElementById('settings-default-author');
+    dom.settingsDefaultAuthorOrcid = document.getElementById('settings-default-author-orcid');
     dom.settingsMeasurementUnit = document.getElementById('settings-measurement-unit');
     dom.settingsMeasurementUnitCustom = document.getElementById('settings-measurement-unit-custom');
     dom.settingsMeasurementLineColor = document.getElementById('settings-measurement-line-color');
