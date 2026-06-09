@@ -22,6 +22,7 @@ export function initLighting() {
 // ============ Brightness Control ============
 
 export function setBrightness(value) {
+    state.brightness = value;
     const factor = value / 100;
     state.ambientLight.intensity = 0.72 * factor;
     // Apply 1.5x boost when in fixed direction mode for better raking light effect
@@ -121,14 +122,14 @@ export function toggleLightMode() {
         dom.lightToggle.classList.add('active');
         dom.lightDirectionRow.classList.remove('visible');
         // Restore normal light intensity
-        state.dirLight1.intensity = 0.96 * (parseInt(dom.brightnessSlider.value) / 100);
+        state.dirLight1.intensity = 0.96 * (state.brightness / 100);
         updateLightFromCamera();
     } else {
         dom.lightToggle.textContent = 'Fixed Direction';
         dom.lightToggle.classList.remove('active');
         dom.lightDirectionRow.classList.add('visible');
         // Boost light intensity 1.5x for better raking light shadow visibility
-        state.dirLight1.intensity = 0.96 * (parseInt(dom.brightnessSlider.value) / 100) * 1.5;
+        state.dirLight1.intensity = 0.96 * (state.brightness / 100) * 1.5;
         updateFixedLightDirection();
     }
 }

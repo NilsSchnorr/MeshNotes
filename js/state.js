@@ -25,6 +25,7 @@ export const state = {
     dirLight1: null,
     dirLight2: null,
     lightFollowsCamera: true,
+    brightness: 100,            // 0-300 (slider %); setBrightness() is the sole writer
     fixedLightAzimuth: 0,
     fixedLightElevation: 45,
     backgroundColor: '#041D31',
