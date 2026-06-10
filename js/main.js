@@ -3,7 +3,7 @@ import { state, dom, initDomReferences, APP_VERSION } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
 import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality } from './core/lighting.js';
-import { setUpdateModelInfoDisplay, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
+import { setUpdateModelInfoDisplay, onceModelSetupComplete, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
 import { setEditingCallbacks, renderMeasurements } from './annotation-tools/editing.js';
@@ -164,9 +164,12 @@ async function loadFromUrlParams() {
             throw new Error(`Unsupported format: ${ext}`);
         }
 
-        // Import annotations once the model finishes loading
+        // Import annotations once the model finishes loading (the hook fires
+        // when setupLoadedModel completes — however long download, parse, and
+        // BVH build take — replacing the old 10s poll that silently gave up
+        // on large models).
         if (annotationFile) {
-            waitForModel(() => {
+            onceModelSetupComplete(() => {
                 // Run focus / view restore only after the import completes, so
                 // the annotation exists by the time we look it up.
                 importAnnotations(annotationFile, ({ viewState }) => {
@@ -184,7 +187,7 @@ async function loadFromUrlParams() {
                 });
             });
         } else if (config.focusAnnotation) {
-            waitForModel(() => {
+            onceModelSetupComplete(() => {
                 focusOnAnnotation(config.focusAnnotation);
             });
         }
@@ -199,27 +202,6 @@ async function loadFromUrlParams() {
             showStatus('Failed to load shared model: ' + error.message);
         }
     }
-}
-
-/**
- * Poll for model to finish loading, then run callback.
- * The existing loaders use async callbacks internally, so we poll
- * for state.currentModel to become non-null.
- */
-function waitForModel(callback, maxAttempts = 50) {
-    let attempts = 0;
-    const check = () => {
-        attempts++;
-        if (state.currentModel) {
-            // Small delay to let setupLoadedModel finish completely
-            setTimeout(callback, 100);
-        } else if (attempts < maxAttempts) {
-            setTimeout(check, 200); // Check every 200ms, up to 10 seconds
-        } else {
-            console.warn('Timed out waiting for model to load');
-        }
-    };
-    setTimeout(check, 200);
 }
 
 /**

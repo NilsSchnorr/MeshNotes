@@ -29,6 +29,16 @@ export function setUpdateModelInfoDisplay(fn) {
     _updateModelInfoDisplay = fn;
 }
 
+// One-shot completion hook for model setup. Used by the share/direct-link
+// loader in main.js to start the annotation import exactly when setup
+// (including the BVH build) finishes, instead of polling with a fixed
+// timeout that large models can exceed. Consumed on success; cleared on
+// setup failure so a stale hook can never fire against a later model.
+let _onModelSetupComplete = null;
+export function onceModelSetupComplete(callback) {
+    _onModelSetupComplete = callback;
+}
+
 // Computes a SHA-256 hex digest of a File's bytes, used to bind exported
 // annotations to the exact model they target. Returns null on failure.
 async function computeModelHash(file) {
@@ -130,6 +140,7 @@ export function setupLoadedModel(model, fileName, upAxis) {
     try {
         setupLoadedModelInternal(model, fileName, upAxis);
     } catch (error) {
+        _onModelSetupComplete = null; // Setup failed — don't fire the hook later against a different model
         console.error('Critical error during model setup:', error);
         dom.loading.classList.remove('visible');
         showStatus('Error setting up model - check console for details');
@@ -220,13 +231,21 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         console.error('WebGL context was lost during model upload to GPU!');
         dom.loading.classList.remove('visible');
         showStatus('WebGL context lost — model too large for GPU.');
+        _onModelSetupComplete = null; // Failure: don't fire the hook against a later model
         return;
     }
     console.log('setupLoadedModel: WebGL context OK after geometry upload');
     
     // Build BVH trees separately with error handling
-    // BVH is required for surface tools and efficient raycasting
-    const BVH_FACE_LIMIT = Infinity; // Limit disabled for testing large (10M-face) models — was 5000000
+    // BVH is required for surface tools and efficient raycasting.
+    // DELIBERATE: the limit is disabled (Infinity). Without a BVH, every
+    // raycast (annotation clicks, surface brush, box placement) brute-forces
+    // all triangles, which is unusable at the 10M-face photogrammetry scale
+    // MeshNotes targets. The trade-off — a one-time build at load (seconds,
+    // behind the loading UI) plus index memory — is accepted; if a model is
+    // too large for the BVH it is too large for the GPU anyway, and the
+    // webglcontextlost handler reports that case. (Historical value: 5000000.)
+    const BVH_FACE_LIMIT = Infinity;
     
     if (totalFaces > BVH_FACE_LIMIT) {
         console.warn(`Model has ${totalFaces.toLocaleString()} faces - skipping BVH for performance. Surface tools may be slower.`);
@@ -261,6 +280,7 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         console.error('Model contains no meshes!');
         dom.loading.classList.remove('visible');
         showStatus('Error: Model contains no renderable geometry');
+        _onModelSetupComplete = null; // Failure: don't fire the hook against a later model
         return;
     }
 
@@ -274,6 +294,7 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         console.error('Model has invalid bounding box:', { isEmpty: box.isEmpty(), size });
         dom.loading.classList.remove('visible');
         showStatus('Error: Model geometry is empty or invalid');
+        _onModelSetupComplete = null; // Failure: don't fire the hook against a later model
         return;
     }
     
@@ -356,6 +377,13 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     
     console.timeEnd('setupLoadedModel');
     console.log(`setupLoadedModel: complete for "${fileName}"`);
+
+    // Notify the one-shot completion hook (share/direct-link annotation import)
+    if (_onModelSetupComplete) {
+        const cb = _onModelSetupComplete;
+        _onModelSetupComplete = null;
+        cb();
+    }
 }
 
 export function loadOBJModel(objFile, materialFiles, upAxis) {

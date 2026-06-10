@@ -15,9 +15,18 @@ export function setSurfacePaintCallbacks({ openAnnotationPopup, setTool }) {
 }
 
 // ============ Surface Painting Optimization Constants ============
-// Encode meshIndex + faceIndex as a single number to avoid string allocation.
-// Supports up to 10M faces per mesh, which exceeds any browser-renderable model.
-const FACE_ID_MULTIPLIER = 10_000_000;
+// Encodes (meshIndex, faceIndex) as a single number for the live painting
+// session, avoiding string allocation in the brush hot path:
+//     faceId = meshIndex * FACE_ID_MULTIPLIER + faceIndex
+// SESSION-INTERNAL ONLY — finishSurfacePainting() converts to "mesh_face"
+// strings before anything is stored or exported, so this constant never
+// appears in persisted data and can be changed freely.
+// The multiplier is the per-mesh face ceiling: 1e9 faces per mesh. Above
+// that, IDs from different meshes alias and paints corrupt silently (the
+// previous 1e7 value sat exactly at the 10M-face stress-testing tier).
+// Precision: meshIndex * 1e9 + faceIndex stays below MAX_SAFE_INTEGER
+// (~9e15) for up to ~9 million meshes — no practical limit.
+const FACE_ID_MULTIPLIER = 1_000_000_000;
 const INITIAL_HIGHLIGHT_CAPACITY = 10000; // faces
 
 // Reusable objects to avoid per-frame allocation during painting and highlight updates.
