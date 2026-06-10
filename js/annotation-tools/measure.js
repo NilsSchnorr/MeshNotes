@@ -10,6 +10,13 @@ import { state, dom } from '../state.js';
 import { showStatus } from '../utils/helpers.js';
 import { createScaledTextSprite } from '../core/scene.js';
 
+// Monotonic id counter for measurements. Ids must stay unique for the
+// lifetime of a session even across deletions (deriving the id from the
+// array length caused duplicate ids after delete + add, so the ✕ button
+// could remove the wrong measurement). Displayed numbering therefore keeps
+// gaps after deletions; reset only on a full clear.
+let _nextMeasurementId = 1;
+
 /**
  * Undo the last measurement point placed during an in-progress measurement.
  * Removes the last point, its marker, and updates the measurement line/label.
@@ -228,7 +235,7 @@ export function finalizeMeasurement() {
     state.annotationObjects.add(label);
 
     // Store measurement with all points
-    const measurementId = state.measurements.length + 1;
+    const measurementId = _nextMeasurementId++;
     state.measurements.push({
         id: measurementId,
         distance: totalDist,
@@ -465,6 +472,7 @@ export function clearAllMeasurements() {
         }
     });
     state.measurements = [];
+    _nextMeasurementId = 1; // Fresh numbering after a full clear
 
     updateMeasurementsDisplay();
 }
