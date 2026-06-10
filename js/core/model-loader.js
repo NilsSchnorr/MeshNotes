@@ -161,7 +161,10 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         disposeObject3D(state.currentModel);
         state.scene.remove(state.currentModel);
         // Dispose cloned materials stored for display mode switching
-        state.originalMaterials.forEach(mat => mat.dispose());
+        state.originalMaterials.forEach(mat => {
+            const mats = Array.isArray(mat) ? mat : [mat];
+            mats.forEach(m => m.dispose());
+        });
     }
 
     const grid = state.scene.getObjectByName('gridHelper');
@@ -186,7 +189,12 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     // First pass: count faces, store materials, check vertex colors
     state.currentModel.traverse((child) => {
         if (child.isMesh) {
-            state.originalMaterials.set(child.uuid, child.material.clone());
+            // child.material may be a single Material or an array (multi-material
+            // meshes, e.g. OBJ objects with several usemtl groups). Clone
+            // element-wise so multi-atlas models survive setup.
+            state.originalMaterials.set(child.uuid, Array.isArray(child.material)
+                ? child.material.map(m => m.clone())
+                : child.material.clone());
             state.modelMeshes.push(child);
 
             // Check for vertex colors
@@ -408,8 +416,10 @@ export function loadOBJModel(objFile, materialFiles, upAxis) {
                     console.log('OBJ file parsed (with materials), setting up model...');
                     obj.traverse((child) => {
                         if (child.isMesh && child.material) {
-                            const mat = child.material;
-                            if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+                            const mats = Array.isArray(child.material) ? child.material : [child.material];
+                            mats.forEach(mat => {
+                                if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+                            });
                         }
                     });
                     setupLoadedModel(obj, objFile.name, upAxis);
@@ -637,8 +647,17 @@ export function applyDisplayMode() {
 
             if (state.displayMode === 'texture') {
                 if (original) {
-                    child.material = original.clone();
-                    child.material.vertexColors = false;
+                    // Original may be a material array (multi-material mesh).
+                    if (Array.isArray(original)) {
+                        child.material = original.map(m => {
+                            const c = m.clone();
+                            c.vertexColors = false;
+                            return c;
+                        });
+                    } else {
+                        child.material = original.clone();
+                        child.material.vertexColors = false;
+                    }
                 }
             } else if (state.displayMode === 'vertexColors') {
                 child.material = new THREE.MeshStandardMaterial({
@@ -660,9 +679,12 @@ export function applyDisplayMode() {
                 });
             }
 
-            child.material.transparent = true;
-            child.material.opacity = state.modelOpacity;
-            child.material.depthWrite = state.modelOpacity > 0.9;
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(mat => {
+                mat.transparent = true;
+                mat.opacity = state.modelOpacity;
+                mat.depthWrite = state.modelOpacity > 0.9;
+            });
         }
     });
 }

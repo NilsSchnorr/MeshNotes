@@ -42,10 +42,14 @@ export function setModelOpacity(value) {
 
     state.currentModel.traverse((child) => {
         if (child.isMesh) {
-            child.material.transparent = true;
-            child.material.opacity = state.modelOpacity;
-            child.material.depthWrite = state.modelOpacity > 0.9;
-            child.material.needsUpdate = true;
+            // Handle both single materials and material arrays (multi-material meshes)
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(mat => {
+                mat.transparent = true;
+                mat.opacity = state.modelOpacity;
+                mat.depthWrite = state.modelOpacity > 0.9;
+                mat.needsUpdate = true;
+            });
         }
     });
 }
