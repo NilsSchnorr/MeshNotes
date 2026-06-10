@@ -54,7 +54,7 @@ export function initScene() {
         console.error('⚠️ WebGL context LOST! The GPU ran out of resources.');
         console.error('This typically happens when a model is too large for the GPU to handle.');
         state.webglContextLost = true;
-        showStatus('WebGL context lost — model too large for GPU. Try a smaller model.', true);
+        showStatus('WebGL context lost — model too large for GPU. Try a smaller model.', 10);
         // Hide loading screen if it's still showing
         dom.loading.classList.remove('visible');
     }, false);
