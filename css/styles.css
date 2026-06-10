@@ -3309,6 +3309,19 @@
             margin-top: 2px;
         }
 
+        /* Two-column history: side by side in a wide dialog, stacked (wrap) in a
+           narrow one. The threshold is the flex-basis + gap below. */
+        .share-history-columns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .share-history-column {
+            flex: 1 1 240px;
+        }
+
         /* ---- Per-annotation "See what I see" share dialog ---- */
         /* Container/header/content mirror the main #share-* modal so the two
            dialogs look identical; kept as a separate additive block so the
@@ -3336,7 +3349,7 @@
             background: var(--color-blue-dark);
             border-radius: 12px;
             width: 90%;
-            max-width: 480px;
+            max-width: 640px;
             overflow: hidden;
             display: flex;
             flex-direction: column;

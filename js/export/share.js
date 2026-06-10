@@ -146,17 +146,27 @@ export function renderHistory(listId = 'share-history-list') {
         else modelRows.push(row);
     });
 
-    let html = '';
+    // Each section becomes a column; CSS lays them side by side when the
+    // dialog is wide enough and stacks them (flex-wrap) when it isn't.
+    const columns = [];
     if (annotationRows.length > 0) {
-        html += '<div class="share-history-section-label">Annotation shares</div>';
-        html += annotationRows.join('');
+        columns.push(
+            '<div class="share-history-column">' +
+            '<div class="share-history-section-label">Annotation shares</div>' +
+            annotationRows.join('') +
+            '</div>'
+        );
     }
     if (modelRows.length > 0) {
-        html += '<div class="share-history-section-label">Model shares</div>';
-        html += modelRows.join('');
+        columns.push(
+            '<div class="share-history-column">' +
+            '<div class="share-history-section-label">Model shares</div>' +
+            modelRows.join('') +
+            '</div>'
+        );
     }
 
-    container.innerHTML = html;
+    container.innerHTML = '<div class="share-history-columns">' + columns.join('') + '</div>';
 
     // Attach event listener via delegation (idempotent — assigning onclick
     // replaces any prior handler so repeated renders don't stack listeners).
