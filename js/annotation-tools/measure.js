@@ -268,16 +268,16 @@ export function handleMeasureTap(event, point) {
 
     // Multi-point measurement logic:
     // - Ctrl+click: add point and continue (multi-point mode)
-    // - Click without Ctrl when 2+ points exist: finalize measurement
-    // - Click without Ctrl when 0-1 points: normal add point behavior
+    // - Plain click with 2+ points in multi-point mode: finalize
+    // - Plain click otherwise: add point (finalizes on the 2nd point)
+    // Note: in normal two-point mode a measurement always finalizes (and
+    // clears measurePoints) on the 2nd click inside the else-branch below,
+    // so "2+ points outside multi-point mode" is unreachable by design.
 
-    if (state.measurePoints.length >= 2 && !isCtrlHeld && !state.isMultiPointMeasure) {
-        // Normal two-point measurement completed on second click
-        state.measurePoints.push(point);
-        addMeasureMarker(point);
-        finalizeMeasurement();
-    } else if (state.measurePoints.length >= 2 && !isCtrlHeld && state.isMultiPointMeasure) {
-        // Finalizing multi-point measurement (Ctrl released)
+    if (state.measurePoints.length >= 2 && !isCtrlHeld && state.isMultiPointMeasure) {
+        // Finalizing multi-point measurement: the plain click is a pure
+        // "done" gesture — its position is deliberately NOT added as a
+        // point (consistent with double-tap-to-finish on touch).
         finalizeMeasurement();
     } else {
         // Add point to current measurement
