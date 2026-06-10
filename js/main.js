@@ -17,6 +17,7 @@ import { showStatus, toDisplayCoords } from './utils/helpers.js';
 import { importAnnotations } from './export/import-json.js';
 import { applyViewState } from './export/view-state.js';
 import { openAnnotationShareDialog } from './export/share.js';
+import { openAnnotationViewer, initAnnotationViewer } from './annotation-tools/annotation-viewer.js';
 import { initMetadata, updateMetadataDisplay } from './metadata/metadata-ui.js';
 import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUntilExpiry } from './core/url-params.js';
 import * as THREE from 'three';
@@ -68,6 +69,7 @@ function init() {
     // Event listeners
     setupEventListeners();
     initGroupsEventDelegation(); // Set up delegated click/dblclick for annotation items
+    initAnnotationViewer(); // Read-only "Shared Annotation View" panel (drag + close wiring)
     window.addEventListener('resize', onWindowResize);
 
     // Load SVG icons and inject into DOM (non-blocking)
@@ -249,10 +251,11 @@ function focusOnAnnotation(uuid, { moveCamera = true } = {}) {
         state.controls.update();
     }
 
-    // Select it and open its detail popup so the shared annotation "pops up".
+    // Select it and open the read-only viewer so the shared annotation "pops
+    // up" without exposing the editable fields.
     state.selectedAnnotation = ann.id;
     updateGroupsList();
-    openAnnotationPopupForEdit(ann);
+    openAnnotationViewer(ann);
 }
 
 // ============ Slider Utilities ============

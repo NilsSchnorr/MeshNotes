@@ -1084,6 +1084,20 @@
         </div>
     </div>
 
+    <!-- Read-only "Shared Annotation View" (opens only from a shared link) -->
+    <div id="annotation-viewer">
+        <div id="annotation-viewer-header">
+            <span class="av-title">Shared Annotation View</span>
+            <button id="annotation-viewer-close" title="Close">✕</button>
+        </div>
+        <div id="annotation-viewer-body">
+            <p class="av-note">You're viewing a shared annotation — read only. Open it from the sidebar to edit.</p>
+            <div id="annotation-viewer-name"></div>
+            <div id="annotation-viewer-meta"></div>
+            <div id="annotation-viewer-entries"></div>
+        </div>
+    </div>
+
     <div id="toolbar">
         <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply,.stl">
         <input type="file" id="import-input" accept=".json,.jsonld">
