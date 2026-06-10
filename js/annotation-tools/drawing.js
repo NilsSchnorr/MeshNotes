@@ -53,7 +53,13 @@ export function undoLastPoint() {
 
 export function updateTempLine() {
     if (state.tempLine) {
+        // Dispose the previous temp line's GPU resources before rebuilding —
+        // this runs once per placed vertex, so skipping dispose leaks one
+        // geometry + material pair per click while drawing.
+        if (state.tempLine.geometry) state.tempLine.geometry.dispose();
+        if (state.tempLine.material) state.tempLine.material.dispose();
         state.annotationObjects.remove(state.tempLine);
+        state.tempLine = null;
     }
 
     if (state.tempPoints.length < 2) return;

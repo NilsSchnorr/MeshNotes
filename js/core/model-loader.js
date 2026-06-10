@@ -645,8 +645,18 @@ export function applyDisplayMode() {
         if (child.isMesh) {
             const original = state.originalMaterials.get(child.uuid);
 
+            // Dispose the material(s) about to be replaced. Materials only —
+            // texture maps are shared by reference with the originalMaterials
+            // snapshot (clone() shares maps) and are disposed on model swap,
+            // so they must NOT be disposed here.
+            const disposeCurrent = () => {
+                const old = Array.isArray(child.material) ? child.material : [child.material];
+                old.forEach(m => m.dispose());
+            };
+
             if (state.displayMode === 'texture') {
                 if (original) {
+                    disposeCurrent();
                     // Original may be a material array (multi-material mesh).
                     if (Array.isArray(original)) {
                         child.material = original.map(m => {
@@ -660,18 +670,21 @@ export function applyDisplayMode() {
                     }
                 }
             } else if (state.displayMode === 'vertexColors') {
+                disposeCurrent();
                 child.material = new THREE.MeshStandardMaterial({
                     vertexColors: true,
                     roughness: 0.7,
                     metalness: 0.0
                 });
             } else if (state.displayMode === 'wireframe') {
+                disposeCurrent();
                 child.material = new THREE.MeshBasicMaterial({
                     color: new THREE.Color(state.wireframeColor),
                     wireframe: true
                 });
             } else {
                 // Mesh mode (solid color, no texture)
+                disposeCurrent();
                 child.material = new THREE.MeshStandardMaterial({
                     color: new THREE.Color(state.meshColor),
                     roughness: 0.7,
