@@ -574,6 +574,17 @@ export function finishSurfacePainting(event) {
         count++;
     });
 
+    // Guard: every painted face may fail to resolve to an existing mesh
+    // (e.g. model torn down mid-session). Without this, divideScalar(0)
+    // produces a NaN centroid that would be persisted into the annotation
+    // and its exports.
+    if (count === 0) {
+        console.warn('finishSurfacePainting: no painted face resolved to an existing mesh');
+        showStatus('Surface could not be saved — painted faces no longer match the model');
+        clearTempSurface();
+        return;
+    }
+
     center.divideScalar(count);
 
     // Convert numeric face IDs back to string format for annotation storage.

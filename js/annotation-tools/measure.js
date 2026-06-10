@@ -8,7 +8,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state, dom } from '../state.js';
 import { showStatus } from '../utils/helpers.js';
-import { createScaledTextSprite } from '../core/scene.js';
+import { createScaledTextSprite, getViewportWidth, getViewportHeight } from '../core/scene.js';
 
 // Monotonic id counter for measurements. Ids must stay unique for the
 // lifetime of a session even across deletions (deriving the id from the
@@ -138,7 +138,7 @@ export function updateMeasureLine() {
     const material = new LineMaterial({
         color: state.measurementLineColor,
         linewidth: 3,
-        resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
+        resolution: new THREE.Vector2(getViewportWidth(), getViewportHeight()),
         polygonOffset: true,
         polygonOffsetFactor: -4,
         polygonOffsetUnits: -4
@@ -528,7 +528,7 @@ export function renderMeasurements() {
         const lineMaterial = new LineMaterial({
             color: state.measurementLineColor,
             linewidth: 3,
-            resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
+            resolution: new THREE.Vector2(getViewportWidth(), getViewportHeight()),
             polygonOffset: true,
             polygonOffsetFactor: -4,
             polygonOffsetUnits: -4

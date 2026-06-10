@@ -4,7 +4,7 @@ import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state } from '../state.js';
-import { createScaledTextSprite } from '../core/scene.js';
+import { createScaledTextSprite, getViewportWidth, getViewportHeight } from '../core/scene.js';
 import { toDisplayCoords, boxDisplayQuaternion } from '../utils/helpers.js';
 import { forceOcclusionUpdate } from '../utils/label-occlusion.js';
 
@@ -98,7 +98,7 @@ export function renderAnnotations() {
                 linewidth: 3,
                 transparent: groupOpacity < 1,
                 opacity: groupOpacity,
-                resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
+                resolution: new THREE.Vector2(getViewportWidth(), getViewportHeight()),
                 polygonOffset: true,
                 polygonOffsetFactor: -4,
                 polygonOffsetUnits: -4

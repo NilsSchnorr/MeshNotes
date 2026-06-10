@@ -7,6 +7,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { state } from '../state.js';
 import { showStatus, toStorageCoords } from '../utils/helpers.js';
+import { getViewportWidth, getViewportHeight } from '../core/scene.js';
 import { projectEdgeToSurface, isProjectionAcceptable } from './projection.js';
 
 // Late-bound callbacks (set via editing.js setEditingCallbacks -> setDrawingCallbacks)
@@ -101,7 +102,7 @@ export function updateTempLine() {
     const material = new LineMaterial({
         color: 0xEDC040,
         linewidth: 3,
-        resolution: new THREE.Vector2(window.innerWidth - 320, window.innerHeight - 50),
+        resolution: new THREE.Vector2(getViewportWidth(), getViewportHeight()),
         polygonOffset: true,
         polygonOffsetFactor: -4,
         polygonOffsetUnits: -4
