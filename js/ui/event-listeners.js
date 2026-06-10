@@ -831,8 +831,21 @@ export function setupEventListeners() {
     // Camera toggle and flip toggle (now in sliders panel header)
     dom.cameraToggle.addEventListener('click', toggleCamera);
     dom.flipToggle.addEventListener('click', () => {
+        // Measurements are stored in raw display space and are not flip-aware
+        // (unlike annotations, which use the storage/display transform), so a
+        // flip would leave them floating detached from the surface. Clear
+        // them — both finalized and in-progress — before flipping.
+        const hadMeasurements = state.measurements.length > 0 || state.measurePoints.length > 0;
+        if (hadMeasurements) {
+            clearAllMeasurements();
+        }
         toggleFlip();
         renderAnnotations();
+        if (hadMeasurements) {
+            showStatus(state.isFlipped
+                ? 'Model flipped — measurements cleared'
+                : 'Model un-flipped — measurements cleared');
+        }
     });
     
     // Settings modal
