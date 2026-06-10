@@ -23,7 +23,13 @@ export function renderAnnotations() {
         if (child.geometry) child.geometry.dispose();
         if (child.material) {
             const mats = Array.isArray(child.material) ? child.material : [child.material];
-            mats.forEach(m => m.dispose());
+            mats.forEach(m => {
+                // material.dispose() does NOT free the texture — label sprites
+                // carry a per-sprite CanvasTexture that must be disposed
+                // explicitly, or every re-render leaks one GPU texture per label.
+                if (m.map) m.map.dispose();
+                m.dispose();
+            });
         }
         state.annotationObjects.remove(child);
     }
