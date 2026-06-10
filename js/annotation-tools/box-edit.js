@@ -270,10 +270,29 @@ export function confirmBoxPlacement(event) {
     // Confirm box placement - convert from world space to storage coords
     const storageCenter = toStorageCoords(state.pendingBoxData.center);
     const point = { x: storageCenter.x, y: storageCenter.y, z: storageCenter.z };
+
+    // The pending box's rotation is a DISPLAY-space Euler (the pending-box
+    // renderer applies it directly, with no flip premultiply). Stored
+    // rotations follow the boxDisplayQuaternion contract:
+    //     display = Rx(PI) * storage   (when flipped)
+    // so invert that here. Otherwise a box created while flipped with a
+    // Y/Z rotation component keeps a mirrored lean after un-flipping and
+    // in exports. No-op when the model is not flipped.
+    const pendingRot = state.pendingBoxData.rotation ? { ...state.pendingBoxData.rotation } : { x: 0, y: 0, z: 0 };
+    let storageRotation = pendingRot;
+    if (state.isFlipped) {
+        const qDisplay = new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(pendingRot.x, pendingRot.y, pendingRot.z, 'XYZ'));
+        const qFlipInv = new THREE.Quaternion()
+            .setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI).invert();
+        const e = new THREE.Euler().setFromQuaternion(qDisplay.premultiply(qFlipInv), 'XYZ');
+        storageRotation = { x: e.x, y: e.y, z: e.z };
+    }
+
     const boxData = {
         center: storageCenter,
         size: { ...state.pendingBoxData.size },
-        rotation: state.pendingBoxData.rotation ? { ...state.pendingBoxData.rotation } : { x: 0, y: 0, z: 0 }
+        rotation: storageRotation
     };
 
     // Exit placement mode but KEEP the pending box visuals on screen, so the box

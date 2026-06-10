@@ -472,6 +472,7 @@ export function setupEventListeners() {
     });
     dom.importInput.addEventListener('change', (e) => {
         if (e.target.files[0]) importAnnotations(e.target.files[0]);
+        e.target.value = ''; // Reset so the same file can be re-imported
     });
 
     // Import dropdown
