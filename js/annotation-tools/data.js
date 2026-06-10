@@ -1,6 +1,6 @@
 // js/annotation-tools/data.js
 import { state, dom } from '../state.js';
-import { generateUUID, escapeHtml, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
+import { generateUUID, escapeHtml, safeUrl, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
 import { computeProjectedEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList, updateGroupSelect } from './groups.js';
@@ -175,7 +175,13 @@ export function renderModelInfoEntriesList() {
         const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const linksHtml = (entry.links && entry.links.length > 0) ? `
             <div class="entry-card-links">
-                ${entry.links.map(link => `<a href="${escapeHtml(link)}" target="_blank">🔗 ${escapeHtml(link.split('/').pop() || link)}</a>`).join('')}
+                ${entry.links.map(link => {
+                    const url = safeUrl(link);
+                    const label = `🔗 ${escapeHtml(link.split('/').pop() || link)}`;
+                    return url
+                        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`
+                        : `<span title="Link disabled (unsupported protocol)">${label}</span>`;
+                }).join('')}
             </div>
         ` : '';
         
@@ -203,12 +209,18 @@ export function renderModelInfoEntriesList() {
                     <div class="links-section">
                         <label>Links</label>
                         <div class="entry-links-list" data-entry-id="${entry.id}">
-                            ${(entry.links || []).map((link, li) => `
+                            ${(entry.links || []).map((link, li) => {
+                                const url = safeUrl(link);
+                                const linkHtml = url
+                                    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>`
+                                    : `<span title="Link disabled (unsupported protocol)">${escapeHtml(link)}</span>`;
+                                return `
                                 <div class="link-item">
-                                    <a href="${escapeHtml(link)}" target="_blank">${escapeHtml(link)}</a>
+                                    ${linkHtml}
                                     <button data-link-index="${li}">✕</button>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </div>
                         <div class="add-link-row">
                             <input type="text" data-field="new-link" placeholder="https://...">
@@ -361,7 +373,13 @@ export function renderEntriesList(ann) {
         const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         const linksHtml = (entry.links && entry.links.length > 0) ? `
             <div class="entry-card-links">
-                ${entry.links.map(link => `<a href="${escapeHtml(link)}" target="_blank">🔗 ${escapeHtml(link.split('/').pop() || link)}</a>`).join('')}
+                ${entry.links.map(link => {
+                    const url = safeUrl(link);
+                    const label = `🔗 ${escapeHtml(link.split('/').pop() || link)}`;
+                    return url
+                        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`
+                        : `<span title="Link disabled (unsupported protocol)">${label}</span>`;
+                }).join('')}
             </div>
         ` : '';
         
@@ -389,12 +407,18 @@ export function renderEntriesList(ann) {
                     <div class="links-section">
                         <label>Links</label>
                         <div class="entry-links-list" data-entry-id="${entry.id}">
-                            ${(entry.links || []).map((link, li) => `
+                            ${(entry.links || []).map((link, li) => {
+                                const url = safeUrl(link);
+                                const linkHtml = url
+                                    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>`
+                                    : `<span title="Link disabled (unsupported protocol)">${escapeHtml(link)}</span>`;
+                                return `
                                 <div class="link-item">
-                                    <a href="${escapeHtml(link)}" target="_blank">${escapeHtml(link)}</a>
+                                    ${linkHtml}
                                     <button data-link-index="${li}">✕</button>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </div>
                         <div class="add-link-row">
                             <input type="text" data-field="new-link" placeholder="https://...">
@@ -620,9 +644,13 @@ function buildVersionHistoryHtml(entryId, versionCount, versions) {
             
             const linksHtml = (v.links && v.links.length > 0) 
                 ? `<div class="version-item-links">
-                      Links: ${v.links.map(link => 
-                          `<a href="${escapeHtml(link)}" target="_blank">${escapeHtml(link.split('/').pop() || link)}</a>`
-                      ).join(', ')}
+                      Links: ${v.links.map(link => {
+                          const url = safeUrl(link);
+                          const label = escapeHtml(link.split('/').pop() || link);
+                          return url
+                              ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`
+                              : `<span title="Link disabled (unsupported protocol)">${label}</span>`;
+                      }).join(', ')}
                    </div>` 
                 : '';
             
@@ -697,12 +725,18 @@ export function showAddEntryForm() {
 }
 
 export function updateLinksDisplay() {
-    dom.annLinks.innerHTML = state.pendingLinks.map((link, i) => `
+    dom.annLinks.innerHTML = state.pendingLinks.map((link, i) => {
+        const url = safeUrl(link);
+        const linkHtml = url
+            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>`
+            : `<span title="Link disabled (unsupported protocol)">${escapeHtml(link)}</span>`;
+        return `
         <div class="link-item">
-            <a href="${escapeHtml(link)}" target="_blank">${escapeHtml(link)}</a>
+            ${linkHtml}
             <button data-index="${i}">✕</button>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     dom.annLinks.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('click', () => {

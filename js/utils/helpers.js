@@ -22,9 +22,32 @@ export function saveLastAuthor(author) {
 
 export function escapeHtml(text) {
     if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
+ * Sanitizes a user-supplied link for use as an href.
+ * Returns the URL unchanged for http(s) links, converts DOIs
+ * ("doi:10.xxxx/yyy" or bare "10.xxxx/yyy") to https://doi.org/
+ * resolver links, and returns '' for everything else (javascript:,
+ * data:, relative paths, ...) so callers can skip emitting an href.
+ * Protects against script-injection via links in imported/shared
+ * annotation files.
+ * @param {string} url - Raw link string from user input or import
+ * @returns {string} Safe absolute URL, or '' if the link is not safe
+ */
+export function safeUrl(url) {
+    if (typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    const doiMatch = trimmed.match(/^(?:doi:)?(10\.\d{4,9}\/\S+)$/i);
+    if (doiMatch) return 'https://doi.org/' + doiMatch[1];
+    return '';
 }
 
 // Status hold — prevents other showStatus calls from overwriting for a duration

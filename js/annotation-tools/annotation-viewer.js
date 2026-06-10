@@ -10,7 +10,7 @@
 // next sidebar interaction naturally lands them in the editable popup.
 
 import { state } from '../state.js';
-import { escapeHtml } from '../utils/helpers.js';
+import { escapeHtml, safeUrl } from '../utils/helpers.js';
 
 // Drag state (module-local; mirrors the settings-modal drag pattern)
 let isDragging = false;
@@ -124,7 +124,13 @@ function renderViewerEntries(ann) {
             : '';
         const linksHtml = (entry.links && entry.links.length > 0) ? `
             <div class="entry-card-links">
-                ${entry.links.map(link => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">🔗 ${escapeHtml(link.split('/').pop() || link)}</a>`).join('')}
+                ${entry.links.map(link => {
+                    const url = safeUrl(link);
+                    const label = `🔗 ${escapeHtml(link.split('/').pop() || link)}`;
+                    return url
+                        ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${label}</a>`
+                        : `<span title="Link disabled (unsupported protocol)">${label}</span>`;
+                }).join('')}
             </div>
         ` : '';
         return `
