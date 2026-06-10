@@ -3320,6 +3320,15 @@
 
         .share-history-column {
             flex: 1 1 240px;
+            min-width: 0;
+        }
+
+        /* The per-annotation dialog is wide (640px), so keep its two lists on a
+           single row regardless of window width / scrollbar. Rows already
+           truncate (ellipsis), so shrinking is clean. The main Share dialog is
+           left to wrap (stack) as before. */
+        #ann-share-history-list .share-history-columns {
+            flex-wrap: nowrap;
         }
 
         /* ---- Per-annotation "See what I see" share dialog ---- */
