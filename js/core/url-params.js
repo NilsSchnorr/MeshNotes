@@ -42,8 +42,11 @@ export function parseUrlParams() {
         return {
             mode: 'direct',
             shareId: null,
-            modelUrl: decodeURIComponent(modelUrl),
-            annotationsUrl: annotationsUrl ? decodeURIComponent(annotationsUrl) : null,
+            // Note: URLSearchParams.get() already percent-decodes. Do NOT
+            // decode again — URLs containing literal %xx (presigned URLs,
+            // encoded filenames) would be corrupted by a second decode.
+            modelUrl: modelUrl,
+            annotationsUrl: annotationsUrl || null,
             focusAnnotation: focusAnnotation || null
         };
     }
@@ -228,15 +231,16 @@ export async function loadDirectFiles(modelUrl, annotationsUrl) {
 
     const mtlUrl = params.get('mtl');
     if (mtlUrl) {
-        const mtlFilename = decodeURIComponent(mtlUrl).split('/').pop().split('?')[0];
-        const mtlBlob = await fetchDirectFile(decodeURIComponent(mtlUrl));
+        // params.get() already decoded the value — use it as-is.
+        const mtlFilename = mtlUrl.split('/').pop().split('?')[0];
+        const mtlBlob = await fetchDirectFile(mtlUrl);
         materialFiles.push(blobToFile(mtlBlob, mtlFilename));
     }
 
     const textureUrl = params.get('texture');
     if (textureUrl) {
-        const texFilename = decodeURIComponent(textureUrl).split('/').pop().split('?')[0];
-        const texBlob = await fetchDirectFile(decodeURIComponent(textureUrl));
+        const texFilename = textureUrl.split('/').pop().split('?')[0];
+        const texBlob = await fetchDirectFile(textureUrl);
         materialFiles.push(blobToFile(texBlob, texFilename));
     }
 
