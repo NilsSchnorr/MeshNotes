@@ -2990,7 +2990,7 @@
             background: var(--color-blue-dark);
             border-radius: 12px;
             width: 90%;
-            max-width: 480px;
+            max-width: 640px;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -3309,11 +3309,11 @@
             margin-top: 2px;
         }
 
-        /* Two-column history: side by side in a wide dialog, stacked (wrap) in a
-           narrow one. The threshold is the flex-basis + gap below. */
+        /* Two-column history: the two lists sit side by side. Both share dialogs
+           are wide enough (640px); touch / narrow devices stack them (below). */
         .share-history-columns {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             gap: 16px;
             align-items: flex-start;
         }
@@ -3323,12 +3323,12 @@
             min-width: 0;
         }
 
-        /* The per-annotation dialog is wide (640px), so keep its two lists on a
-           single row regardless of window width / scrollbar. Rows already
-           truncate (ellipsis), so shrinking is clean. The main Share dialog is
-           left to wrap (stack) as before. */
-        #ann-share-history-list .share-history-columns {
-            flex-wrap: nowrap;
+        /* Touch / narrow devices stack the two lists, where side-by-side would
+           be too cramped. */
+        @media (pointer: coarse) {
+            .share-history-columns {
+                flex-wrap: wrap;
+            }
         }
 
         /* ---- Per-annotation "See what I see" share dialog ---- */
