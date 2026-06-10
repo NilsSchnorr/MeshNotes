@@ -3296,6 +3296,110 @@
             color: var(--color-text-light);
         }
 
+        /* ---- Per-annotation "See what I see" share dialog ---- */
+        /* Container/header/content mirror the main #share-* modal so the two
+           dialogs look identical; kept as a separate additive block so the
+           working share-modal rules are left untouched. Inner pieces reuse the
+           existing .share-* classes (action btn, privacy note, link row,
+           spinner, history). */
+        #annotation-share-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #annotation-share-overlay.visible {
+            display: flex;
+        }
+
+        #annotation-share-modal {
+            background: var(--color-blue-dark);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px var(--color-overlay-light);
+        }
+
+        #annotation-share-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-blue);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #annotation-share-modal-header h2 {
+            font-size: 16px;
+            color: var(--color-text-light);
+        }
+
+        #annotation-share-modal-close {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        #annotation-share-modal-close:hover {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
+        #annotation-share-modal-content {
+            padding: 20px;
+            color: var(--color-text-muted);
+        }
+
+        #annotation-share-modal-content p {
+            color: var(--color-text-muted);
+            line-height: 1.5;
+        }
+
+        #annotation-share-modal-content strong {
+            color: var(--color-text-light);
+        }
+
+        /* Per-annotation Share button in the sidebar (matches the edit button) */
+        .annotation-share-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+
+        .annotation-share-btn:hover {
+            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .annotation-share-btn svg,
+        #ann-share-copy-btn svg {
+            width: 1.8em;
+            height: 1.8em;
+            vertical-align: -0.35em;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
         #settings-modal {
             position: absolute;
             background: var(--color-blue-dark);

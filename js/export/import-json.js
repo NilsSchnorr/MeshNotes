@@ -9,15 +9,19 @@ import { updateGroupsList } from '../annotation-tools/groups.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { reprojectAllAnnotations } from '../annotation-tools/projection.js';
 
-export function importAnnotations(file) {
+export function importAnnotations(file, onComplete) {
     const reader = new FileReader();
     reader.onload = (e) => {
+        let viewState = null;
         try {
             const data = JSON.parse(e.target.result);
 
             // Check if this is W3C format (has @context and type: AnnotationCollection)
             if (data['@context'] && data.type === 'AnnotationCollection') {
                 importW3CAnnotations(data);
+                // Surface any "see what I see" snapshot to the caller. Only the
+                // share/direct load path acts on it; manual import ignores it.
+                viewState = data['meshnotes:viewState'] || null;
             }
             // Legacy format support (old MeshNotes format)
             else if (data.groups && data.annotations) {
@@ -30,6 +34,7 @@ export function importAnnotations(file) {
             console.error('Import error:', error);
             showStatus('Error importing file');
         }
+        if (typeof onComplete === 'function') onComplete({ viewState });
     };
     reader.readAsText(file);
 }

@@ -1031,6 +1031,59 @@
         </div>
     </div>
 
+    <!-- Per-annotation "See what I see" share dialog -->
+    <div id="annotation-share-overlay">
+        <div id="annotation-share-modal">
+            <div id="annotation-share-modal-header">
+                <h2 data-icon="share">Share this annotation</h2>
+                <button id="annotation-share-modal-close">✕</button>
+            </div>
+            <div id="annotation-share-modal-content">
+                <!-- Explanation state (default) -->
+                <div id="ann-share-explain">
+                    <p style="margin-top: 4px;">This creates a link that opens <strong id="ann-share-target-name">this annotation</strong> in the exact view you have right now — your camera angle, zoom, lighting, model opacity, display mode and flip. It lets the recipient <em>see what you see</em>.</p>
+                    <p style="margin-top: 10px;">All annotations on the model travel with the link; this one opens highlighted. Your personal display preferences (background colour, mesh/wireframe colours, point and text sizes) are <strong>not</strong> shared — the recipient keeps their own.</p>
+                    <p class="share-privacy-note">⚠️ By clicking <strong>Generate Link</strong>, your model file and all annotations are uploaded to meshnotes.org and stay available for 90 days. Your data will no longer be fully offline. Maximum file size: 100 MB.</p>
+                    <div style="display:flex; gap:8px; margin-top: 14px;">
+                        <button id="ann-share-cancel-btn" class="share-action-btn" style="flex:1; background:transparent; border:1px solid var(--color-blue); color:var(--color-text-muted);">Cancel</button>
+                        <button id="ann-share-generate-btn" class="share-action-btn" style="flex:2;">Generate Link</button>
+                    </div>
+
+                    <!-- Previously generated links -->
+                    <div id="ann-share-history-toggle" class="share-history-toggle">
+                        <span class="toggle-arrow">▶</span> Previously generated links
+                    </div>
+                    <div id="ann-share-history" class="share-history">
+                        <div id="ann-share-history-list"></div>
+                    </div>
+                </div>
+
+                <!-- Progress state -->
+                <div id="ann-share-progress" style="display:none;">
+                    <div class="share-spinner"></div>
+                    <p id="ann-share-progress-text">Uploading...</p>
+                </div>
+
+                <!-- Result state -->
+                <div id="ann-share-result" style="display:none;">
+                    <p style="margin-bottom: 8px;"><strong>Share link created!</strong></p>
+                    <div class="share-link-row">
+                        <input type="text" id="ann-share-link" readonly>
+                        <button id="ann-share-copy-btn" data-icon="copy">Copy</button>
+                    </div>
+                    <p id="ann-share-expiry" style="margin-top: 8px; font-size: 12px;"></p>
+                    <p style="margin-top: 12px; font-size: 12px;">Anyone with this link opens the model with your view restored and this annotation highlighted.</p>
+                </div>
+
+                <!-- Error state -->
+                <div id="ann-share-error" style="display:none;">
+                    <p style="color: #ff6b6b;"><strong>Upload failed</strong></p>
+                    <p id="ann-share-error-message" style="margin-top: 8px; font-size: 13px;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toolbar">
         <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply,.stl">
         <input type="file" id="import-input" accept=".json,.jsonld">

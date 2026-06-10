@@ -254,10 +254,15 @@ export async function loadDirectFiles(modelUrl, annotationsUrl) {
  * Points to the editor (index.html) — the viewer is a future addition.
  * 
  * @param {string} shareId 
+ * @param {string|null} focusAnnotationUuid - optional annotation UUID to focus on load
  * @returns {string}
  */
-export function buildShareUrl(shareId) {
-    return `${window.location.origin}/?share=${shareId}`;
+export function buildShareUrl(shareId, focusAnnotationUuid = null) {
+    let url = `${window.location.origin}/?share=${shareId}`;
+    if (focusAnnotationUuid) {
+        url += `&annotation=${encodeURIComponent(focusAnnotationUuid)}`;
+    }
+    return url;
 }
 
 /**

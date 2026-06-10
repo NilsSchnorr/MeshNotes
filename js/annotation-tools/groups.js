@@ -8,10 +8,12 @@ import { renderAnnotations } from './render.js';
 // Late-bound references
 let _openGroupPopup = null;
 let _openAnnotationPopupForEdit = null;
+let _openAnnotationShare = null;
 
-export function setGroupCallbacks({ openGroupPopup, openAnnotationPopupForEdit }) {
+export function setGroupCallbacks({ openGroupPopup, openAnnotationPopupForEdit, openAnnotationShare }) {
     _openGroupPopup = openGroupPopup;
     _openAnnotationPopupForEdit = openAnnotationPopupForEdit;
+    _openAnnotationShare = openAnnotationShare;
 }
 
 export function createDefaultGroup() {
@@ -197,6 +199,19 @@ export function initGroupsEventDelegation() {
     let clickTimeout = null;
     
     dom.groupsContainer.addEventListener('click', (e) => {
+        // Share button: open the per-annotation share dialog immediately, no delay
+        const shareBtn = e.target.closest('[data-action="share-annotation"]');
+        if (shareBtn) {
+            const item = shareBtn.closest('.annotation-item');
+            if (!item) return;
+            const id = parseInt(item.dataset.id);
+            const ann = state.annotations.find(a => a.id === id);
+            if (ann && _openAnnotationShare) {
+                _openAnnotationShare(ann);
+            }
+            return;
+        }
+
         // Edit button: open annotation popup immediately, no delay
         const editBtn = e.target.closest('[data-action="edit-annotation"]');
         if (editBtn) {
@@ -269,6 +284,7 @@ function renderAnnotationItem(ann) {
                 <span class="type-icon">${icons[ann.type] || getIcon('point')}</span>
                 <span class="name">${escapeHtml(ann.name)}</span>
                 <button class="annotation-edit-btn" data-action="edit-annotation" title="Edit annotation">${getIcon('edit')}</button>
+                <button class="annotation-share-btn" data-action="share-annotation" title="Share this annotation">${getIcon('share')}</button>
             </div>
             <div class="description">${entryText}${previewHtml}</div>
         </div>

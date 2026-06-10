@@ -8,6 +8,7 @@ import { showStatus, escapeHtml } from '../utils/helpers.js';
 import { buildAnnotationBlob } from './export-json.js';
 import { buildShareUrl, buildDirectUrl } from '../core/url-params.js';
 import { getMetadataStats } from '../metadata/templates.js';
+import { captureViewState } from './view-state.js';
 
 const SHARE_API_URL = '/api/share';
 const HISTORY_STORAGE_KEY = 'meshnotes_shareHistory';
@@ -53,14 +54,25 @@ export function removeHistoryEntry(index) {
     const history = loadHistory();
     history.splice(index, 1);
     saveHistory(history);
-    renderHistory();
+    refreshHistoryLists();
+}
+
+/**
+ * Re-render every history list currently present in the DOM. Both the main
+ * Share dialog and the per-annotation Share dialog show the same list, so a
+ * deletion stays in sync regardless of which dialog is open.
+ */
+function refreshHistoryLists() {
+    ['share-history-list', 'ann-share-history-list'].forEach(id => {
+        if (document.getElementById(id)) renderHistory(id);
+    });
 }
 
 /**
  * Render the share history list into the dialog.
  */
-export function renderHistory() {
-    const container = document.getElementById('share-history-list');
+export function renderHistory(listId = 'share-history-list') {
+    const container = document.getElementById(listId);
     if (!container) return;
 
     const history = loadHistory();
@@ -112,8 +124,9 @@ export function renderHistory() {
         `;
     }).join('');
 
-    // Attach event listeners via delegation
-    container.addEventListener('click', handleHistoryClick);
+    // Attach event listener via delegation (idempotent — assigning onclick
+    // replaces any prior handler so repeated renders don't stack listeners).
+    container.onclick = handleHistoryClick;
 }
 
 /**
@@ -380,4 +393,178 @@ export function generateLongTermLink() {
         expiresAt: null,
         type: 'permanent'
     });
+}
+
+// ============ Per-Annotation Share ("See what I see") ============
+
+// UUID of the annotation whose Share button opened the dialog.
+let _annotationShareUuid = null;
+
+/**
+ * Opens the per-annotation share dialog in its explanation state. Uploads
+ * nothing until the user confirms with "Generate Link"; closing or cancelling
+ * never uploads.
+ * @param {Object} ann - the annotation to focus in the shared view
+ */
+export function openAnnotationShareDialog(ann) {
+    _annotationShareUuid = ann ? ann.uuid : null;
+
+    const overlay = document.getElementById('annotation-share-overlay');
+    if (!overlay) return;
+
+    // Reset to explanation state
+    document.getElementById('ann-share-explain').style.display = 'block';
+    document.getElementById('ann-share-progress').style.display = 'none';
+    document.getElementById('ann-share-result').style.display = 'none';
+    document.getElementById('ann-share-error').style.display = 'none';
+
+    const nameEl = document.getElementById('ann-share-target-name');
+    if (nameEl) nameEl.textContent = (ann && ann.name) ? ann.name : 'this annotation';
+
+    // Collapse history
+    const historySection = document.getElementById('ann-share-history');
+    const historyToggle = document.getElementById('ann-share-history-toggle');
+    if (historySection) historySection.classList.remove('visible');
+    if (historyToggle) historyToggle.classList.remove('expanded');
+
+    overlay.classList.add('visible');
+}
+
+/**
+ * Close the per-annotation share dialog.
+ */
+export function closeAnnotationShareDialog() {
+    const overlay = document.getElementById('annotation-share-overlay');
+    if (overlay) overlay.classList.remove('visible');
+    _annotationShareUuid = null;
+}
+
+/**
+ * Toggle the per-annotation share history section (shares the same stored
+ * history as the main Share dialog).
+ */
+export function toggleAnnotationShareHistory() {
+    const section = document.getElementById('ann-share-history');
+    const toggle = document.getElementById('ann-share-history-toggle');
+    if (!section || !toggle) return;
+
+    const isVisible = section.classList.toggle('visible');
+    toggle.classList.toggle('expanded', isVisible);
+    if (isVisible) renderHistory('ann-share-history-list');
+}
+
+/**
+ * Copy the per-annotation share link to clipboard.
+ */
+export function copyAnnotationShareLink() {
+    const linkInput = document.getElementById('ann-share-link');
+    if (!linkInput) return;
+
+    linkInput.select();
+    navigator.clipboard.writeText(linkInput.value).then(() => {
+        showStatus('Link copied to clipboard');
+    }).catch(() => {
+        document.execCommand('copy');
+        showStatus('Link copied to clipboard');
+    });
+}
+
+/**
+ * Uploads model + all annotations + the current view ("see what I see") to R2
+ * and returns a link that focuses the chosen annotation. Triggered by the
+ * "Generate Link" button in the per-annotation share dialog.
+ */
+export async function generateAnnotationShareLink() {
+    const explain = document.getElementById('ann-share-explain');
+    const progress = document.getElementById('ann-share-progress');
+    const result = document.getElementById('ann-share-result');
+    const errorSection = document.getElementById('ann-share-error');
+    const progressText = document.getElementById('ann-share-progress-text');
+    const linkInput = document.getElementById('ann-share-link');
+    const expiryEl = document.getElementById('ann-share-expiry');
+    const errorMessage = document.getElementById('ann-share-error-message');
+
+    if (!state.currentModel || !state.loadedModelFiles || state.loadedModelFiles.length === 0) {
+        showStatus('Load a model first');
+        return;
+    }
+    if (!_annotationShareUuid) {
+        showStatus('No annotation selected to share');
+        return;
+    }
+
+    // Switch to progress state
+    explain.style.display = 'none';
+    progress.style.display = 'block';
+    result.style.display = 'none';
+    errorSection.style.display = 'none';
+
+    try {
+        // Pre-check total file size (same 100 MB limit as the main share)
+        const totalMB = state.loadedModelFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+        if (totalMB > 100) {
+            progress.style.display = 'none';
+            errorSection.style.display = 'block';
+            errorMessage.textContent = `Your model files total ${totalMB.toFixed(1)} MB, which exceeds the 100 MB upload limit. Try reducing the file size with Draco compression (e.g., optimizeglb.com or gltf-transform) or decimation in your 3D software before sharing.`;
+            return;
+        }
+
+        // Capture the current view *now* — this is the "what I see" moment.
+        const viewState = captureViewState();
+
+        const formData = new FormData();
+
+        progressText.textContent = 'Preparing model files...';
+        for (const file of state.loadedModelFiles) {
+            formData.append('model', file, file.name);
+        }
+
+        progressText.textContent = 'Preparing annotations & view...';
+        const annotationBlob = buildAnnotationBlob({ viewState });
+        const annotationFilename = `${state.modelFileName || 'annotations'}.jsonld`;
+        formData.append('annotations', annotationBlob, annotationFilename);
+
+        progressText.textContent = 'Uploading to meshnotes.org...';
+        const response = await fetch(SHARE_API_URL, { method: 'POST', body: formData });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Upload failed (${response.status})`);
+        }
+
+        const uploadResult = await response.json();
+
+        const url = buildShareUrl(uploadResult.shareId, _annotationShareUuid);
+        linkInput.value = url;
+        expiryEl.textContent = `This link expires on ${new Date(uploadResult.expiresAt).toLocaleDateString()}`;
+
+        progress.style.display = 'none';
+        result.style.display = 'block';
+
+        addToHistory({
+            url,
+            modelName: state.modelFileName || 'Unknown model',
+            createdAt: new Date().toISOString(),
+            expiresAt: uploadResult.expiresAt,
+            type: 'annotation'
+        });
+
+        showStatus('Annotation share link created');
+
+    } catch (error) {
+        console.error('Annotation share failed:', error);
+        progress.style.display = 'none';
+        errorSection.style.display = 'block';
+
+        const msg = error.message || '';
+        if (msg.includes('413') || msg.includes('403') || msg.includes('Failed to fetch')) {
+            let totalMB = 0;
+            if (state.loadedModelFiles) {
+                totalMB = state.loadedModelFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
+            }
+            errorMessage.textContent = `Upload failed — your files are ${totalMB.toFixed(1)} MB, which likely exceeds the 100 MB upload limit. Try reducing the file size with Draco compression (e.g., optimizeglb.com or gltf-transform) or decimation in your 3D software before sharing.`;
+        } else {
+            errorMessage.textContent = error.message;
+        }
+    }
 }

@@ -15,6 +15,8 @@ import { openGroupPopup } from './annotation-tools/groups.js';
 import { initLabelOcclusionUpdates } from './utils/label-occlusion.js';
 import { showStatus, toDisplayCoords } from './utils/helpers.js';
 import { importAnnotations } from './export/import-json.js';
+import { applyViewState } from './export/view-state.js';
+import { openAnnotationShareDialog } from './export/share.js';
 import { initMetadata, updateMetadataDisplay } from './metadata/metadata-ui.js';
 import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUntilExpiry } from './core/url-params.js';
 import * as THREE from 'three';
@@ -29,7 +31,8 @@ setEditingCallbacks({
 });
 setGroupCallbacks({
     openGroupPopup,
-    openAnnotationPopupForEdit
+    openAnnotationPopupForEdit,
+    openAnnotationShare: openAnnotationShareDialog
 });
 setRenderCallbacks({
     renderMeasurements
@@ -162,12 +165,21 @@ async function loadFromUrlParams() {
         // Import annotations once the model finishes loading
         if (annotationFile) {
             waitForModel(() => {
-                importAnnotations(annotationFile);
-
-                // Focus on specific annotation if requested via ?annotation=UUID
-                if (config.focusAnnotation) {
-                    focusOnAnnotation(config.focusAnnotation);
-                }
+                // Run focus / view restore only after the import completes, so
+                // the annotation exists by the time we look it up.
+                importAnnotations(annotationFile, ({ viewState }) => {
+                    if (viewState) {
+                        // "See what I see": restore the author's exact view, then
+                        // select/open the focused annotation without moving the camera.
+                        applyViewState(viewState);
+                        if (config.focusAnnotation) {
+                            focusOnAnnotation(config.focusAnnotation, { moveCamera: false });
+                        }
+                    } else if (config.focusAnnotation) {
+                        // No saved view — fall back to auto-framing the annotation.
+                        focusOnAnnotation(config.focusAnnotation);
+                    }
+                });
             });
         } else if (config.focusAnnotation) {
             waitForModel(() => {
@@ -209,29 +221,38 @@ function waitForModel(callback, maxAttempts = 50) {
 }
 
 /**
- * Navigate camera to focus on a specific annotation by UUID.
+ * Navigate camera to focus on a specific annotation by UUID, select it, and
+ * open its detail popup. Pass { moveCamera: false } when a restored view has
+ * already positioned the camera ("see what I see").
  */
-function focusOnAnnotation(uuid) {
+function focusOnAnnotation(uuid, { moveCamera = true } = {}) {
     const ann = state.annotations.find(a => a.uuid === uuid);
-    if (!ann || !ann.points || ann.points.length === 0) return;
+    if (!ann) {
+        showStatus('The highlighted annotation is no longer available');
+        return;
+    }
 
-    const center = new THREE.Vector3();
-    ann.points.forEach(p => {
-        const dp = toDisplayCoords(p);
-        center.add(new THREE.Vector3(dp.x, dp.y, dp.z));
-    });
-    center.divideScalar(ann.points.length);
+    if (moveCamera && ann.points && ann.points.length > 0) {
+        const center = new THREE.Vector3();
+        ann.points.forEach(p => {
+            const dp = toDisplayCoords(p);
+            center.add(new THREE.Vector3(dp.x, dp.y, dp.z));
+        });
+        center.divideScalar(ann.points.length);
 
-    state.controls.target.copy(center);
-    state.camera.position.set(
-        center.x + state.modelBoundingSize * 0.8,
-        center.y + state.modelBoundingSize * 0.8,
-        center.z + state.modelBoundingSize * 0.8
-    );
-    state.controls.update();
+        state.controls.target.copy(center);
+        state.camera.position.set(
+            center.x + state.modelBoundingSize * 0.8,
+            center.y + state.modelBoundingSize * 0.8,
+            center.z + state.modelBoundingSize * 0.8
+        );
+        state.controls.update();
+    }
 
+    // Select it and open its detail popup so the shared annotation "pops up".
     state.selectedAnnotation = ann.id;
     updateGroupsList();
+    openAnnotationPopupForEdit(ann);
 }
 
 // ============ Slider Utilities ============

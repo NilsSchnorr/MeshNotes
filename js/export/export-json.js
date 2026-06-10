@@ -6,9 +6,13 @@ import { convertToW3CAnnotation, authorToCreator } from './w3c-format.js';
 /**
  * Builds the W3C Web Annotation Collection JSON string.
  * Reusable by both the download export and the share upload.
+ * @param {Object} [options]
+ * @param {Object} [options.viewState] - optional "see what I see" scene snapshot,
+ *        embedded as a collection-level `meshnotes:viewState` extension. Only the
+ *        per-annotation share passes this; normal export/share omit it.
  * @returns {string} Clean JSON-LD string
  */
-export function buildAnnotationJSON() {
+export function buildAnnotationJSON(options = {}) {
     const collectionId = `urn:meshnotes:collection:${generateUUID()}`;
 
     // Convert groups to stylesheet
@@ -64,6 +68,10 @@ export function buildAnnotationJSON() {
 
         // Stylesheet for group colors
         stylesheet: stylesheet,
+
+        // "See what I see" scene snapshot (custom extension). Only present for
+        // per-annotation share links; omitted from normal export/share.
+        'meshnotes:viewState': options.viewState || undefined,
 
         // Groups metadata (custom extension)
         'meshnotes:groups': state.groups.map(g => ({
@@ -136,10 +144,11 @@ export function buildAnnotationJSON() {
 
 /**
  * Builds the annotation JSON-LD as a Blob (for upload/sharing).
+ * @param {Object} [options] - forwarded to buildAnnotationJSON (e.g. { viewState }).
  * @returns {Blob}
  */
-export function buildAnnotationBlob() {
-    const json = buildAnnotationJSON();
+export function buildAnnotationBlob(options = {}) {
+    const json = buildAnnotationJSON(options);
     return new Blob([json], { type: 'application/ld+json' });
 }
 

@@ -17,7 +17,7 @@ import { openMetadataPopup, closeMetadataPopup, saveMetadata, initMetadata, upda
 import { downloadMetadataJSON, downloadMetadataPDF, importMetadataJSON } from '../metadata/metadata-io.js';
 import { getMetadataStats } from '../metadata/templates.js';
 import { downloadManualAsPdf } from '../export/pdf-manual.js';
-import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink, toggleHistory } from '../export/share.js';
+import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, showLongTermShareDialog, showEphemeralShareDialog, generateLongTermLink, toggleHistory, generateAnnotationShareLink, copyAnnotationShareLink, closeAnnotationShareDialog, toggleAnnotationShareHistory } from '../export/share.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js';
 import { toggleCuttingPlane, extractProfile, closeProfilePreview, downloadProfileSVG, downloadProfilePNG, onCuttingPlanePointerDown, onCuttingPlanePointerMove, onCuttingPlanePointerUp, cleanupCuttingPlane } from '../annotation-tools/cutting-plane.js';
@@ -503,6 +503,16 @@ export function setupEventListeners() {
     });
     document.getElementById('longterm-generate-btn').addEventListener('click', generateLongTermLink);
     document.getElementById('share-history-toggle').addEventListener('click', toggleHistory);
+
+    // Per-annotation share dialog ("See what I see")
+    document.getElementById('annotation-share-modal-close').addEventListener('click', closeAnnotationShareDialog);
+    document.getElementById('ann-share-cancel-btn').addEventListener('click', closeAnnotationShareDialog);
+    document.getElementById('ann-share-generate-btn').addEventListener('click', generateAnnotationShareLink);
+    document.getElementById('ann-share-copy-btn').addEventListener('click', copyAnnotationShareLink);
+    document.getElementById('ann-share-history-toggle').addEventListener('click', toggleAnnotationShareHistory);
+    document.getElementById('annotation-share-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'annotation-share-overlay') closeAnnotationShareDialog();
+    });
 
     // Brush size slider
     dom.brushSlider.addEventListener('input', (e) => {
@@ -1084,6 +1094,12 @@ export function setupEventListeners() {
             const shareOverlay = document.getElementById('share-overlay');
             if (shareOverlay && shareOverlay.classList.contains('visible')) {
                 closeShareDialog();
+                return;
+            }
+
+            const annShareOverlay = document.getElementById('annotation-share-overlay');
+            if (annShareOverlay && annShareOverlay.classList.contains('visible')) {
+                closeAnnotationShareDialog();
                 return;
             }
 
