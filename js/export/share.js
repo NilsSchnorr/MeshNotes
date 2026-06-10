@@ -69,50 +69,47 @@ function refreshHistoryLists() {
 }
 
 /**
- * Render the share history list into the dialog.
+ * Render one history row. `index` must be the entry's index in the full
+ * (unsplit) history array so copy/delete stay correct after the list is split
+ * into sections.
  */
-export function renderHistory(listId = 'share-history-list') {
-    const container = document.getElementById(listId);
-    if (!container) return;
+function renderHistoryRow(entry, index) {
+    const now = new Date();
+    const expiresAt = entry.expiresAt ? new Date(entry.expiresAt) : null;
+    const isExpired = expiresAt && expiresAt < now;
+    const isPermanent = entry.type === 'permanent';
 
-    const history = loadHistory();
-
-    if (history.length === 0) {
-        container.innerHTML = '<p class="share-history-empty">No previously generated links.</p>';
-        return;
+    let statusText;
+    let statusClass;
+    if (isPermanent) {
+        statusText = 'Permanent';
+        statusClass = 'permanent';
+    } else if (isExpired) {
+        statusText = 'Expired';
+        statusClass = 'expired';
+    } else if (expiresAt) {
+        const daysLeft = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+        statusText = `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
+        statusClass = daysLeft <= 7 ? 'expiring-soon' : 'active';
+    } else {
+        statusText = 'Unknown';
+        statusClass = 'unknown';
     }
 
-    const now = new Date();
+    const createdDate = new Date(entry.createdAt).toLocaleDateString();
+    const createdTime = new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    container.innerHTML = history.map((entry, index) => {
-        const expiresAt = entry.expiresAt ? new Date(entry.expiresAt) : null;
-        const isExpired = expiresAt && expiresAt < now;
-        const isPermanent = entry.type === 'permanent';
+    // Annotation shares append the focused annotation's name: "model.glb — Name".
+    // Older entries created before this was stored gracefully show just the model.
+    let displayName = escapeHtml(entry.modelName || 'Unknown model');
+    if (entry.type === 'annotation' && entry.annotationName) {
+        displayName += ' — ' + escapeHtml(entry.annotationName);
+    }
 
-        let statusText;
-        let statusClass;
-        if (isPermanent) {
-            statusText = 'Permanent';
-            statusClass = 'permanent';
-        } else if (isExpired) {
-            statusText = 'Expired';
-            statusClass = 'expired';
-        } else if (expiresAt) {
-            const daysLeft = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
-            statusText = `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`;
-            statusClass = daysLeft <= 7 ? 'expiring-soon' : 'active';
-        } else {
-            statusText = 'Unknown';
-            statusClass = 'unknown';
-        }
-
-        const createdDate = new Date(entry.createdAt).toLocaleDateString();
-        const createdTime = new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        return `
+    return `
             <div class="share-history-item ${isExpired ? 'expired' : ''}">
                 <div class="share-history-info">
-                    <span class="share-history-model">${escapeHtml(entry.modelName || 'Unknown model')}</span>
+                    <span class="share-history-model">${displayName}</span>
                     <span class="share-history-date">${createdDate} · ${createdTime}</span>
                     <span class="share-history-status ${statusClass}">${statusText}</span>
                 </div>
@@ -122,7 +119,44 @@ export function renderHistory(listId = 'share-history-list') {
                 </div>
             </div>
         `;
-    }).join('');
+}
+
+/**
+ * Render the share history list into the dialog, split into two labeled
+ * sections: annotation shares and full-model shares. Empty sections are hidden.
+ */
+export function renderHistory(listId = 'share-history-list') {
+    const container = document.getElementById(listId);
+    if (!container) return;
+
+    const history = loadHistory();
+
+    if (history.length === 0) {
+        container.innerHTML = '<p class="share-history-empty">No previously generated links.</p>';
+        container.onclick = null;
+        return;
+    }
+
+    // Keep each entry's original index (needed for delete) while partitioning.
+    const annotationRows = [];
+    const modelRows = [];
+    history.forEach((entry, index) => {
+        const row = renderHistoryRow(entry, index);
+        if (entry.type === 'annotation') annotationRows.push(row);
+        else modelRows.push(row);
+    });
+
+    let html = '';
+    if (annotationRows.length > 0) {
+        html += '<div class="share-history-section-label">Annotation shares</div>';
+        html += annotationRows.join('');
+    }
+    if (modelRows.length > 0) {
+        html += '<div class="share-history-section-label">Model shares</div>';
+        html += modelRows.join('');
+    }
+
+    container.innerHTML = html;
 
     // Attach event listener via delegation (idempotent — assigning onclick
     // replaces any prior handler so repeated renders don't stack listeners).
@@ -399,6 +433,8 @@ export function generateLongTermLink() {
 
 // UUID of the annotation whose Share button opened the dialog.
 let _annotationShareUuid = null;
+// Name of that annotation, for the history entry title.
+let _annotationShareName = '';
 
 /**
  * Opens the per-annotation share dialog in its explanation state. Uploads
@@ -408,6 +444,7 @@ let _annotationShareUuid = null;
  */
 export function openAnnotationShareDialog(ann) {
     _annotationShareUuid = ann ? ann.uuid : null;
+    _annotationShareName = (ann && ann.name) ? ann.name : '';
 
     const overlay = document.getElementById('annotation-share-overlay');
     if (!overlay) return;
@@ -544,6 +581,7 @@ export async function generateAnnotationShareLink() {
         addToHistory({
             url,
             modelName: state.modelFileName || 'Unknown model',
+            annotationName: _annotationShareName || undefined,
             createdAt: new Date().toISOString(),
             expiresAt: uploadResult.expiresAt,
             type: 'annotation'
