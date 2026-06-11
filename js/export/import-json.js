@@ -1,6 +1,6 @@
 // js/export/import-json.js - W3C and legacy annotation import with merge support
 import { state } from '../state.js';
-import { generateUUID, showStatus } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, showStatus } from '../utils/helpers.js';
 import { convertFromW3CAnnotation, pointFromZUp, creatorToAuthor } from './w3c-format.js';
 import { updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { updateMetadataDisplay, initMetadata } from '../metadata/metadata-ui.js';
@@ -132,6 +132,9 @@ function importW3CAnnotations(data) {
                     // Imported version is newer - update content
                     existingEntry.description = importedEntry.description;
                     existingEntry.author = importedEntry.author;
+                    // The ORCID follows the author as a pair — keeping the old
+                    // identifier with a new name would misattribute it.
+                    existingEntry.authorOrcid = importedEntry.authorOrcid;
                     existingEntry.modified = importedEntry.modified;
                     existingEntry.links = importedEntry.links || [];
                     entriesUpdated++;
@@ -158,10 +161,10 @@ function importW3CAnnotations(data) {
             ? importedModelInfo.body
             : [importedModelInfo.body];
 
-        const importedEntries = bodies.map((body, idx) => {
+        const importedEntries = bodies.map((body) => {
             const { name: miAuthor, orcid: miAuthorOrcid } = creatorToAuthor(body.creator);
             const entry = {
-                id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                id: generateInternalId(),
                 uuid: body['meshnotes:entryUuid'] || generateUUID(),
                 description: body.value || '',
                 author: miAuthor,
@@ -230,7 +233,7 @@ function importW3CAnnotations(data) {
 
             if (!existing) {
                 // New group - create it
-                const newGroupId = Date.now() + Math.floor(Math.random() * 10000);
+                const newGroupId = generateInternalId();
                 const newGroup = {
                     id: newGroupId,
                     uuid: groupUuid || generateUUID(),
@@ -262,7 +265,7 @@ function importW3CAnnotations(data) {
             // If no group assigned, use default
             if (!importedAnn.groupId) {
                 if (state.groups.length === 0) {
-                    state.groups.push({ id: Date.now(), uuid: generateUUID(), name: 'Default', color: '#4CAF50', visible: true, opacity: 1.0 });
+                    state.groups.push({ id: generateInternalId(), uuid: generateUUID(), name: 'Default', color: '#4CAF50', visible: true, opacity: 1.0 });
                 }
                 importedAnn.groupId = state.groups[0].id;
             }
@@ -283,6 +286,14 @@ function importW3CAnnotations(data) {
                 const importedLatest = importedAnn.entries.length > 0
                     ? Math.max(...importedAnn.entries.map(e => new Date(entryTimestamp(e)).getTime() || 0))
                     : 0;
+
+                // Adopt the frozen annotation-level creator when the local
+                // annotation predates the field; an already-present creator
+                // is never overwritten (it is frozen at creation).
+                if (existingAnn.creator === undefined && importedAnn.creator !== undefined) {
+                    existingAnn.creator = importedAnn.creator;
+                    existingAnn.creatorOrcid = importedAnn.creatorOrcid;
+                }
 
                 // Merge name version histories
                 if (importedAnn.nameVersions && importedAnn.nameVersions.length > 0) {
@@ -341,7 +352,7 @@ function importLegacyAnnotations(data) {
         data.modelInfo.entries.forEach(entry => {
             state.modelInfo.entries.push({
                 ...entry,
-                id: Date.now() + Math.floor(Math.random() * 10000),
+                id: generateInternalId(),
                 uuid: entry.uuid || generateUUID()
             });
         });
@@ -358,7 +369,7 @@ function importLegacyAnnotations(data) {
     data.groups.forEach(importedGroup => {
         const existing = state.groups.find(g => g.name === importedGroup.name);
         if (!existing) {
-            const newGroupId = Date.now() + Math.floor(Math.random() * 10000);
+            const newGroupId = generateInternalId();
             const newGroup = {
                 ...importedGroup,
                 id: newGroupId,
@@ -383,12 +394,10 @@ function importLegacyAnnotations(data) {
     });
 
     // Add annotations with new IDs
-    let idOffset = 0;
     data.annotations.forEach(ann => {
-        idOffset++;
         const newAnn = {
             ...ann,
-            id: Date.now() + idOffset,
+            id: generateInternalId(),
             uuid: ann.uuid || generateUUID()
         };
         // Ensure entries have UUIDs

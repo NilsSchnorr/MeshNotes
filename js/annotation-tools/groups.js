@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
 import { getIcon } from '../ui/icons.js';
-import { generateUUID, escapeHtml, showStatus, toDisplayCoords } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, escapeHtml, showStatus, toDisplayCoords } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
 
 // Late-bound references
@@ -19,7 +19,7 @@ export function setGroupCallbacks({ openGroupPopup, openAnnotationPopupForEdit, 
 export function createDefaultGroup() {
     if (state.groups.length === 0) {
         state.groups.push({
-            id: Date.now(),
+            id: generateInternalId(),
             uuid: generateUUID(),
             name: 'Default',
             color: '#EDC040',
@@ -65,7 +65,7 @@ export function saveGroup() {
         state.editingGroup.opacity = opacity;
     } else {
         state.groups.push({
-            id: Date.now(),
+            id: generateInternalId(),
             uuid: generateUUID(),
             name,
             color,
@@ -307,7 +307,7 @@ export function createGroupInline() {
     const color = dom.inlineGroupColor.value;
 
     const newGroup = {
-        id: Date.now(),
+        id: generateInternalId(),
         uuid: generateUUID(),
         name,
         color,

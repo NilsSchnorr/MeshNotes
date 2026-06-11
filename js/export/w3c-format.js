@@ -1,7 +1,7 @@
 // js/export/w3c-format.js - W3C Web Annotation format conversion
 import * as THREE from 'three';
 import { state } from '../state.js';
-import { generateUUID, getModelMimeType } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, getModelMimeType } from '../utils/helpers.js';
 
 // URI of the published MeshNotes 3D Selector Specification that every selector
 // declares conformance to. See https://meshnotes.org/spec/selector/v1/
@@ -39,6 +39,19 @@ export function creatorToAuthor(creator) {
     const rawId = creator.id || creator['schema:identifier'] || '';
     const orcid = (typeof rawId === 'string' && rawId.includes('orcid.org')) ? rawId : undefined;
     return { name: creator.name || '', orcid };
+}
+
+// Derives the annotation-level creator for annotations created before the
+// frozen `creator` field existed: the author of the FIRST VERSION of the
+// FIRST entry (entries and version histories are kept chronologically
+// sorted), i.e. the person who originally created the annotation.
+function deriveAnnotationCreator(ann) {
+    if (!ann.entries || ann.entries.length === 0) return { name: '', orcid: undefined };
+    const first = ann.entries[0];
+    if (first.versions && first.versions.length > 0) {
+        return { name: first.versions[0].author || '', orcid: first.versions[0].authorOrcid };
+    }
+    return { name: first.author || '', orcid: first.authorOrcid };
 }
 
 // ============ WKT + quaternion helpers ============
@@ -336,13 +349,32 @@ function parseLegacySelector(selector, ann) {
  * @returns {Object} W3C Web Annotation JSON-LD object
  */
 export function convertToW3CAnnotation(ann, group) {
+    // Annotation-level creator: frozen at creation. Annotations from before
+    // the field existed (or imported from older files) fall back to the
+    // author of the first version of the first entry.
+    const creatorInfo = (ann.creator !== undefined)
+        ? { name: ann.creator, orcid: ann.creatorOrcid }
+        : deriveAnnotationCreator(ann);
+
+    // modified = the latest change to any constituent entry (a later entry's
+    // creation, or an edit to an existing entry); omitted when nothing
+    // changed after creation. Matches the definition in the format spec.
+    const created = ann.entries && ann.entries.length > 0 ? ann.entries[0].timestamp : new Date().toISOString();
+    let modified;
+    (ann.entries || []).forEach(entry => {
+        [entry.timestamp, entry.modified].forEach(t => {
+            if (t && t > created && (!modified || t > modified)) modified = t;
+        });
+    });
+
     // Convert internal annotation to W3C Web Annotation format
     const w3cAnn = {
         type: 'Annotation',
         id: `urn:meshnotes:annotation:${ann.uuid || generateUUID()}`,
         motivation: ann.type === 'surface' ? 'tagging' : 'describing',
-        created: ann.entries && ann.entries.length > 0 ? ann.entries[0].timestamp : new Date().toISOString(),
-        modified: ann.entries && ann.entries.length > 1 ? ann.entries[ann.entries.length - 1].timestamp : undefined,
+        creator: authorToCreator(creatorInfo.name, creatorInfo.orcid),
+        created: created,
+        modified: modified,
         'schema:name': ann.name || 'Unnamed',
         target: {
             type: 'SpecificResource',
@@ -409,6 +441,23 @@ export function convertToW3CAnnotation(ann, group) {
         });
     }
 
+    // Contributors (derived afresh at export, never stored): everyone who
+    // authored or edited an entry of this annotation, minus the annotation
+    // creator. Standard DC term so generic consumers can read it; because it
+    // is derived, it is deliberately not read back on import.
+    const contributors = new Map(); // name -> orcid (first known orcid wins)
+    (ann.entries || []).forEach(entry => {
+        const consider = (name, orcid) => {
+            if (!name || name === creatorInfo.name) return;
+            if (!contributors.has(name) || (orcid && !contributors.get(name))) contributors.set(name, orcid);
+        };
+        consider(entry.author, entry.authorOrcid);
+        (entry.versions || []).forEach(v => consider(v.author, v.authorOrcid));
+    });
+    if (contributors.size > 0) {
+        w3cAnn['dcterms:contributor'] = Array.from(contributors, ([name, orcid]) => authorToCreator(name, orcid));
+    }
+
     // Group reference for round-trip. The UUID is the durable, portable key;
     // the legacy numeric meshnotes:groupId and the ephemeral meshnotes:internalId
     // are no longer emitted (import resolves groups by UUID, with the numeric id
@@ -446,7 +495,7 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
         importedUuid = w3cAnn.id.replace('urn:meshnotes:annotation:', '');
     }
     const ann = {
-        id: Date.now() + Math.floor(Math.random() * 10000),
+        id: generateInternalId(),
         uuid: importedUuid || generateUUID(),
         type: w3cAnn['annotationType'] || w3cAnn['meshnotes:annotationType'] || 'point',
         name: w3cAnn['schema:name'] || 'Unnamed',
@@ -454,6 +503,15 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
         points: [],
         entries: []
     };
+
+    // Frozen annotation-level creator (absent in files from before the field
+    // existed — the next export then derives it from the first version of
+    // the first entry, which those files still carry).
+    if (w3cAnn.creator) {
+        const { name: annCreatorName, orcid: annCreatorOrcid } = creatorToAuthor(w3cAnn.creator);
+        ann.creator = annCreatorName;
+        ann.creatorOrcid = annCreatorOrcid;
+    }
 
     // Map group - try UUID first, then internal ID
     const origGroupUuid = w3cAnn['meshnotes:groupUuid'];
@@ -477,10 +535,10 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
     // Convert body to entries
     if (w3cAnn.body) {
         const bodies = Array.isArray(w3cAnn.body) ? w3cAnn.body : [w3cAnn.body];
-        ann.entries = bodies.map((body, idx) => {
+        ann.entries = bodies.map((body) => {
             const { name: entryAuthor, orcid: entryAuthorOrcid } = creatorToAuthor(body.creator);
             const entry = {
-                id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                id: generateInternalId(),
                 uuid: body['meshnotes:entryUuid'] || generateUUID(),
                 description: body.value || '',
                 author: entryAuthor,

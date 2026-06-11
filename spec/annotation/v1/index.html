@@ -45,7 +45,7 @@
     <dt>Selector specification</dt><dd><a href="https://meshnotes.org/spec/selector/v1/">https://meshnotes.org/spec/selector/v1/</a></dd>
     <dt>Term namespace</dt><dd><code>https://meshnotes.org/ns/</code> (prefix <code>meshnotes:</code>)</dd>
     <dt>Editor</dt><dd>Nils Schnorr (<a href="https://orcid.org/0009-0003-7750-2818">0009-0003-7750-2818</a>), Department of Classical Archaeology, Saarland University</dd>
-    <dt>Date</dt><dd>2026-06-08</dd>
+    <dt>Date</dt><dd>2026-06-11</dd>
     <dt>License</dt><dd>CC BY 4.0</dd>
   </dl>
 </div>
@@ -171,7 +171,9 @@ Each entry in <code>first.items</code> is a standard W3C <code>Annotation</code>
   <tr><td><code>motivation</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"tagging"</code> for surface regions, otherwise <code>"describing"</code>.</td></tr>
   <tr><td><code>schema:name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Annotation name.</td></tr>
   <tr><td><code>created</code></td><td><span class="rfc">should</span></td><td>xsd:dateTime</td><td>Creation timestamp.</td></tr>
-  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>Last-modified timestamp, when the annotation has more than one entry.</td></tr>
+  <tr><td><code>creator</code></td><td><span class="opt">may</span></td><td>object</td><td>The annotation's author (same shape as §6.1), <strong>frozen at creation</strong>: the author of the first version of the first entry. Later edits to entries never change it. Absent in files produced before this member existed; a consumer <span class="rfc">may</span> reconstruct it from the first version of the first entry.</td></tr>
+  <tr><td><code>dcterms:contributor</code></td><td><span class="opt">may</span></td><td>array</td><td>Everyone who authored or edited an entry of this annotation, excluding the <code>creator</code>; each element has the §6.1 shape. Derived afresh from the entries and their version histories on each export — a convenience view, not an authoritative store.</td></tr>
+  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>The latest change to any constituent entry — a later entry's creation, or an edit to an existing entry. Omitted when nothing changed after creation.</td></tr>
   <tr><td><code>body</code></td><td><span class="opt">may</span></td><td>array</td><td>Zero or more <code>TextualBody</code> entries; see §6.</td></tr>
   <tr><td><code>annotationType</code></td><td><span class="rfc">should</span></td><td>string</td><td>One of <code>point</code>, <code>line</code>, <code>polygon</code>, <code>surface</code>, <code>box</code>. Redundant with, but more convenient than, inspecting the selector type.</td></tr>
   <tr><td><code>meshnotes:groupUuid</code></td><td><span class="opt">may</span></td><td>string</td><td>UUID of the group this annotation belongs to (see §7). This is the durable group reference.</td></tr>
@@ -247,6 +249,7 @@ Each observation on an annotation is one <code>oa:TextualBody</code> in the <cod
   "name": "Nils Schnorr"
 }</code></pre>
 <p class="note">Because <code>id</code> maps to <code>@id</code> in the W3C Web Annotation context, the ORCID URI is a first-class node identifier for the author — the conventional, interoperable way to attach an ORCID to a Web Annotation creator, and a clean attachment point for a CIDOC CRM <code>E21 Person</code> mapping.</p>
+<p class="note">When an entry is edited by a different person, the body's <code>creator</code> reflects the entry's <em>current</em> author and <code>modified</code> the time of the edit; every prior state, with its own author, is preserved in <code>meshnotes:versions</code> (§6.2), and the annotation-level <code>creator</code> (§5) stays frozen on the annotation's original author. The W3C model is silent on re-edited embedded bodies; this is the documented MeshNotes interpretation. In a CIDOC CRM mapping, the annotation-level creator corresponds to the <code>E21 Person</code> who carried out (<code>P14</code>) the <code>E65 Creation</code> of the annotation; each entry edit is a separate, later event.</p>
 
 <h3>6.2 meshnotes:versions</h3>
 <p>

@@ -152,6 +152,20 @@ export function generateUUID() {
     });
 }
 
+/**
+ * Returns a session-unique numeric id for internal handles (annotations,
+ * groups, entries). Monotonic counter seeded from the clock, so ids stay
+ * unique even inside tight import loops — the previous Date.now()+random
+ * pattern collided at realistic import sizes (and deleteAnnotation filters
+ * by id, so a collision deletes both annotations). Internal ids are
+ * session-local handles only; durable identity across export/import/share
+ * is the uuid (see generateUUID).
+ */
+let _nextInternalId = Date.now();
+export function generateInternalId() {
+    return _nextInternalId++;
+}
+
 export function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {

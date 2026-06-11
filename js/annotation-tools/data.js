@@ -1,7 +1,7 @@
 // js/annotation-tools/data.js
 import { state, dom } from '../state.js';
 import { getViewportWidth, getViewportHeight } from '../core/scene.js';
-import { generateUUID, escapeHtml, safeUrl, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, escapeHtml, safeUrl, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
 import { computeProjectedEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList, updateGroupSelect } from './groups.js';
@@ -323,6 +323,9 @@ function saveModelInfoEntryEdit(entryId, card) {
     // Create version snapshot before applying changes
     const hasChanges = createEntryVersion(entry, description, author, currentLinks);
 
+    // A changed author name invalidates the stored ORCID — it belonged to the
+    // previous author. The local user's ORCID is re-resolved by name at export.
+    if ((entry.author || '') !== author) entry.authorOrcid = undefined;
     entry.description = description;
     entry.author = author;
     entry.modified = new Date().toISOString();
@@ -555,10 +558,13 @@ function createEntryVersion(entry, newDescription, newAuthor, newLinks) {
         entry.versions = [];
     }
     
-    // Save current state as a version
+    // Save current state as a version. authorOrcid is included so the
+    // original author's identifier survives edits — the annotation-level
+    // creator backfill reads the first version of the first entry.
     entry.versions.push({
         description: oldDesc,
         author: oldAuthor,
+        authorOrcid: entry.authorOrcid,
         links: [...oldLinks],
         savedAt: new Date().toISOString()
     });
@@ -696,6 +702,9 @@ function saveEntryEdit(entryId, card) {
     // Create version snapshot before applying changes
     const hasChanges = createEntryVersion(entry, description, author, currentLinks);
 
+    // A changed author name invalidates the stored ORCID — it belonged to the
+    // previous author. The local user's ORCID is re-resolved by name at export.
+    if ((entry.author || '') !== author) entry.authorOrcid = undefined;
     entry.description = description;
     entry.author = author;
     entry.modified = new Date().toISOString();
@@ -844,7 +853,7 @@ export function saveAnnotation() {
             if (description || author) {
                 saveLastAuthor(author);
                 state.modelInfo.entries.push({
-                    id: Date.now(),
+                    id: generateInternalId(),
                     uuid: generateUUID(),
                     description,
                     author,
@@ -898,7 +907,7 @@ export function saveAnnotation() {
 
             if (!state.editingAnnotation.entries) state.editingAnnotation.entries = [];
             state.editingAnnotation.entries.push({
-                id: Date.now(),
+                id: generateInternalId(),
                 uuid: generateUUID(),
                 description,
                 author,
@@ -912,14 +921,18 @@ export function saveAnnotation() {
         saveLastAuthor(author);
 
         const newAnnotation = {
-            id: Date.now(),
+            id: generateInternalId(),
             uuid: generateUUID(),
             type,
             name,
+            // Annotation-level creator, frozen at creation: the author entered
+            // on the first entry. Later entry edits never change this; the
+            // ORCID is resolved at export time (authorToCreator).
+            creator: author,
             groupId,
             points,
             entries: [{
-                id: Date.now() + 1,
+                id: generateInternalId(),
                 uuid: generateUUID(),
                 description,
                 author,

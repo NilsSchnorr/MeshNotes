@@ -74,6 +74,8 @@
         "schema:name": { "type": "string" },
         "created": { "type": "string" },
         "modified": { "type": "string" },
+        "creator": { "$ref": "#/$defs/creator" },
+        "dcterms:contributor": { "type": "array", "items": { "$ref": "#/$defs/creator" } },
         "annotationType": { "enum": ["point", "line", "polygon", "surface", "box"] },
         "meshnotes:groupUuid": { "type": "string" },
         "surfaceProjection": { "type": "boolean" },
