@@ -208,8 +208,6 @@ export function renderAnnotations() {
         _renderMeasurements();
     }
 
-    updateAnnotationsPanel();
-
     // Update label visibility based on occlusion after all labels are created
     forceOcclusionUpdate();
 }
@@ -309,7 +307,9 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
         depthWrite: false
     });
 
-    const boxMesh = new THREE.Mesh(boxGeometry.clone(), fillMaterial);
+    // boxMesh takes ownership of boxGeometry (no clone — a leaked template
+    // per render otherwise); EdgesGeometry below copies data, keeps no ref.
+    const boxMesh = new THREE.Mesh(boxGeometry, fillMaterial);
     boxMesh.position.set(dc.x, dc.y, dc.z);
     // Display orientation = stored rotation, rigidly carried by the flip when active.
     const displayQuat = boxDisplayQuaternion(rotation);
@@ -376,8 +376,4 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
     });
 
     return objects;
-}
-
-export function updateAnnotationsPanel() {
-    // Panel content is now integrated into groups list
 }

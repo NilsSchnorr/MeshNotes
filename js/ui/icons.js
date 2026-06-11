@@ -58,7 +58,6 @@ const iconCache = {};
  * Works for both root deployment and subdirectory (e.g. GitHub Pages /MeshNotes/).
  */
 function getIconBasePath() {
-    const scriptEl = document.querySelector('script[type="importmap"]');
     // Default: icons are in icons/ relative to the page
     return 'icons/';
 }

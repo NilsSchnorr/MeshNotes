@@ -1,5 +1,6 @@
 // js/annotation-tools/data.js
 import { state, dom } from '../state.js';
+import { getViewportWidth, getViewportHeight } from '../core/scene.js';
 import { generateUUID, escapeHtml, safeUrl, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
 import { computeProjectedEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
@@ -14,7 +15,7 @@ export function positionPopup(popup, x, y) {
 
     requestAnimationFrame(() => {
         const rect = popup.getBoundingClientRect();
-        if (rect.right > window.innerWidth - 320) {
+        if (rect.right > getViewportWidth()) {
             popup.style.left = `${x - rect.width - 10}px`;
         }
         if (rect.bottom > window.innerHeight) {
@@ -31,8 +32,8 @@ export function positionPopup(popup, x, y) {
 }
 
 function resetPopupPosition() {
-    const viewportWidth = window.innerWidth - 320;
-    const viewportHeight = window.innerHeight - 50;
+    const viewportWidth = getViewportWidth();
+    const viewportHeight = getViewportHeight();
     dom.annotationPopup.style.left = Math.max(20, (viewportWidth - 400) / 2) + 'px';
     dom.annotationPopup.style.top = Math.max(20, (viewportHeight - 400) / 2) + 'px';
     dom.annotationPopup.style.right = 'auto';
@@ -987,7 +988,9 @@ export function getNiceScaleValue(value) {
 export function calculateScalebarParams() {
     if (!state.isOrthographic || !state.currentModel) return null;
 
-    const viewportWidth = window.innerWidth - 320;
+    // Must match the renderer's canvas width (getViewportWidth) — the
+    // pixels-per-unit conversion drives the scalebar label.
+    const viewportWidth = getViewportWidth();
 
     const baseFrustumWidth = state.orthographicCamera.right - state.orthographicCamera.left;
     const effectiveFrustumWidth = baseFrustumWidth / state.orthographicCamera.zoom;

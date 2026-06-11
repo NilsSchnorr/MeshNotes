@@ -5,7 +5,7 @@
 //   2. Direct URLs:      ?model=URL&annotations=URL [&annotation=uuid]
 //   3. No params:        Normal editor with local file loading
 //
-// Both index.html (editor) and viewer.html (future) import this module.
+// Imported by main.js (index.html, the editor).
 
 const SHARE_API_BASE = '/api/share';
 
