@@ -1,7 +1,8 @@
 // js/export/pdf-report.js - Multi-page PDF report generation
 import * as THREE from 'three';
 import { state, dom, APP_VERSION } from '../state.js';
-import { showStatus, hexToRgb, delay, toDisplayCoords } from '../utils/helpers.js';
+import { showStatus, hexToRgb, delay, toDisplayCoords, safeUrl } from '../utils/helpers.js';
+import { pointToZUp } from './w3c-format.js';
 import { toggleCamera } from '../core/camera.js';
 import { updateFixedLightDirection, getDpiMultiplier } from '../core/lighting.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
@@ -196,7 +197,14 @@ function pdfRenderEntries(pdf, entries, yPos, layout) {
                     yPos = margin;
                 }
                 const displayLink = link.length > 60 ? link.substring(0, 57) + '...' : link;
-                pdf.textWithLink('\u{1F517} ' + displayLink, margin, yPos, { url: link });
+                // Same link policy as the UI (safeUrl): http(s) passes, DOIs
+                // become doi.org resolver links, anything else is plain text.
+                const url = safeUrl(link);
+                if (url) {
+                    pdf.textWithLink('\u{1F517} ' + displayLink, margin, yPos, { url });
+                } else {
+                    pdf.text('\u{1F517} ' + displayLink, margin, yPos);
+                }
                 yPos += 4;
             });
         }
@@ -422,16 +430,39 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
 }
 
 /**
- * Renders the table of contents page.
+ * Computes how many pages the TOC will occupy. Must mirror pdfRenderTOC's
+ * pagination exactly: start y=35, page break above pageHeight-20,
+ * continuation pages restart at y=20; group rows 7mm, annotation rows 6mm.
+ */
+function computeTocPageCount(tocData, layout) {
+    const { pageHeight } = layout;
+    let pages = 1;
+    let yPos = 35;
+    tocData.forEach(item => {
+        if (yPos > pageHeight - 20) {
+            pages++;
+            yPos = 20;
+        }
+        yPos += item.type === 'group' ? 7 : 6;
+    });
+    return pages;
+}
+
+/**
+ * Fills the previously reserved TOC page(s) with entries and their actual
+ * page numbers (recorded while rendering the annotation pages). Writes via
+ * setPage into the reserved pages instead of appending.
  * @param {jsPDF} pdf - The jsPDF instance
  * @param {Array} tocData - Array of {type, name, page} entries
  * @param {Object} layout - Page layout constants
+ * @param {number} firstPageIndex - 1-based index of the first reserved TOC page
  */
-function pdfRenderTOC(pdf, tocData, layout) {
+function pdfRenderTOC(pdf, tocData, layout, firstPageIndex) {
     const { margin, pageWidth, pageHeight } = layout;
     const accent = getAccentColor();
 
-    pdf.addPage();
+    let pageOffset = 0;
+    pdf.setPage(firstPageIndex);
     pdf.setFontSize(18);
     pdf.setTextColor(accent.r, accent.g, accent.b);
     pdf.text('Table of Contents', margin, 20);
@@ -441,7 +472,8 @@ function pdfRenderTOC(pdf, tocData, layout) {
 
     tocData.forEach(item => {
         if (yPos > pageHeight - 20) {
-            pdf.addPage();
+            pageOffset++;
+            pdf.setPage(firstPageIndex + pageOffset);
             yPos = 20;
         }
 
@@ -461,6 +493,9 @@ function pdfRenderTOC(pdf, tocData, layout) {
             yPos += 6;
         }
     });
+
+    // Resume appending at the end of the document
+    pdf.setPage(pdf.getNumberOfPages());
 }
 
 /**
@@ -602,7 +637,7 @@ async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layou
 
     pdf.setFontSize(9);
     pdf.setTextColor(150, 150, 150);
-    const typeLabels = { point: 'Point', line: 'Line', polygon: 'Polygon', surface: 'Surface' };
+    const typeLabels = { point: 'Point', line: 'Line', polygon: 'Polygon', surface: 'Surface', box: 'Box' };
     pdf.text(typeLabels[ann.type] || ann.type, margin, contentStartY + 6);
 
     // Screenshot
@@ -611,13 +646,15 @@ async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layou
     const screenshotY = contentStartY + 10;
     pdf.addImage(screenshot, 'JPEG', margin, screenshotY, contentWidth, screenshotHeight);
 
-    // Coordinates
+    // Coordinates — printed in the Z-up frame to match the JSON-LD export
+    // (pointToZUp converts from internal Three.js Y-up storage).
     pdf.setFontSize(7);
     pdf.setTextColor(150, 150, 150);
-    const coordStrings = ann.points.map((p, i) =>
-        `P${i + 1}: (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`
-    );
-    const coordLine = coordStrings.join('  \u2022  ');
+    const coordStrings = ann.points.map((p, i) => {
+        const z = pointToZUp(p);
+        return `P${i + 1}: (${z.x.toFixed(2)}, ${z.y.toFixed(2)}, ${z.z.toFixed(2)})`;
+    });
+    const coordLine = 'Coordinates (Z-up): ' + coordStrings.join('  \u2022  ');
     const coordLines = pdf.splitTextToSize(coordLine, contentWidth);
     pdf.text(coordLines, margin, screenshotY + screenshotHeight + 4);
     const coordHeight = coordLines.length * 3;
@@ -805,20 +842,21 @@ async function doExportPdfReport(includeScalebar) {
         return group && group.visible;
     });
 
-    // Build table of contents data
+    // Build the TOC skeleton. Page numbers are recorded during rendering,
+    // because the title page and individual annotation sections can span a
+    // variable number of pages — the previous hardcoded numbering (start at
+    // 4, +1 per annotation) drifted on long reports.
     const tocData = [];
-    let pageNum = 4; // After title, axis views, and TOC pages
+    const tocIndexByAnn = new Map();
+    const tocIndexByGroup = new Map();
     visibleGroups.forEach(group => {
         const groupAnns = visibleAnnotations.filter(a => a.groupId === group.id);
         if (groupAnns.length > 0) {
-            tocData.push({ type: 'group', name: group.name, page: pageNum });
-            groupAnns.forEach((ann, idx) => {
-                if (idx === 0) {
-                    tocData.push({ type: 'annotation', name: ann.name, page: pageNum });
-                } else {
-                    tocData.push({ type: 'annotation', name: ann.name, page: pageNum });
-                }
-                pageNum++;
+            tocIndexByGroup.set(group.id, tocData.length);
+            tocData.push({ type: 'group', name: group.name, page: 0 });
+            groupAnns.forEach(ann => {
+                tocIndexByAnn.set(ann.id, tocData.length);
+                tocData.push({ type: 'annotation', name: ann.name, page: 0 });
             });
         }
     });
@@ -829,17 +867,29 @@ async function doExportPdfReport(includeScalebar) {
     await pdfRenderAxisViews(pdf, layout, includeScalebar);
     pdfRestoreCamera(savedCamera);
 
-    pdfRenderTOC(pdf, tocData, layout);
+    // Reserve the TOC page(s) now; fill them in once annotation pages exist
+    const tocPageCount = computeTocPageCount(tocData, layout);
+    const tocFirstPage = pdf.getNumberOfPages() + 1;
+    for (let i = 0; i < tocPageCount; i++) pdf.addPage();
 
-    // Render annotation pages
+    // Render annotation pages, recording each one's actual page number
     for (const group of visibleGroups) {
         const groupAnns = visibleAnnotations.filter(a => a.groupId === group.id);
         if (groupAnns.length === 0) continue;
 
         for (let annIdx = 0; annIdx < groupAnns.length; annIdx++) {
-            await pdfRenderAnnotationPage(pdf, groupAnns[annIdx], group, groupAnns, annIdx, layout, includeScalebar);
+            const ann = groupAnns[annIdx];
+            const pageOfAnn = pdf.getNumberOfPages() + 1; // pdfRenderAnnotationPage begins with addPage()
+            tocData[tocIndexByAnn.get(ann.id)].page = pageOfAnn;
+            if (annIdx === 0) {
+                tocData[tocIndexByGroup.get(group.id)].page = pageOfAnn;
+            }
+            await pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layout, includeScalebar);
         }
     }
+
+    // Fill the reserved TOC with the recorded page numbers
+    pdfRenderTOC(pdf, tocData, layout, tocFirstPage);
 
     // Render metadata pages at end (only filled fields)
     pdfRenderMetadataPages(pdf, layout);
