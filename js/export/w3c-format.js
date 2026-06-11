@@ -226,7 +226,10 @@ export function parseSelector(selector, ann) {
         const q = Array.isArray(selector['meshnotes:rotation']) ? selector['meshnotes:rotation'] : [0, 0, 0, 1];
         // Inverse of export: q_three = r^-1 * q_zup, then back to Euler (XYZ).
         // New selectors are always Z-up, so the basis inverse always applies here.
-        const qZ = new THREE.Quaternion(q[0] || 0, q[1] || 0, q[2] || 0, q[3] !== undefined ? q[3] : 1);
+        // normalize() guards against off-unit quaternions: our own 8-decimal
+        // serialization is ~1e-8 off, and third-party files may be sloppier
+        // (THREE treats a zero-length quaternion as identity).
+        const qZ = new THREE.Quaternion(q[0] || 0, q[1] || 0, q[2] || 0, q[3] !== undefined ? q[3] : 1).normalize();
         const qThree = basisYupToZup().invert().multiply(qZ);
         const e = new THREE.Euler().setFromQuaternion(qThree, 'XYZ');
         // Center stays Z-up here; import-json.js converts it to Y-up with the points.
