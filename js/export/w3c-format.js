@@ -41,6 +41,14 @@ export function creatorToAuthor(creator) {
     return { name: creator.name || '', orcid };
 }
 
+// Normalizes a schema:url value to an array of strings. Third-party files
+// may carry a single string where MeshNotes writes an array; passing the
+// bare string onward would break the links UI (strings have no .map).
+export function normalizeLinks(value) {
+    if (Array.isArray(value)) return value;
+    return value ? [value] : [];
+}
+
 // Derives the annotation-level creator for annotations created before the
 // frozen `creator` field existed: the author of the FIRST VERSION of the
 // FIRST entry (entries and version histories are kept chronologically
@@ -379,7 +387,7 @@ export function convertToW3CAnnotation(ann, group) {
         target: {
             type: 'SpecificResource',
             source: {
-                id: `urn:meshnotes:model:${state.modelFileName || 'unknown'}`,
+                id: `urn:meshnotes:model:${encodeURIComponent(state.modelFileName || 'unknown')}`,  // percent-encoded: must stay a valid IRI (matches modelSource.id)
                 type: 'Dataset',
                 format: getModelMimeType()
             },
@@ -544,7 +552,7 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
                 timestamp: body.created || w3cAnn.created || new Date().toISOString(),
                 modified: body.modified || undefined,
                 language: body.language || undefined,
-                links: body['schema:url'] || []
+                links: normalizeLinks(body['schema:url'])
             };
             
             // Restore version history if present
@@ -553,7 +561,7 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
                     description: v.value || '',
                     author: creatorToAuthor(v.creator).name,
                     authorOrcid: creatorToAuthor(v.creator).orcid,
-                    links: v['schema:url'] || [],
+                    links: normalizeLinks(v['schema:url']),
                     savedAt: v['meshnotes:savedAt']
                 }));
             }

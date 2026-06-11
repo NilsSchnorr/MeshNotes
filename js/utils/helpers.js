@@ -246,6 +246,8 @@ export function getModelMimeType() {
     if (!state.modelFileName) return 'model/gltf-binary';
     const ext = state.modelFileName.toLowerCase().split('.').pop();
     if (ext === 'obj') return 'model/obj';
-    if (ext === 'ply') return 'model/ply';
+    if (ext === 'ply') return 'model/ply';          // common usage; PLY has no IANA registration
+    if (ext === 'stl') return 'model/stl';
+    if (ext === 'gltf') return 'model/gltf+json';   // JSON form; .glb (binary) is the default below
     return 'model/gltf-binary';
 }

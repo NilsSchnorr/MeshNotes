@@ -1,9 +1,9 @@
 // js/export/import-json.js - W3C and legacy annotation import with merge support
 import { state } from '../state.js';
 import { generateUUID, generateInternalId, showStatus } from '../utils/helpers.js';
-import { convertFromW3CAnnotation, pointFromZUp, creatorToAuthor } from './w3c-format.js';
+import { convertFromW3CAnnotation, pointFromZUp, creatorToAuthor, normalizeLinks } from './w3c-format.js';
 import { updateModelInfoDisplay } from '../annotation-tools/data.js';
-import { updateMetadataDisplay, initMetadata } from '../metadata/metadata-ui.js';
+import { updateMetadataDisplay } from '../metadata/metadata-ui.js';
 import { normalizeMetadata } from '../metadata/templates.js';
 import { updateGroupsList } from '../annotation-tools/groups.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
@@ -55,10 +55,19 @@ function importW3CAnnotations(data) {
 
     // Detect coordinate system of imported file
     // Files with upAxis 'Z' (or 'z') contain Z-up coordinates that need
-    // transformation to Three.js Y-up space. Legacy files (upAxis 'Y',
-    // 'y', or missing) are already in Y-up space and need no transform.
+    // transformation to Three.js Y-up space.
     const importedUpAxis = ((data.modelSource && data.modelSource.upAxis) || data['upAxis'] || data['meshnotes:upAxis'] || '').toString().toUpperCase();
-    const needsTransform = (importedUpAxis === 'Z');
+    // upAxis is only a SHOULD-level member, but v1 selector coordinates are
+    // normatively Z-up ([SEL] §3) — so when it is absent, a declared v1
+    // conformance or the presence of modern meshnotes:* selectors implies
+    // Z-up. Only files explicitly marked otherwise, or true legacy files
+    // with neither marker, are treated as already Y-up.
+    const conformsToV1 = (data['dcterms:conformsTo'] || '').toString().includes('meshnotes.org/spec/annotation/v1');
+    const hasV1Selectors = !!(data.first && Array.isArray(data.first.items) && data.first.items.some(a => {
+        const sel = a && a.target && a.target.selector;
+        return sel && typeof sel.type === 'string' && sel.type.indexOf('meshnotes:') === 0;
+    }));
+    const needsTransform = (importedUpAxis === 'Z') || (importedUpAxis === '' && (conformsToV1 || hasV1Selectors));
 
     // Helper: transform all coordinates in an annotation from Z-up to Three.js Y-up
     function transformAnnotationCoords(ann) {
@@ -174,7 +183,7 @@ function importW3CAnnotations(data) {
                 timestamp: body.created || new Date().toISOString(),
                 modified: body.modified || undefined,
                 language: body.language || undefined,
-                links: body['schema:url'] || []
+                links: normalizeLinks(body['schema:url'])
             };
             
             // Include version history if present
@@ -183,7 +192,7 @@ function importW3CAnnotations(data) {
                     description: v.value || '',
                     author: creatorToAuthor(v.creator).name,
                     authorOrcid: creatorToAuthor(v.creator).orcid,
-                    links: v['schema:url'] || [],
+                    links: normalizeLinks(v['schema:url']),
                     savedAt: v['meshnotes:savedAt']
                 }));
             }

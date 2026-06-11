@@ -110,7 +110,7 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
   <tr><td><code>modelInfo</code></td><td><span class="opt">may</span></td><td>object</td><td>Free-text notes about the whole model; see §8.</td></tr>
   <tr><td><code>metadata</code></td><td><span class="opt">may</span></td><td>object</td><td>Structured meta- and paradata report; see §8.</td></tr>
   <tr><td><code>total</code></td><td><span class="rfc">must</span></td><td>integer</td><td>Number of annotations in the collection.</td></tr>
-  <tr><td><code>first</code></td><td><span class="rfc">must</span></td><td>object</td><td>An <code>AnnotationPage</code>: <code>{ "type": "AnnotationPage", "items": [ Annotation, ... ] }</code>.</td></tr>
+  <tr><td><code>first</code></td><td><span class="rfc">must</span>*</td><td>object</td><td>An <code>AnnotationPage</code>: <code>{ "id", "type": "AnnotationPage", "items": [ Annotation, ... ] }</code>, with <code>id</code> derived from the collection id (<code>{collection-id}/page/1</code>). *Required when <code>total</code> ≥ 1; <span class="rfc">must</span> be omitted when the collection is empty, because a W3C <code>AnnotationPage</code> requires at least one item. (Erratum 2026-06-11: earlier wording required <code>first</code> unconditionally, which forced WADM-invalid output for empty, e.g. metadata-only, collections; files produced under the old rule carry <code>first</code> with empty <code>items</code> and no page <code>id</code>, and consumers <span class="rfc">should</span> tolerate them.)</td></tr>
 </table>
 
 <pre><code>{
@@ -131,7 +131,8 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
   "modelInfo": { … },
   "metadata": { … },
   "total": 12,
-  "first": { "type": "AnnotationPage", "items": [ … ] }
+  "first": { "id": "urn:meshnotes:collection:7b1f…/page/1",
+             "type": "AnnotationPage", "items": [ … ] }
 }</code></pre>
 
 <h2>4. The model description (modelSource)</h2>
@@ -140,7 +141,7 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
 </p>
 <table>
   <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
-  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>IRI</td><td><code>urn:meshnotes:model:{filename}</code>. The same value appears in each <code>target.source.id</code>.</td></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>IRI</td><td><code>urn:meshnotes:model:{filename}</code>, with the filename percent-encoded (RFC 3986) so the URN remains a valid IRI for names containing spaces or non-ASCII characters; <code>schema:name</code> carries the raw filename. The same value appears in each <code>target.source.id</code>.</td></tr>
   <tr><td><code>type</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"Dataset"</code> (schema.org).</td></tr>
   <tr><td><code>schema:name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Model file name.</td></tr>
   <tr><td><code>format</code></td><td><span class="rfc">should</span></td><td>string</td><td>Media type of the model (e.g. <code>model/gltf-binary</code>).</td></tr>

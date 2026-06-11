@@ -51,7 +51,9 @@ export function buildAnnotationJSON(options = {}) {
         // Target model — canonical description of the annotated model.
         // Coordinate frame, unit, and integrity hash live here.
         'modelSource': {
-            id: `urn:meshnotes:model:${state.modelFileName || 'unknown'}`,
+            // Filename percent-encoded so the URN remains a valid IRI even with
+            // spaces or umlauts (RFC 8141 NSS); schema:name keeps the raw name.
+            id: `urn:meshnotes:model:${encodeURIComponent(state.modelFileName || 'unknown')}`,
             type: 'Dataset',
             'schema:name': state.modelFileName,
             format: getModelMimeType(),
@@ -120,10 +122,14 @@ export function buildAnnotationJSON(options = {}) {
 
         // Annotations
         total: w3cAnnotations.length,
-        first: {
+        // WADM requires every AnnotationPage to carry an id and at least one
+        // item, so the embedded page gets a collection-derived id and is
+        // omitted entirely for empty (e.g. metadata-only) collections.
+        first: w3cAnnotations.length > 0 ? {
+            id: `${collectionId}/page/1`,
             type: 'AnnotationPage',
             items: w3cAnnotations
-        }
+        } : undefined
     };
 
     // Serialize, stripping undefined values

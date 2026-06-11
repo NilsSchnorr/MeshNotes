@@ -44,7 +44,7 @@
     <dt>Annotation specification</dt><dd><a href="https://meshnotes.org/spec/annotation/v1/">https://meshnotes.org/spec/annotation/v1/</a></dd>
     <dt>Term namespace</dt><dd><code>https://meshnotes.org/ns/</code> (prefix <code>meshnotes:</code>)</dd>
     <dt>Editor</dt><dd>Nils Schnorr (<a href="https://orcid.org/0009-0003-7750-2818">0009-0003-7750-2818</a>), Department of Classical Archaeology, Saarland University</dd>
-    <dt>Date</dt><dd>2026-06-08</dd>
+    <dt>Date</dt><dd>2026-06-11</dd>
     <dt>License</dt><dd>CC BY 4.0</dd>
   </dl>
 </div>
@@ -158,7 +158,7 @@ A 3D model may document a movable artefact, a fixed architectural feature, a who
   <tr><td><code>mixed</code> <span class="opt">(default)</span></td><td>E24 Physical Human-Made Thing</td><td>Mixed or unspecified subjects; the safe umbrella that is never mis-asserted.</td></tr>
 </table>
 <p class="note">
-Because the §6 field properties are defined on common CRM ancestors (E18 Physical Thing, E24 Physical Human-Made Thing), they apply unchanged whether the root is an E22 artefact, an E25 feature or an E27 site. Only the root class differs. One consequence: for an <code>E27 Site</code> the <code>find_spot</code> field (§6, P53) is conceptually redundant, since the site <em>is</em> its place; a CRM exporter <span class="rfc">may</span> omit the P53 assertion in that case rather than create a place distinct from the site.
+Because the §6 field properties are defined on common CRM ancestors (E18 Physical Thing, E24 Physical Human-Made Thing), they apply unchanged whether the root is an E22 artefact, an E25 feature or an E27 site. Only the root class differs. One consequence: for an <code>E27 Site</code> the <code>find_spot</code> field (§6, P53) is conceptually redundant, since the site <em>is</em> its place; a CRM exporter <span class="rfc">may</span> omit the P53 assertion in that case rather than create a place distinct from the site. A second consequence: <code>current_location</code> (§6, P55) is the one exception to the common-ancestor rule — P55's domain is <code>E19 Physical Object</code>, so it applies only to movable objects; for feature, building, site and landscape subjects a CRM exporter <span class="rfc">should</span> express location through P53 (or <code>P156 occupies</code>) instead of P55.
 </p>
 
 <h2>6. CIDOC CRM crosswalk</h2>

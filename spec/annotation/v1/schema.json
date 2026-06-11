@@ -4,7 +4,14 @@
   "title": "MeshNotes Annotation Format v1.0",
   "description": "Schema for a MeshNotes W3C Web Annotation Collection (https://meshnotes.org/spec/annotation/v1/). Forward-compatible: required core members are validated, known members are shape-checked, and additional properties are permitted throughout.",
   "type": "object",
-  "required": ["@context", "type", "id", "dcterms:conformsTo", "total", "first"],
+  "required": ["@context", "type", "id", "dcterms:conformsTo", "total"],
+  "allOf": [
+    {
+      "$comment": "A W3C AnnotationPage must contain at least one item, so 'first' is required exactly when the collection is non-empty (spec erratum 2026-06-11).",
+      "if": { "properties": { "total": { "minimum": 1 } }, "required": ["total"] },
+      "then": { "required": ["first"] }
+    }
+  ],
   "additionalProperties": true,
   "properties": {
     "@context": {
@@ -30,6 +37,7 @@
       "required": ["items"],
       "additionalProperties": true,
       "properties": {
+        "id": { "type": "string" },
         "type": { "const": "AnnotationPage" },
         "items": { "type": "array", "items": { "$ref": "#/$defs/annotation" } }
       }

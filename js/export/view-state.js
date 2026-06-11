@@ -28,6 +28,12 @@ const VALID_DISPLAY_MODES = ['texture', 'vertexColors', 'mesh', 'wireframe'];
 
 /**
  * Snapshot the current analytical view.
+ *
+ * NOTE on coordinate frames: unlike annotation coordinates (exported Z-up
+ * per the selector spec), camera position/target here are raw internal
+ * Three.js Y-up world coordinates. meshnotes:viewState is an opaque,
+ * MeshNotes-internal extension consumed only by applyViewState(), so no
+ * basis conversion is performed — by design, not by omission.
  * @returns {Object} viewState object suitable for JSON serialisation
  */
 export function captureViewState() {
