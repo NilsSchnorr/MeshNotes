@@ -1,7 +1,7 @@
 // js/annotation-tools/data.js
 import { state, dom } from '../state.js';
 import { getViewportWidth, getViewportHeight } from '../core/scene.js';
-import { generateUUID, generateInternalId, escapeHtml, safeUrl, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, getDefaultLanguage, escapeHtml, safeUrl, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
 import { computeProjectedEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList, updateGroupSelect } from './groups.js';
@@ -857,6 +857,7 @@ export function saveAnnotation() {
                     uuid: generateUUID(),
                     description,
                     author,
+                    language: getDefaultLanguage(),
                     timestamp: new Date().toISOString(),
                     links: [...state.pendingLinks]
                 });
@@ -911,6 +912,7 @@ export function saveAnnotation() {
                 uuid: generateUUID(),
                 description,
                 author,
+                language: getDefaultLanguage(),
                 timestamp: new Date().toISOString(),
                 links: [...state.pendingLinks]
             });
@@ -936,6 +938,7 @@ export function saveAnnotation() {
                 uuid: generateUUID(),
                 description,
                 author,
+                language: getDefaultLanguage(),
                 timestamp: new Date().toISOString(),
                 links: [...state.pendingLinks]
             }]

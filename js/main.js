@@ -305,6 +305,13 @@ function loadSavedSettings() {
         dom.settingsDefaultAuthorOrcid.value = savedDefaultAuthorOrcid;
     }
     
+    // Default annotation language ('' = browser default)
+    const savedDefaultLanguage = localStorage.getItem('meshnotes_defaultLanguage');
+    if (savedDefaultLanguage) {
+        state.defaultLanguage = savedDefaultLanguage;
+        dom.settingsDefaultLanguage.value = savedDefaultLanguage;
+    }
+    
     // Measurement unit
     const savedMeasurementUnit = localStorage.getItem('meshnotes_measurementUnit');
     if (savedMeasurementUnit) {

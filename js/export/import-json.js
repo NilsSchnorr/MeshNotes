@@ -131,6 +131,8 @@ function importW3CAnnotations(data) {
                 if (importedTime > existingTime) {
                     // Imported version is newer - update content
                     existingEntry.description = importedEntry.description;
+                    // The language travels with the text it tags.
+                    existingEntry.language = importedEntry.language;
                     existingEntry.author = importedEntry.author;
                     // The ORCID follows the author as a pair — keeping the old
                     // identifier with a new name would misattribute it.
@@ -171,6 +173,7 @@ function importW3CAnnotations(data) {
                 authorOrcid: miAuthorOrcid,
                 timestamp: body.created || new Date().toISOString(),
                 modified: body.modified || undefined,
+                language: body.language || undefined,
                 links: body['schema:url'] || []
             };
             

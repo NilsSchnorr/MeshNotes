@@ -93,6 +93,7 @@ export function buildAnnotationJSON(options = {}) {
                     type: 'TextualBody',
                     value: entry.description || '',
                     format: 'text/plain',
+                    language: entry.language,
                     'meshnotes:entryUuid': entry.uuid,
                     creator: authorToCreator(entry.author, entry.authorOrcid),
                     created: entry.timestamp,

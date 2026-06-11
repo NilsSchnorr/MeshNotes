@@ -166,6 +166,17 @@ export function generateInternalId() {
     return _nextInternalId++;
 }
 
+// BCP-47 language tag for newly created entries: the explicit setting wins,
+// otherwise the browser's primary language subtag, otherwise undefined (the
+// entry then carries no language — an honest "unknown" in the export).
+export function getDefaultLanguage() {
+    if (state.defaultLanguage) return state.defaultLanguage;
+    if (typeof navigator !== 'undefined' && navigator.language) {
+        return navigator.language.split('-')[0];
+    }
+    return undefined;
+}
+
 export function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {

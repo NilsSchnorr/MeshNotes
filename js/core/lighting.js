@@ -216,6 +216,11 @@ export function setDefaultAuthorOrcid(orcid) {
     localStorage.setItem('meshnotes_defaultAuthorOrcid', state.defaultAuthorOrcid);
 }
 
+export function setDefaultLanguage(lang) {
+    state.defaultLanguage = lang || '';
+    localStorage.setItem('meshnotes_defaultLanguage', state.defaultLanguage);
+}
+
 export function setMeasurementUnit(unit, isCustom = false) {
     state.measurementUnit = unit;
     localStorage.setItem('meshnotes_measurementUnit', unit);
@@ -252,6 +257,7 @@ export function resetAllSettings() {
     state.textSizeMultiplier = 1.0;
     state.defaultAuthor = '';
     state.defaultAuthorOrcid = '';
+    state.defaultLanguage = '';
     state.measurementUnit = 'units';
     state.measurementLineColor = '#AA8101';
     state.measurementPointColor = '#FFFFFF';
@@ -276,6 +282,7 @@ export function resetAllSettings() {
     dom.textSizeValue.textContent = '×1.0';
     dom.settingsDefaultAuthor.value = '';
     dom.settingsDefaultAuthorOrcid.value = '';
+    dom.settingsDefaultLanguage.value = '';
     dom.settingsMeasurementUnit.value = 'units';
     dom.settingsMeasurementUnitCustom.value = '';
     dom.settingsMeasurementUnitCustom.style.display = 'none';

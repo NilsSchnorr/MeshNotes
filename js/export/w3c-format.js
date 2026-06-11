@@ -394,18 +394,16 @@ export function convertToW3CAnnotation(ann, group) {
 
     // Convert entries to body array
     if (ann.entries && ann.entries.length > 0) {
-        // Content language defaults to the authoring browser's language (BCP-47
-        // primary subtag, e.g. 'de', 'en') rather than a hardcoded 'en'. Omitted
-        // entirely if the environment exposes no language.
-        const bodyLanguage = (typeof navigator !== 'undefined' && navigator.language)
-            ? navigator.language.split('-')[0]
-            : undefined;
         w3cAnn.body = ann.entries.map(entry => {
             const body = {
                 type: 'TextualBody',
                 value: entry.description || '',
                 format: 'text/plain',
-                language: bodyLanguage,
+                // Stored per entry at creation (the author's language setting,
+                // or the browser language as fallback). Never re-stamped on
+                // export: imported entries keep their original tag, and entries
+                // without one stay an honest "unknown" (member omitted).
+                language: entry.language,
                 'meshnotes:entryUuid': entry.uuid
             };
 
@@ -545,6 +543,7 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
                 authorOrcid: entryAuthorOrcid,
                 timestamp: body.created || w3cAnn.created || new Date().toISOString(),
                 modified: body.modified || undefined,
+                language: body.language || undefined,
                 links: body['schema:url'] || []
             };
             

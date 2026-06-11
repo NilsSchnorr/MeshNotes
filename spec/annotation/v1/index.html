@@ -224,7 +224,7 @@ Each observation on an annotation is one <code>oa:TextualBody</code> in the <cod
   <tr><td><code>type</code></td><td><span class="rfc">must</span></td><td>string</td><td><code>"TextualBody"</code>.</td></tr>
   <tr><td><code>value</code></td><td><span class="rfc">must</span></td><td>string</td><td>The description text.</td></tr>
   <tr><td><code>format</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"text/plain"</code>.</td></tr>
-  <tr><td><code>language</code></td><td><span class="opt">may</span></td><td>string</td><td>BCP-47 language tag of <code>value</code>. Omitted when unknown; a consumer <span class="rfc">should not</span> assume a language when absent.</td></tr>
+  <tr><td><code>language</code></td><td><span class="opt">may</span></td><td>string</td><td>BCP-47 language tag of <code>value</code>, chosen by the author (or the author's browser) when the entry is created; a later exporter never re-stamps it. Omitted when unknown; a consumer <span class="rfc">should not</span> assume a language when absent.</td></tr>
   <tr><td><code>creator</code></td><td><span class="opt">may</span></td><td>object</td><td>The author; see §6.1.</td></tr>
   <tr><td><code>created</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>Entry timestamp.</td></tr>
   <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>Entry last-modified timestamp.</td></tr>

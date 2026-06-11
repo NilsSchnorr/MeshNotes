@@ -53,6 +53,7 @@ export const state = {
     // User preferences
     defaultAuthor: '',
     defaultAuthorOrcid: '',
+    defaultLanguage: '',      // BCP-47 tag stamped on new entries; '' = browser default
     measurementUnit: 'units',
     measurementLineColor: '#AA8101',
     measurementPointColor: '#FFFFFF',
@@ -346,6 +347,7 @@ export function initDomReferences() {
     dom.settingsModalClose = document.getElementById('settings-modal-close');
     dom.settingsDefaultAuthor = document.getElementById('settings-default-author');
     dom.settingsDefaultAuthorOrcid = document.getElementById('settings-default-author-orcid');
+    dom.settingsDefaultLanguage = document.getElementById('settings-default-language');
     dom.settingsMeasurementUnit = document.getElementById('settings-measurement-unit');
     dom.settingsMeasurementUnitCustom = document.getElementById('settings-measurement-unit-custom');
     dom.settingsMeasurementLineColor = document.getElementById('settings-measurement-line-color');
