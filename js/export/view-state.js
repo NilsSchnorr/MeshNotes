@@ -43,7 +43,12 @@ export function captureViewState() {
         camera: {
             orthographic: !!state.isOrthographic,
             position: [cam.position.x, cam.position.y, cam.position.z],
-            target: [state.controls.target.x, state.controls.target.y, state.controls.target.z]
+            target: [state.controls.target.x, state.controls.target.y, state.controls.target.z],
+            // Orthographic zoom: OrbitControls dollies an ortho camera by
+            // changing camera.zoom, NOT its position — so position+target
+            // alone do not encode the framing. Captured for both cameras
+            // (perspective zoom is normally 1; harmless to round-trip).
+            zoom: cam.zoom
         },
         lighting: {
             followsCamera: !!state.lightFollowsCamera,
@@ -130,6 +135,14 @@ export function applyViewState(vs) {
     // distance-to-target.
     if (typeof C.orthographic === 'boolean' && C.orthographic !== state.isOrthographic) {
         toggleCamera();
+    }
+    // Zoom last: toggleCamera() derives the ortho frustum from the
+    // distance-to-target with zoom untouched (default 1), so the author's
+    // ortho zoom must be re-applied afterwards. Older viewStates without a
+    // zoom field skip this and keep the derived framing (previous behaviour).
+    if (typeof C.zoom === 'number' && isFinite(C.zoom) && C.zoom > 0) {
+        state.camera.zoom = C.zoom;
+        state.camera.updateProjectionMatrix();
     }
     state.controls.update();
 
