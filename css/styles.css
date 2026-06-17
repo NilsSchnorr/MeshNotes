@@ -1297,9 +1297,18 @@
         }
 
         #annotation-popup {
-            width: 400px;
+            width: 520px;
             max-height: 80vh;
             overflow-y: auto;
+        }
+
+        /* Larger annotation body field for longer text */
+        #annotation-popup #ann-description {
+            height: 140px;
+        }
+
+        #annotation-popup .entry-edit-form textarea {
+            height: 120px;
         }
 
         /* Entries in annotation popup */
