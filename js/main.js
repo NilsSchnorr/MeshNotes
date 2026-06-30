@@ -3,7 +3,7 @@ import { state, dom, initDomReferences, APP_VERSION } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
 import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality } from './core/lighting.js';
-import { setUpdateModelInfoDisplay, onceModelSetupComplete, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
+import { setUpdateModelInfoDisplay, onceModelSetupComplete, setModelHashReadyCallback, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
 import { setEditingCallbacks, renderMeasurements } from './annotation-tools/editing.js';
@@ -22,6 +22,8 @@ import { initMetadata, updateMetadataDisplay } from './metadata/metadata-ui.js';
 import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUntilExpiry } from './core/url-params.js';
 import * as THREE from 'three';
 import { loadIcons, initIcons } from './ui/icons.js';
+import { setOnAnnotationsExported } from './export/export-json.js';
+import { initSessionPersistence, maybeOfferRestore, clearSavedSession } from './core/session-persistence.js';
 
 // Wire up late-bound references to break circular dependencies
 setUpdateModelInfoDisplay(updateModelInfoDisplay);
@@ -38,6 +40,12 @@ setGroupCallbacks({
 setRenderCallbacks({
     renderMeasurements
 });
+
+// Session persistence (offline + crash recovery). The hash-ready hook offers a
+// restore once a reopened model is identified; a successful export clears the
+// autosave slot so recovered work never prompts twice.
+setModelHashReadyCallback(maybeOfferRestore);
+setOnAnnotationsExported(clearSavedSession);
 
 function init() {
     // Initialize DOM references
@@ -71,6 +79,10 @@ function init() {
     initGroupsEventDelegation(); // Set up delegated click/dblclick for annotation items
     initAnnotationViewer(); // Read-only "Shared Annotation View" panel (drag + close wiring)
     window.addEventListener('resize', onWindowResize);
+
+    // Session persistence: auto-save the working set when the app is hidden and
+    // offer to restore it when the same model is reopened (offline / crash safety).
+    initSessionPersistence();
 
     // Load SVG icons and inject into DOM (non-blocking)
     loadIcons().then(() => initIcons());

@@ -3,6 +3,14 @@ import { state, APP_VERSION } from '../state.js';
 import { generateUUID, getModelMimeType, showStatus } from '../utils/helpers.js';
 import { convertToW3CAnnotation, authorToCreator } from './w3c-format.js';
 
+// Optional hook invoked after a successful manual JSON-LD export. Used by
+// session persistence (wired in main.js) to clear the autosave slot: once the
+// user holds a real exported file, the crash-recovery copy should not prompt
+// later. Kept as a late-bound setter to avoid an import cycle with
+// session-persistence.js, which imports buildAnnotationJSON from here.
+let _onAnnotationsExported = null;
+export function setOnAnnotationsExported(fn) { _onAnnotationsExported = fn; }
+
 /**
  * Builds the W3C Web Annotation Collection JSON string.
  * Reusable by both the download export and the share upload.
@@ -176,4 +184,6 @@ export function exportAnnotations() {
 
     URL.revokeObjectURL(url);
     showStatus('W3C annotations exported');
+
+    if (_onAnnotationsExported) _onAnnotationsExported();
 }

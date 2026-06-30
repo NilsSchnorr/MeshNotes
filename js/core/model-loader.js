@@ -39,6 +39,15 @@ export function onceModelSetupComplete(callback) {
     _onModelSetupComplete = callback;
 }
 
+// Late-bound hook fired once the async model hash is known. Used by session
+// persistence (set in main.js) to offer restoring an autosaved session for
+// this exact model. Fires on every model load; the consumer decides whether to
+// act (e.g. only into a fresh, share-free workspace).
+let _onModelHashReady = null;
+export function setModelHashReadyCallback(fn) {
+    _onModelHashReady = fn;
+}
+
 // Computes a SHA-256 hex digest of a File's bytes, used to bind exported
 // annotations to the exact model they target. Returns null on failure.
 async function computeModelHash(file) {
@@ -160,7 +169,10 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     state.modelHash = null;
     const primaryModelFile = state.loadedModelFiles && state.loadedModelFiles[0];
     if (primaryModelFile) {
-        computeModelHash(primaryModelFile).then(h => { state.modelHash = h; });
+        computeModelHash(primaryModelFile).then(h => {
+            state.modelHash = h;
+            if (_onModelHashReady) _onModelHashReady(h);
+        });
     }
     
     // Reset flip state for new model

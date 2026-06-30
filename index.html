@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>MeshNotes</title>
     <link rel="icon" type="image/svg+xml" href="icons/logo1.svg">
+
+    <!-- Progressive Web App: offline use + installable (Add to Home Screen) -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#041D31">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MeshNotes">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -563,6 +573,34 @@
 
                     <div class="manual-item">
                         <div class="manual-item-header">
+                            <span>Offline Use (Add to Home Screen)</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>MeshNotes can be installed as an app and used completely offline — ideal for fieldwork on a tablet with no reliable connection. Everything runs locally on your device; only the optional <em>Share</em> upload needs the internet.</p>
+
+                            <p style="margin-top: 10px;"><strong>Install it (once, while online):</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li>Open <a href="https://meshnotes.org" target="_blank">meshnotes.org</a> and let the page finish loading.</li>
+                                <li><strong>iPad / iPhone (Safari):</strong> tap the <strong>Share</strong> button, then <strong>Add to Home Screen</strong>.</li>
+                                <li><strong>Android / desktop (Chrome, Edge):</strong> choose <strong>Install app</strong> / <strong>Add to Home Screen</strong> from the browser menu (or the install icon in the address bar).</li>
+                            </ul>
+                            <p style="margin-top: 8px;">A MeshNotes icon is added to your home screen. Launched from there, it opens full-screen like a native app.</p>
+
+                            <p style="margin-top: 10px;"><strong>Work offline:</strong> With no connection, open MeshNotes from the home-screen icon and load your 3D model from local files as usual. All annotation tools, the PDF and JSON-LD exports, and this manual work offline. The 3D model itself is not stored by the app, so reopen your model file at the start of each session.</p>
+
+                            <p style="margin-top: 10px;"><strong>Your work is auto-saved:</strong> While you annotate, MeshNotes keeps a local backup in the browser. If the app is closed — or the tablet drops it from memory in the background — reopen the <em>same</em> model and MeshNotes will offer to restore your last session. As a habit, still <strong>export to JSON-LD (Export ▾ → JSON-LD) before closing</strong> so you always have a file copy on your device.</p>
+
+                            <p style="margin-top: 10px;"><strong>Staying up to date:</strong> When you are back online, MeshNotes checks for a newer version and shows a small <em>“new version available”</em> banner; tap <strong>Reload</strong> to update. It never reloads on its own while you are working.</p>
+
+                            <div class="limitation-note" style="margin-top: 12px;">
+                                <strong>Tip:</strong> The very first visit must be online so the app can cache itself. After that, it launches and runs without a connection.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
                             <span>Camera View</span>
                             <span class="toggle-icon">▶</span>
                         </div>
@@ -614,6 +652,8 @@
                             <p>MeshNotes runs entirely in your web browser. Your 3D models, annotations, and all other data remain on your computer by default. The tool does not use cookies, analytics, or tracking, and all program libraries (Three.js, jsPDF, pdf-lib, and others) are served from MeshNotes itself rather than third-party CDNs. The only network request during normal use is loading the application from its host; see the <em>Legal / Data</em> section for details, or run MeshNotes locally (see below) to keep everything fully offline.</p>
                             <p style="margin-top: 10px;"><strong>Sharing (optional):</strong> The <strong>Quick Share</strong> feature uploads your model and annotations to meshnotes.org (hosted on Cloudflare) to generate a temporary shareable link. Files are automatically deleted after 90 days. <strong>No data leaves your computer unless you explicitly click "Generate Link" in the Share dialog.</strong> The <strong>Permanent</strong> sharing option does not upload anything to meshnotes.org — it generates a link that points to files you have hosted yourself on a repository of your choice. If data confidentiality is critical, use the offline JSON-LD export/import workflow instead.</p>
                             <p style="margin-top: 10px;">When hosted on GitHub Pages, the application files are downloaded once, after which all processing happens locally. For offline use, you can clone or download the <a href="https://github.com/NilsSchnorr/MeshNotes" target="_blank">GitHub repository</a> and run a local web server (e.g., <code>python -m http.server</code> or VS Code Live Server). Note that opening <code>index.html</code> directly via <code>file://</code> won't work due to browser security restrictions on ES modules.</p>
+                            <p style="margin-top: 10px;"><strong>Offline use on a tablet (Add to Home Screen):</strong> MeshNotes can also be installed for offline use directly from the website — no repository download needed. Open <a href="https://meshnotes.org" target="_blank">meshnotes.org</a> once while online, then use your browser's <strong>Add to Home Screen</strong> option (on iPad Safari: Share → Add to Home Screen). Launched from the home screen it runs full-screen and works without a connection; only the optional <em>Share</em> upload needs the internet. The 3D model itself is not stored by the app, so reopen your local model file at the start of each session.</p>
+                            <p style="margin-top: 10px;"><strong>Protecting your work offline:</strong> While you annotate, MeshNotes automatically keeps a local backup of your annotations in your browser. If the app closes or reloads — which tablets sometimes do on their own when memory is low — reopen the <em>same</em> model file and MeshNotes will offer to restore your last session. As an added safeguard it is still good practice to <strong>export your annotations (Export ▾ → JSON-LD) before closing the app</strong>, especially when working offline, so a copy is always saved to your device.</p>
                             <p style="margin-top: 10px;">Exported JSON and PDF files are generated locally in your browser and saved directly to your downloads folder. Sharing annotation data with collaborators is always an explicit action on your part — you decide when and with whom to share your exported files. This makes MeshNotes suitable for documenting sensitive or unpublished archaeological sites where data confidentiality is important.</p>
                         </div>
                     </div>
@@ -885,7 +925,7 @@
                     Phone: +49 681 302-3315</p>
                     
                     <h4>No Cookies, No Tracking, No Analytics</h4>
-                    <p>MeshNotes does not use cookies, analytics, or tracking. All 3D model processing and annotation work happens entirely in your browser, and all program libraries are served from this site itself rather than third-party content delivery networks. Aside from the standard web-hosting requests described below, no user data is transmitted to any server during normal use. Local browser storage (localStorage) is used exclusively to save your display preferences (e.g., background color, point size) and share link history, and is not shared with anyone.</p>
+                    <p>MeshNotes does not use cookies, analytics, or tracking. All 3D model processing and annotation work happens entirely in your browser, and all program libraries are served from this site itself rather than third-party content delivery networks. Aside from the standard web-hosting requests described below, no user data is transmitted to any server during normal use. Local browser storage is used exclusively on your device and is never shared with anyone: <em>localStorage</em> holds your display preferences (e.g., background color, point size) and share-link history, and <em>IndexedDB</em> holds an automatic local backup of your current annotations so that in-progress work can be recovered if the browser or app closes unexpectedly (for example while working offline).</p>
                     
                     <h4>Sharing Feature &amp; Cloudflare Hosting</h4>
                     <p>The optional <strong>Share</strong> feature allows users to upload model files and annotations to meshnotes.org to generate a shareable link. This upload is processed and stored using <strong>Cloudflare Workers and R2 object storage</strong>, services provided by Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA. Uploaded files are automatically deleted after 90 days. No data is uploaded unless the user explicitly clicks "Generate Link" in the Share dialog. When uploading, Cloudflare may process the user's IP address and request metadata. This processing is based on our legitimate interest in providing the sharing functionality (Art. 6(1)(f) GDPR). Cloudflare's handling of data is described in their <a href="https://www.cloudflare.com/privacypolicy/" target="_blank">Privacy Policy</a>. Data transfers to the US are covered by the <strong>EU-US Data Privacy Framework</strong>.</p>
@@ -948,7 +988,7 @@
                     Telefon: +49 681 302-3315</p>
                     
                     <h4>Keine Cookies, kein Tracking, keine Analyse</h4>
-                    <p>MeshNotes verwendet keine Cookies, Analysedienste oder Tracking. Die gesamte Verarbeitung von 3D-Modellen und Annotationen erfolgt ausschließlich in Ihrem Browser, und alle Programmbibliotheken werden von dieser Seite selbst ausgeliefert und nicht von Content-Delivery-Networks Dritter. Abgesehen von den technisch erforderlichen Anfragen für das Webhosting (siehe unten) werden im normalen Betrieb keine Nutzerdaten an einen Server übermittelt. Der lokale Browserspeicher (localStorage) wird ausschließlich zur Speicherung Ihrer Anzeigeeinstellungen (z.B. Hintergrundfarbe, Punktgröße) und des Teilen-Verlaufs verwendet und nicht an Dritte weitergegeben.</p>
+                    <p>MeshNotes verwendet keine Cookies, Analysedienste oder Tracking. Die gesamte Verarbeitung von 3D-Modellen und Annotationen erfolgt ausschließlich in Ihrem Browser, und alle Programmbibliotheken werden von dieser Seite selbst ausgeliefert und nicht von Content-Delivery-Networks Dritter. Abgesehen von den technisch erforderlichen Anfragen für das Webhosting (siehe unten) werden im normalen Betrieb keine Nutzerdaten an einen Server übermittelt. Der lokale Browserspeicher wird ausschließlich auf Ihrem Gerät genutzt und nicht an Dritte weitergegeben: <em>localStorage</em> speichert Ihre Anzeigeeinstellungen (z.B. Hintergrundfarbe, Punktgröße) und den Teilen-Verlauf, und <em>IndexedDB</em> speichert eine automatische lokale Sicherung Ihrer aktuellen Annotationen, damit nicht gespeicherte Arbeit wiederhergestellt werden kann, falls der Browser oder die App unerwartet schließt (z.B. bei der Offline-Nutzung).</p>
                     
                     <h4>Teilen-Funktion &amp; Cloudflare-Hosting</h4>
                     <p>Die optionale <strong>Teilen</strong>-Funktion ermöglicht es, Modelldateien und Annotationen auf meshnotes.org hochzuladen, um einen teilbaren Link zu erzeugen. Dieser Upload wird über <strong>Cloudflare Workers und R2 Object Storage</strong> verarbeitet und gespeichert, Dienste der Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA. Hochgeladene Dateien werden nach 90 Tagen automatisch gelöscht. Es werden keine Daten hochgeladen, es sei denn, der Nutzer klickt ausdrücklich auf „Link generieren“ im Teilen-Dialog. Beim Hochladen kann Cloudflare die IP-Adresse und Anfrage-Metadaten des Nutzers verarbeiten. Diese Verarbeitung erfolgt auf Grundlage unseres berechtigten Interesses an der Bereitstellung der Teilen-Funktionalität (Art. 6 Abs. 1 lit. f DSGVO). Cloudflares Umgang mit Daten ist in deren <a href="https://www.cloudflare.com/de-de/privacypolicy/" target="_blank">Datenschutzerklärung</a> beschrieben. Die Datenübermittlung in die USA ist durch das <strong>EU-US Data Privacy Framework</strong> abgedeckt.</p>
@@ -1614,5 +1654,55 @@
     </script>
 
     <script type="module" src="js/main.js"></script>
+
+    <!-- Service worker: offline support + installable PWA, with a non-disruptive
+         "new version available" prompt (we never auto-reload mid-session). -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
+            const offerWhenInstalled = (worker) => {
+              if (!worker) return;
+              worker.addEventListener('statechange', () => {
+                // New version finished installing while an old one still controls the page.
+                if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showUpdateBanner(reg);
+                }
+              });
+            };
+            if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner(reg);
+            reg.addEventListener('updatefound', () => offerWhenInstalled(reg.installing));
+          }).catch((err) => console.warn('Service worker registration failed:', err));
+
+          // Reload once the newly activated worker takes control (after the user accepts).
+          let reloaded = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (reloaded) return;
+            reloaded = true;
+            window.location.reload();
+          });
+        });
+      }
+
+      function showUpdateBanner(reg) {
+        if (document.getElementById('mn-update-banner')) return;
+        const bar = document.createElement('div');
+        bar.id = 'mn-update-banner';
+        bar.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:99999;display:flex;gap:12px;align-items:center;background:#041D31;color:#eee;border:1px solid #1A5A8A;border-radius:8px;padding:10px 14px;font:13px/1.4 system-ui,-apple-system,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.45)';
+        const msg = document.createElement('span');
+        msg.textContent = 'A new version of MeshNotes is available.';
+        const reload = document.createElement('button');
+        reload.textContent = 'Reload';
+        reload.style.cssText = 'background:#AA8101;color:#041D31;border:0;border-radius:5px;padding:5px 12px;font-weight:600;cursor:pointer';
+        reload.onclick = () => { if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); };
+        const dismiss = document.createElement('button');
+        dismiss.textContent = '✕';
+        dismiss.setAttribute('aria-label', 'Dismiss');
+        dismiss.style.cssText = 'background:transparent;color:#9bb;border:0;font-size:15px;cursor:pointer;padding:2px 4px';
+        dismiss.onclick = () => bar.remove();
+        bar.append(msg, reload, dismiss);
+        document.body.appendChild(bar);
+      }
+    </script>
 </body>
 </html>

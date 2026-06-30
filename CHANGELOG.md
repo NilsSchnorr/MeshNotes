@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3.0] — 2026-06-30
+
+This release makes MeshNotes installable and fully usable offline, and adds automatic local recovery of in-progress annotation work — aimed at fieldwork on tablets with no reliable connection.
+
+### Added
+
+- **Offline use / installable app (PWA)** — a service worker caches the full application on first visit, so MeshNotes runs without a network connection once loaded. On tablets it can be added to the home screen (iPad Safari: Share → Add to Home Screen) and launched full-screen; only the optional Share upload needs the internet.
+- **Automatic crash & eviction recovery** — while annotating, the current annotations are continuously backed up to the browser's local storage (IndexedDB). If the app is closed or reloaded — including when a tablet discards it from memory in the background — reopening the same model offers to restore the last session. The backup is bound to the model by its SHA-256 hash and is cleared automatically after a manual JSON-LD export.
+- **Update prompt** — when a newer version has been deployed, a small "new version available" banner offers to reload, so an open session is never reloaded unexpectedly.
+
+### Changed
+
+- **Manual and Legal / Data policy** updated to document offline / home-screen use, the local autosave-and-restore behavior, and the recommendation to export before closing when working offline. The local-storage disclosure now also covers the IndexedDB annotation backup, in addition to display preferences and share-link history.
+
+
 ## [1.2.0] — 2026-06-08
 
 This release overhauls the metadata and export backend for standards conformance and interoperability, and makes structured metadata documentation a first-class feature.
@@ -86,6 +101,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.3.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.0
 [1.2.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.2.0
 [1.1.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.1.0
 [1.0.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.0.0
