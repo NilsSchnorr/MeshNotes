@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3.1] — 2026-07-20
+
+### Fixed
+
+- **Specification pages hijacked by the offline service worker** — in browsers that had previously loaded the app, navigating to any other page on the site (notably the published format specifications under `meshnotes.org/spec/`) was answered with the cached app shell instead of the requested page, which then rendered unstyled and with broken icons because its relative asset URLs do not resolve at those paths. The service worker now serves the cached app shell only for the app's own URL; all other pages are fetched from the network and cached afterwards, making the specifications readable offline as well. First-time visitors and browsers without the service worker were never affected, and no annotation data was involved.
+
+
 ## [1.3.0] — 2026-06-30
 
 This release makes MeshNotes installable and fully usable offline, and adds automatic local recovery of in-progress annotation work — aimed at fieldwork on tablets with no reliable connection.
@@ -101,6 +108,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.3.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.1
 [1.3.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.0
 [1.2.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.2.0
 [1.1.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.1.0
