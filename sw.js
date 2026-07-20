@@ -8,7 +8,7 @@
 // IMPORTANT: bump CACHE on every release — alongside APP_VERSION in
 // js/state.js, CITATION.cff, and CHANGELOG.md — so existing clients pick up
 // newly deployed assets.
-const CACHE = 'meshnotes-v1.3.0';
+const CACHE = 'meshnotes-v1.3.1';
 
 // Precache the full app shell so a SINGLE online visit makes the app
 // offline-ready (no need to exercise every feature first). Paths are RELATIVE
@@ -170,15 +170,46 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;   // cross-origin (long-term share models) → network
   if (url.pathname.includes('/api/')) return;        // share backend → network-only
 
-  // Navigations: serve the cached app shell (share links vary only by query
-  // string, so ignore the search), letting a deep link boot offline.
+  // Navigations. Two cases:
+  //  1. The app shell itself (the scope root or its index.html — share links
+  //     vary only by query string, so the search is ignored): serve the
+  //     cached shell so a deep link boots offline.
+  //  2. Every other same-origin page (the /spec/ documents, legal pages, …):
+  //     network-first with cache write-back, falling back to the cache when
+  //     offline. Before v1.3.1 these navigations were also answered with the
+  //     app shell, which hijacked the spec pages and broke their relative
+  //     asset URLs.
   if (req.mode === 'navigate') {
-    event.respondWith((async () => {
-      const cached = await caches.match('./index.html', { ignoreSearch: true });
-      if (cached) return cached;
-      try { return await fetch(req); }
-      catch { return new Response('Offline', { status: 503, statusText: 'Offline' }); }
-    })());
+    const scopePath = new URL(self.registration.scope).pathname; // '/' at meshnotes.org, '/MeshNotes/' on github.io
+    const isAppShell = url.pathname === scopePath || url.pathname === scopePath + 'index.html';
+
+    if (isAppShell) {
+      event.respondWith((async () => {
+        const cached = await caches.match('./index.html', { ignoreSearch: true });
+        if (cached) return cached;
+        try { return await fetch(req); }
+        catch { return new Response('Offline', { status: 503, statusText: 'Offline' }); }
+      })());
+    } else {
+      event.respondWith((async () => {
+        try {
+          const res = await fetch(req);
+          // Write-back so the page stays readable offline. Redirected
+          // responses (e.g. GitHub Pages adding a trailing slash) are not
+          // cached, because serving a redirected response for a later
+          // navigation is rejected by browsers.
+          if (res && res.ok && res.type === 'basic' && !res.redirected) {
+            const cache = await caches.open(CACHE);
+            cache.put(req, res.clone());
+          }
+          return res;
+        } catch (e) {
+          const cached = await caches.match(req, { ignoreSearch: true });
+          if (cached) return cached;
+          return new Response('Offline', { status: 503, statusText: 'Offline' });
+        }
+      })());
+    }
     return;
   }
 
