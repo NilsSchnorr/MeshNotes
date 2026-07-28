@@ -3,55 +3,23 @@ import * as THREE from 'three';
 import { state, dom, APP_VERSION } from '../state.js';
 import { showStatus, hexToRgb, delay, toDisplayCoords, safeUrl } from '../utils/helpers.js';
 import { pointToZUp } from './w3c-format.js';
-import { toggleCamera } from '../core/camera.js';
+import { toggleCamera, saveCameraPose, restoreCameraPose } from '../core/camera.js';
 import { updateFixedLightDirection, getDpiMultiplier } from '../core/lighting.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
-import { showScalebarConfirm, drawScalebarOnCanvas } from '../annotation-tools/data.js';
+import { showScalebarConfirm } from '../annotation-tools/data.js';
+import { getPdfPageConfig, getAccentColor } from './pdf-layout.js';
+import { getPlateFraming, renderSixViews } from './views-plate.js';
+import {
+    computeScalebarParams,
+    formatScalebarLabel,
+    autoScalebarColor,
+    drawScalebarOnCanvas,
+    drawViewportScalebar
+} from './scalebar.js';
 import { getFieldDefinition, getMetadataStats, DATA_MANAGEMENT_GUIDELINE, SUBJECT_KINDS, METADATA_SPEC } from '../metadata/templates.js';
 
-// ============ PDF Settings Helpers ============
-
-/**
- * Returns page dimensions based on settings.
- * @returns {Object} {format, orientation, pageWidth, pageHeight}
- */
-function getPdfPageConfig() {
-    const orientation = state.pdfOrientation || 'portrait';
-    const pageSize = state.pdfPageSize || 'a4';
-    
-    // Page dimensions in mm (portrait)
-    const sizes = {
-        'a4': { width: 210, height: 297 },
-        'letter': { width: 215.9, height: 279.4 },
-        'a3': { width: 297, height: 420 }
-    };
-    
-    const base = sizes[pageSize] || sizes['a4'];
-    
-    if (orientation === 'landscape') {
-        return {
-            format: pageSize,
-            orientation: 'l',
-            pageWidth: base.height,
-            pageHeight: base.width
-        };
-    }
-    
-    return {
-        format: pageSize,
-        orientation: 'p',
-        pageWidth: base.width,
-        pageHeight: base.height
-    };
-}
-
-/**
- * Returns accent color as RGB object.
- * @returns {Object} {r, g, b}
- */
-function getAccentColor() {
-    return hexToRgb(state.pdfAccentColor || '#AA8101');
-}
+// Page geometry and accent colour now live in pdf-layout.js, shared with the
+// six-view plate export.
 
 // ============ PDF Export Entry Point ============
 
@@ -106,49 +74,18 @@ function pdfCaptureScreenshot(includeScalebar) {
     // Draw the source canvas scaled up
     ctx.drawImage(src, 0, 0, outputCanvas.width, outputCanvas.height);
     
-    // Add scalebar if requested
+    // Add scalebar if requested. The effective ratio is the renderer's pixel
+    // ratio times the DPI upscaling applied above — omitting the multiplier
+    // (the behaviour before v1.4.0) drew the bar 2x or 4x too short.
     if (includeScalebar && state.isOrthographic) {
-        drawScalebarOnCanvas(outputCanvas);
+        drawViewportScalebar(outputCanvas, state.renderer.getPixelRatio() * multiplier);
     }
     
     return outputCanvas.toDataURL('image/jpeg', 0.92);
 }
 
-/**
- * Saves the current camera state for later restoration.
- * @returns {Object} Camera state snapshot
- */
-function pdfSaveCameraState() {
-    return {
-        position: state.camera.position.clone(),
-        target: state.controls.target.clone(),
-        up: state.camera.up.clone(),
-        zoom: state.camera.zoom,
-        frustum: state.isOrthographic ? {
-            left: state.camera.left, right: state.camera.right,
-            top: state.camera.top, bottom: state.camera.bottom
-        } : null
-    };
-}
-
-/**
- * Restores camera to a previously saved state.
- * @param {Object} saved - State from pdfSaveCameraState()
- */
-function pdfRestoreCamera(saved) {
-    state.camera.up.copy(saved.up);
-    state.camera.position.copy(saved.position);
-    state.controls.target.copy(saved.target);
-    if (state.isOrthographic && saved.frustum) {
-        state.camera.left = saved.frustum.left;
-        state.camera.right = saved.frustum.right;
-        state.camera.top = saved.frustum.top;
-        state.camera.bottom = saved.frustum.bottom;
-        state.camera.zoom = saved.zoom;
-        state.camera.updateProjectionMatrix();
-    }
-    state.controls.update();
-}
+// Camera pose save/restore now lives in core/camera.js as saveCameraPose() /
+// restoreCameraPose(), shared with the six-view plate export.
 
 /**
  * Renders a list of entries (author, date, description, links) into the PDF.
@@ -326,20 +263,11 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
     pdf.setTextColor(120, 120, 120);
     pdf.text('Unfolded cube \u2014 six orthogonal views of the model', margin, 28);
 
-    // Calculate model bounds for consistent framing
-    const axisBox = new THREE.Box3().setFromObject(state.currentModel);
-    const axisSize = axisBox.getSize(new THREE.Vector3());
-    const axisMaxDim = Math.max(axisSize.x, axisSize.y, axisSize.z);
-    const axisDist = axisMaxDim * 1.8;
-    const axisTarget = new THREE.Vector3(0, 0, 0);
-
-    // Unfolded cube cross layout (Z-up display convention):
-    //             [Top Z+]
-    // [Left X-] [Front Y+] [Right X+] [Back Y-]
-    //            [Bottom Z-]
-    // Note: Internally Three.js uses Y-up, but MeshNotes displays Z-up.
-    // Mapping: display Z = internal Y, display Y = internal -Z.
-    // "Front" = camera at display +Y (internal -Z) looking toward model.
+    // Shared framing: the whole model in square cells. The net layout, the
+    // view directions and the camera save/restore all live in views-plate.js
+    // now, so this page and the standalone plate export cannot drift apart.
+    const framing = getPlateFraming({ cellShape: 'square' });
+    if (!framing) return;
     
     // Calculate cell size dynamically based on available page space
     // Layout: 4 columns × 3 rows
@@ -364,59 +292,34 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
     // Scale label font size based on cell size (base: 8pt at 42mm)
     const labelFontSize = Math.max(8, Math.min(12, Math.floor(cellSize / 5)));
 
-    const axisViews = [
-        { name: 'Top',    col: 1, row: 0, dir: new THREE.Vector3(0, 1, 0),  up: new THREE.Vector3(0, 0, -1) },
-        { name: 'Left',   col: 0, row: 1, dir: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0) },
-        { name: 'Front',  col: 1, row: 1, dir: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) },
-        { name: 'Right',  col: 2, row: 1, dir: new THREE.Vector3(1, 0, 0),  up: new THREE.Vector3(0, 1, 0) },
-        { name: 'Back',   col: 3, row: 1, dir: new THREE.Vector3(0, 0, 1),  up: new THREE.Vector3(0, 1, 0) },
-        { name: 'Bottom', col: 1, row: 2, dir: new THREE.Vector3(0, -1, 0), up: new THREE.Vector3(0, 0, 1) },
-    ];
+    // Render the six cells at the DPI setting. Each cell is rendered at its
+    // final size rather than cropped from the viewport, so the scale bar can
+    // be derived from the cell width directly.
+    const cellPx = Math.max(1, Math.round((cellSize / 25.4) * (state.pdfDpi || 150)));
+    const { views, cellW, frustumWidth } = await renderSixViews({
+        framing,
+        cellWidthPx: cellPx,
+        transparent: false
+    });
 
-    for (const axView of axisViews) {
-        state.camera.position.copy(axisTarget).addScaledVector(axView.dir, axisDist);
-        state.camera.up.copy(axView.up);
-        state.camera.lookAt(axisTarget);
+    const barParams = includeScalebar && state.isOrthographic
+        ? computeScalebarParams(cellW, frustumWidth)
+        : null;
+    const barScale = Math.max(1, cellW / 500);
 
-        if (state.isOrthographic) {
-            const aspect = dom.canvas.width / dom.canvas.height;
-            const frustumHalf = axisMaxDim * 0.75;
-            state.camera.left = -frustumHalf * aspect;
-            state.camera.right = frustumHalf * aspect;
-            state.camera.top = frustumHalf;
-            state.camera.bottom = -frustumHalf;
-            state.camera.updateProjectionMatrix();
+    for (const view of views) {
+        if (barParams) {
+            drawScalebarOnCanvas(view.canvas, {
+                barPx: barParams.pixelWidth,
+                label: formatScalebarLabel(barParams.units),
+                scale: barScale,
+                color: autoScalebarColor()
+            });
         }
 
-        state.renderer.clear();
-        state.renderer.render(state.scene, state.camera);
-        await delay(50);
-        state.renderer.render(state.scene, state.camera);
-
-        // Crop center square from canvas for cube face
-        const cropSize = Math.min(dom.canvas.width, dom.canvas.height);
-        const offsetX = (dom.canvas.width - cropSize) / 2;
-        const offsetY = (dom.canvas.height - cropSize) / 2;
-        
-        // Scale up based on DPI setting
-        const multiplier = getDpiMultiplier();
-        const outputSize = Math.floor(cropSize * multiplier);
-        
-        const cropCanvas = document.createElement('canvas');
-        cropCanvas.width = outputSize;
-        cropCanvas.height = outputSize;
-        const cropCtx = cropCanvas.getContext('2d');
-        cropCtx.imageSmoothingEnabled = true;
-        cropCtx.imageSmoothingQuality = 'high';
-        cropCtx.drawImage(dom.canvas, offsetX, offsetY, cropSize, cropSize, 0, 0, outputSize, outputSize);
-
-        if (includeScalebar && state.isOrthographic) {
-            drawScalebarOnCanvas(cropCanvas);
-        }
-
-        const axImg = cropCanvas.toDataURL('image/jpeg', 0.92);
-        const cellX = gridStartX + axView.col * (cellSize + cellGap);
-        const cellY = gridStartY + axView.row * (cellSize + cellGap + labelSpace);
+        const axImg = view.canvas.toDataURL('image/jpeg', 0.92);
+        const cellX = gridStartX + view.col * (cellSize + cellGap);
+        const cellY = gridStartY + view.row * (cellSize + cellGap + labelSpace);
 
         pdf.setDrawColor(180, 180, 180);
         pdf.setLineWidth(0.3);
@@ -425,7 +328,7 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
 
         pdf.setFontSize(labelFontSize);
         pdf.setTextColor(120, 120, 120);
-        pdf.text(axView.name, cellX + cellSize / 2, cellY + cellSize + labelFontSize - 2, { align: 'center' });
+        pdf.text(view.name, cellX + cellSize / 2, cellY + cellSize + labelFontSize - 2, { align: 'center' });
     }
 }
 
@@ -829,7 +732,7 @@ async function doExportPdfReport(includeScalebar) {
     };
 
     // Save camera state
-    const savedCamera = pdfSaveCameraState();
+    const savedCamera = saveCameraPose();
 
     showStatus('Generating PDF report...');
     renderAnnotations();
@@ -865,7 +768,7 @@ async function doExportPdfReport(includeScalebar) {
     await pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, visibleAnnotations);
 
     await pdfRenderAxisViews(pdf, layout, includeScalebar);
-    pdfRestoreCamera(savedCamera);
+    restoreCameraPose(savedCamera);
 
     // Reserve the TOC page(s) now; fill them in once annotation pages exist
     const tocPageCount = computeTocPageCount(tocData, layout);
@@ -895,7 +798,7 @@ async function doExportPdfReport(includeScalebar) {
     pdfRenderMetadataPages(pdf, layout);
 
     // Restore everything
-    pdfRestoreCamera(savedCamera);
+    restoreCameraPose(savedCamera);
     state.lightFollowsCamera = originalLightMode;
     if (!state.lightFollowsCamera) {
         updateFixedLightDirection();

@@ -4,7 +4,7 @@ import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helper
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, resetAllSettings } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlateCellShape, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, cancelUnfinishedDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
@@ -12,6 +12,7 @@ import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfir
 import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
+import { exportViewsPlate, choosePlateFormat, hidePlateFormatDialog } from '../export/views-plate.js';
 import { importAnnotations } from '../export/import-json.js';
 import { openMetadataPopup, closeMetadataPopup, saveMetadata, initMetadata, updateMetadataDisplay } from '../metadata/metadata-ui.js';
 import { downloadMetadataJSON, downloadMetadataPDF, importMetadataJSON } from '../metadata/metadata-io.js';
@@ -393,7 +394,30 @@ export function setupEventListeners() {
     dom.btnSurface.addEventListener('click', () => toggleTool('surface'));
     dom.btnBox.addEventListener('click', () => toggleTool('box'));
     dom.btnMeasure.addEventListener('click', () => toggleTool('measure'));
-    dom.btnScreenshot.addEventListener('click', takeScreenshot);
+
+    // Screenshot dropdown: single screenshot, or the six-view plate
+    dom.btnScreenshot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dom.screenshotDropdown.classList.toggle('open');
+        dom.exportDropdown.classList.remove('open');
+        dom.importDropdown.classList.remove('open');
+    });
+    dom.btnScreenshotSingle.addEventListener('click', () => {
+        dom.screenshotDropdown.classList.remove('open');
+        takeScreenshot();
+    });
+    dom.btnExportViews.addEventListener('click', () => {
+        dom.screenshotDropdown.classList.remove('open');
+        exportViewsPlate();
+    });
+
+    // Six-view plate format dialog
+    dom.plateFormatPng.addEventListener('click', () => choosePlateFormat('png'));
+    dom.plateFormatPdf.addEventListener('click', () => choosePlateFormat('pdf'));
+    dom.plateFormatDialogClose.addEventListener('click', hidePlateFormatDialog);
+    dom.plateFormatOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.plateFormatOverlay) hidePlateFormatDialog();
+    });
 
     // --- Touch dropdown portal ---
     // On touch devices the toolbar has overflow-x:auto which clips
@@ -406,6 +430,7 @@ export function setupEventListeners() {
     if (isCoarsePointer) {
         _touchMenuRefs.set(dom.importDropdown, dom.importDropdown.querySelector('.export-dropdown-menu'));
         _touchMenuRefs.set(dom.exportDropdown, dom.exportDropdown.querySelector('.export-dropdown-menu'));
+        _touchMenuRefs.set(dom.screenshotDropdown, dom.screenshotDropdown.querySelector('.export-dropdown-menu'));
 
         const menuObserver = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
@@ -434,6 +459,7 @@ export function setupEventListeners() {
 
         menuObserver.observe(dom.importDropdown, { attributes: true, attributeFilter: ['class'] });
         menuObserver.observe(dom.exportDropdown, { attributes: true, attributeFilter: ['class'] });
+        menuObserver.observe(dom.screenshotDropdown, { attributes: true, attributeFilter: ['class'] });
     }
 
     // Export dropdown
@@ -441,6 +467,7 @@ export function setupEventListeners() {
         e.stopPropagation();
         dom.exportDropdown.classList.toggle('open');
         dom.importDropdown.classList.remove('open');
+        dom.screenshotDropdown.classList.remove('open');
     });
     dom.btnExportJsonld.addEventListener('click', () => {
         dom.exportDropdown.classList.remove('open');
@@ -459,11 +486,15 @@ export function setupEventListeners() {
         // On touch devices, portaled menus live on <body>; check them too
         const exportMenu = _touchMenuRefs.get(dom.exportDropdown);
         const importMenu = _touchMenuRefs.get(dom.importDropdown);
+        const screenshotMenu = _touchMenuRefs.get(dom.screenshotDropdown);
         if (!dom.exportDropdown.contains(e.target) && !(exportMenu && exportMenu.contains(e.target))) {
             dom.exportDropdown.classList.remove('open');
         }
         if (!dom.importDropdown.contains(e.target) && !(importMenu && importMenu.contains(e.target))) {
             dom.importDropdown.classList.remove('open');
+        }
+        if (!dom.screenshotDropdown.contains(e.target) && !(screenshotMenu && screenshotMenu.contains(e.target))) {
+            dom.screenshotDropdown.classList.remove('open');
         }
     });
     dom.btnImport.addEventListener('click', () => {
@@ -1000,6 +1031,15 @@ export function setupEventListeners() {
         setScreenshotQuality(e.target.value);
     });
     
+    // Settings: Six-View Plate
+    dom.settingsPlatePngWidth.addEventListener('change', (e) => {
+        setPlatePngWidth(e.target.value);
+    });
+    
+    dom.settingsPlateCellShape.addEventListener('change', (e) => {
+        setPlateCellShape(e.target.value);
+    });
+    
     // Settings: Reset All
     dom.settingsResetAll.addEventListener('click', () => {
         if (confirm('Reset all settings to their default values?\n\nThis will clear your saved preferences for point size, text size, background color, model display colors, default author, and measurement unit.')) {
@@ -1051,9 +1091,21 @@ export function setupEventListeners() {
                 return;
             }
 
+            // Close the six-view plate format dialog if open
+            if (dom.plateFormatOverlay.classList.contains('visible')) {
+                hidePlateFormatDialog();
+                return;
+            }
+
             // Close export dropdown if open
             if (dom.exportDropdown.classList.contains('open')) {
                 dom.exportDropdown.classList.remove('open');
+                return;
+            }
+
+            // Close screenshot dropdown if open
+            if (dom.screenshotDropdown.classList.contains('open')) {
+                dom.screenshotDropdown.classList.remove('open');
                 return;
             }
 

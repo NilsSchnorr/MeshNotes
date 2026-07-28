@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 // ============ Version ============
-export const APP_VERSION = '1.3.1';
+export const APP_VERSION = '1.4.0';
 
 // ============ Application State ============
 export const state = {
@@ -75,6 +75,10 @@ export const state = {
 
     // Screenshot settings
     screenshotQuality: 2, // Multiplier: 1 = standard, 2 = high, 4 = ultra
+
+    // Six-view plate settings
+    platePngWidth: 4000,        // Total plate width in px for the PNG export
+    plateCellShape: 'fit',      // 'fit' = aspect from the model, 'square' = square cells
 
     // Tools
     currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure'
@@ -205,6 +209,14 @@ export function initDomReferences() {
     dom.btnBox = document.getElementById('btn-box');
     dom.btnMeasure = document.getElementById('btn-measure');
     dom.btnScreenshot = document.getElementById('btn-screenshot');
+    dom.screenshotDropdown = document.getElementById('screenshot-dropdown');
+    dom.screenshotDropdownMenu = document.getElementById('screenshot-dropdown-menu');
+    dom.btnScreenshotSingle = document.getElementById('btn-screenshot-single');
+    dom.btnExportViews = document.getElementById('btn-export-views');
+    dom.plateFormatOverlay = document.getElementById('plate-format-overlay');
+    dom.plateFormatPng = document.getElementById('plate-format-png');
+    dom.plateFormatPdf = document.getElementById('plate-format-pdf');
+    dom.plateFormatDialogClose = document.getElementById('plate-format-dialog-close');
     dom.btnExport = document.getElementById('btn-export');
     dom.btnExportJsonld = document.getElementById('btn-export-jsonld');
     dom.btnExportPdf = document.getElementById('btn-export-pdf');
@@ -367,6 +379,8 @@ export function initDomReferences() {
     dom.settingsWireframeColor = document.getElementById('settings-wireframe-color');
     dom.settingsResetAll = document.getElementById('settings-reset-all');
     dom.settingsScreenshotQuality = document.getElementById('settings-screenshot-quality');
+    dom.settingsPlatePngWidth = document.getElementById('settings-plate-png-width');
+    dom.settingsPlateCellShape = document.getElementById('settings-plate-cell-shape');
     
     // Camera toggle and flip toggle (now in sliders panel)
     dom.cameraToggle = document.getElementById('camera-toggle');

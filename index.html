@@ -501,7 +501,7 @@
                             <p style="margin-top: 10px;"><strong>Report structure:</strong></p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
                                 <li><strong>Title page</strong> — An overview screenshot of the model with all visible annotations, the model filename, a summary of annotation and group counts, and all Model Information entries.</li>
-                                <li><strong>Axis views</strong> — Six orthogonal views (Top, Bottom, Front, Back, Left, Right) arranged in an unfolded cube layout, giving a complete overview of the model from all standard directions. If you are in orthographic mode, each view includes a scalebar.</li>
+                                <li><strong>Axis views</strong> — Six orthogonal views (Top, Bottom, Front, Back, Left, Right) arranged in an unfolded cube layout, giving a complete overview of the model from all standard directions. If you are in orthographic mode, each view includes a scalebar. This page uses the same renderer as the standalone Six-View Plate export, so the two always agree.</li>
                                 <li><strong>Table of contents</strong> — A numbered list of all included annotations for quick reference.</li>
                                 <li><strong>Annotation pages</strong> — One page per annotation with an auto-captured screenshot (the camera automatically focuses on each annotation), the annotation name, type, and group, plus all entry details including author, date, description, and links. If the camera ends up too close to (or inside) your model, increase the <strong>Camera Distance</strong> in Settings; for flatter viewing angles, lower the <strong>Camera Angle</strong>.</li>
                             </ul>
@@ -520,10 +520,25 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Screenshot</strong> to save the current view as a PNG image. The screenshot includes all visible annotations, name labels, and measurement lines exactly as shown on screen — useful for documentation, reports, and publications.</p>
+                            <p>Click <strong>Screenshot ▾</strong> and choose <strong>Screenshot</strong> to save the current view as a PNG image. The screenshot includes all visible annotations, name labels, and measurement lines exactly as shown on screen — useful for documentation, reports, and publications.</p>
                             <p style="margin-top: 10px;"><strong>Screenshot Quality:</strong> In <strong>Settings</strong>, you can choose the screenshot resolution: <strong>Standard (1×)</strong> captures at screen resolution, <strong>High (2×)</strong> renders at double resolution for sharper detail when zoomed in, and <strong>Ultra (4×)</strong> renders at four times the resolution for maximum clarity. Higher quality may take longer on large models.</p>
-                            <p style="margin-top: 10px;"><strong>Scalebar:</strong> In <strong>Orthographic</strong> camera mode, screenshots automatically include a scalebar in the bottom-right corner. The scalebar shows the real-world distance based on the model's coordinate system, with values rounded to clean numbers (e.g., 1, 2, 5, 10, 20, 50...) for readability. The unit label matches the measurement unit configured in Settings.</p>
+                            <p style="margin-top: 10px;"><strong>Scalebar:</strong> In <strong>Orthographic</strong> camera mode, screenshots automatically include a scalebar in the bottom-left corner. The scalebar is drawn as a thin rule with a tick at each end and the length below it, matching the scale bars on profile and plate exports. Values are rounded to clean numbers (e.g., 1, 2, 5, 10, 20, 50...) for readability, and the unit label matches the measurement unit configured in Settings. The bar is drawn in black or white, whichever contrasts with your background colour.</p>
                             <p style="margin-top: 10px;">If you take a screenshot while in <strong>Perspective</strong> mode, MeshNotes will ask whether you want to switch to Orthographic view first. A scalebar can only be accurate in orthographic mode, where scale is uniform across the entire image — in perspective view, objects further from the camera appear smaller, making a single scalebar misleading.</p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
+                            <span>Six-View Plate</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Click <strong>Screenshot ▾</strong> and choose <strong>Six-View Plate…</strong> to render the model from all six axis directions and arrange them in the unfolded-cube layout used for object plates in archaeological publications:</p>
+                            <p style="margin-top: 10px; font-family: monospace; font-size: 12px; line-height: 1.6;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ Top ]<br>[ Back ] [ Left ] [ Front ] [ Right ]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ Bottom ]</p>
+                            <p style="margin-top: 10px;"><strong>Framing is fixed to the object.</strong> All six views share one frustum sized from the model's bounding box, so the object is shown as large as it can be while every view stays at the same scale — which is what makes the single scale bar below the block valid. The plate does not follow the viewport, so the same model always produces the same plate, and two objects exported the same way are directly comparable.</p>
+                            <p style="margin-top: 10px;"><strong>What appears is what you see.</strong> Annotations, labels and measurements are included if they are visible in the viewport. To produce a clean object-only plate, toggle them off before exporting.</p>
+                            <p style="margin-top: 10px;"><strong>PNG or PDF.</strong> After choosing Six-View Plate you are asked for an output format. <strong>PNG</strong> has a transparent background, so the plate can be placed directly onto a page or figure without a background block; the scale bar is drawn in black, on the assumption that it will sit on white paper. <strong>PDF</strong> places the same transparent images on a white page, fitted to the page size and orientation from the PDF Export settings, with the scale bar drawn as vector lines.</p>
+                            <p style="margin-top: 10px;">As with screenshots, a plate exported from <strong>Perspective</strong> mode will be offered a switch to Orthographic first; without it the views are rendered but no scale bar is drawn.</p>
                         </div>
                     </div>
 
@@ -673,6 +688,8 @@
                             <p style="margin-top: 10px;"><strong>Annotation Display:</strong> Adjust <strong>Point Size</strong> and <strong>Text Size</strong> multipliers to scale annotation markers and labels for your model's size. The sliders use exponential scaling for easy fine-tuning at both small and large values.</p>
 
                             <p style="margin-top: 10px;"><strong>Screenshot:</strong> Choose the <strong>Screenshot Quality</strong> — Standard (1×) captures at screen resolution, High (2×) at double, and Ultra (4×) at four times resolution. Higher quality produces sharper images but may be slower on large models.</p>
+                            
+                            <p style="margin-top: 10px;"><strong>Six-View Plate:</strong> <strong>Cell Shape</strong> selects whether each cell takes its proportions from the model's bounding box or is squared off. <strong>PNG Width</strong> sets the total width of the exported plate (2000, 4000 or 8000 px). The PDF plate takes its resolution from the PDF Export DPI setting instead.</p>
 
                             <p style="margin-top: 10px;"><strong>Model Display:</strong> Customize the <strong>Mesh Color</strong> and <strong>Wireframe Color</strong> used in the Mesh and Wireframe display modes.</p>
 
@@ -786,6 +803,27 @@
                         </select>
                     </div>
                     <p class="settings-hint">Higher quality renders a sharper image. Ultra may be slow on large models.</p>
+                </section>
+                
+                <section>
+                    <h3>Six-View Plate</h3>
+                    <div class="settings-row">
+                        <label for="settings-plate-cell-shape">Cell Shape</label>
+                        <select id="settings-plate-cell-shape">
+                            <option value="fit" selected>Fit to object</option>
+                            <option value="square">Square</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">Fit to object takes each cell's proportions from the model's bounding box. Square cells equalise them, which tidies the grid at the cost of empty margin around flat or elongated objects.</p>
+                    <div class="settings-row">
+                        <label for="settings-plate-png-width">PNG Width</label>
+                        <select id="settings-plate-png-width">
+                            <option value="2000">2000 px</option>
+                            <option value="4000" selected>4000 px</option>
+                            <option value="8000">8000 px</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">Total width of the whole plate. The PDF plate uses the PDF Export DPI setting instead.</p>
                 </section>
                 
                 <section>
@@ -1184,7 +1222,13 @@
         
         <div class="tool-separator"></div>
         
-        <button class="tool-btn" id="btn-screenshot" disabled data-icon="screenshot" title="Take Screenshot">Screenshot</button>
+        <div class="export-dropdown" id="screenshot-dropdown">
+            <button class="tool-btn" id="btn-screenshot" disabled data-icon="screenshot" title="Screenshot or six-view plate">Screenshot ▾</button>
+            <div class="export-dropdown-menu" id="screenshot-dropdown-menu">
+                <button class="export-dropdown-item" id="btn-screenshot-single" data-icon="screenshot">Screenshot</button>
+                <button class="export-dropdown-item" id="btn-export-views" data-icon="pdfExport">Six-View Plate…</button>
+            </div>
+        </div>
         <div class="export-dropdown" id="export-dropdown">
             <button class="tool-btn" id="btn-export" disabled data-icon="export" title="Export annotations or PDF report">Export ▾</button>
             <div class="export-dropdown-menu" id="export-dropdown-menu">
@@ -1447,6 +1491,19 @@
                         <button class="btn-cancel" id="refresh-confirm-cancel">Cancel</button>
                         <button class="btn-delete" id="refresh-confirm-refresh">Refresh</button>
                         <button class="btn-save" id="refresh-confirm-export">Export & Refresh</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Six-View Plate Format Dialog -->
+            <div class="confirm-overlay" id="plate-format-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="plate-format-dialog-close" title="Close">✕</button>
+                    <p><strong>Six-View Plate</strong> — six orthogonal views in an unfolded-cube layout, sharing one scale, with a scale bar below the block.</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Choose an output format. PNG has a transparent background for placing into figures; PDF fits the plate to the page size set under PDF Export.</p>
+                    <div class="btn-row" style="margin-top: 16px;">
+                        <button class="btn-cancel" id="plate-format-png">PNG</button>
+                        <button class="btn-save" id="plate-format-pdf">PDF</button>
                     </div>
                 </div>
             </div>

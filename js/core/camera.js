@@ -201,3 +201,59 @@ export function toggleCamera() {
     });
     updateViewHelperLabels();
 }
+
+// ============ Camera Pose Save / Restore ============
+
+/**
+ * Snapshots everything an export needs to put the camera back exactly as the
+ * user left it: pose, orbit target, zoom, and the projection parameters of
+ * whichever camera is active.
+ *
+ * Used by the PDF report and the six-view plate, both of which fly the camera
+ * around the model and must leave the viewport untouched afterwards.
+ *
+ * @returns {Object} opaque snapshot for restoreCameraPose()
+ */
+export function saveCameraPose() {
+    const cam = state.camera;
+    return {
+        camera: cam,
+        position: cam.position.clone(),
+        quaternion: cam.quaternion.clone(),
+        up: cam.up.clone(),
+        target: state.controls.target.clone(),
+        zoom: cam.zoom,
+        frustum: cam.isOrthographicCamera
+            ? { left: cam.left, right: cam.right, top: cam.top, bottom: cam.bottom }
+            : null,
+        aspect: cam.isPerspectiveCamera ? cam.aspect : null
+    };
+}
+
+/**
+ * Restores a snapshot from saveCameraPose().
+ * @param {Object} saved
+ */
+export function restoreCameraPose(saved) {
+    if (!saved) return;
+
+    const cam = saved.camera;
+    cam.up.copy(saved.up);
+    cam.position.copy(saved.position);
+    cam.quaternion.copy(saved.quaternion);
+    state.controls.target.copy(saved.target);
+    cam.zoom = saved.zoom;
+
+    if (saved.frustum && cam.isOrthographicCamera) {
+        cam.left = saved.frustum.left;
+        cam.right = saved.frustum.right;
+        cam.top = saved.frustum.top;
+        cam.bottom = saved.frustum.bottom;
+    }
+    if (saved.aspect !== null && cam.isPerspectiveCamera) {
+        cam.aspect = saved.aspect;
+    }
+
+    cam.updateProjectionMatrix();
+    state.controls.update();
+}

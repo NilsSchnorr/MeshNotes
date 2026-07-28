@@ -2,7 +2,7 @@
 import { state, dom, initDomReferences, APP_VERSION } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
-import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality } from './core/lighting.js';
+import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality, setPlatePngWidth, setPlateCellShape } from './core/lighting.js';
 import { setUpdateModelInfoDisplay, onceModelSetupComplete, setModelHashReadyCallback, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
@@ -419,6 +419,17 @@ function loadSavedSettings() {
     const savedScreenshotQuality = localStorage.getItem('meshnotes_screenshotQuality');
     if (savedScreenshotQuality) {
         setScreenshotQuality(savedScreenshotQuality);
+    }
+
+    // Six-view plate
+    const savedPlatePngWidth = localStorage.getItem('meshnotes_platePngWidth');
+    if (savedPlatePngWidth) {
+        setPlatePngWidth(savedPlatePngWidth);
+    }
+
+    const savedPlateCellShape = localStorage.getItem('meshnotes_plateCellShape');
+    if (savedPlateCellShape) {
+        setPlateCellShape(savedPlateCellShape);
     }
 }
 

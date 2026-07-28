@@ -402,6 +402,24 @@ export function setScreenshotQuality(value) {
     dom.settingsScreenshotQuality.value = value;
 }
 
+// ============ Six-View Plate Settings ============
+
+export function setPlatePngWidth(value) {
+    state.platePngWidth = parseInt(value);
+    localStorage.setItem('meshnotes_platePngWidth', value);
+    dom.settingsPlatePngWidth.value = value;
+}
+
+export function setPlateCellShape(value) {
+    // Normalised so a stored 'viewport' from v1.4.0 (when framing followed the
+    // live camera) resolves to the current default rather than an option that
+    // no longer exists.
+    const shape = value === 'square' ? 'square' : 'fit';
+    state.plateCellShape = shape;
+    localStorage.setItem('meshnotes_plateCellShape', shape);
+    dom.settingsPlateCellShape.value = shape;
+}
+
 /**
  * Converts DPI setting to a render multiplier.
  * Based on assumed ~150mm image width on A4:

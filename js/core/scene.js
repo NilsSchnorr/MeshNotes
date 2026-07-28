@@ -40,7 +40,10 @@ export function initScene() {
     const width = getViewportWidth();
     const height = getViewportHeight();
 
-    state.renderer = new THREE.WebGLRenderer({ canvas: dom.canvas, antialias: true, preserveDrawingBuffer: true });
+    // alpha: true is required for transparent exports (the six-view plate).
+    // It has no visible effect in normal use, because scene.background is
+    // always set to an opaque colour; the export temporarily clears it.
+    state.renderer = new THREE.WebGLRenderer({ canvas: dom.canvas, antialias: true, preserveDrawingBuffer: true, alpha: true });
     state.renderer.setSize(width, height);
     state.renderer.setPixelRatio(window.devicePixelRatio);
     state.renderer.outputColorSpace = THREE.SRGBColorSpace;

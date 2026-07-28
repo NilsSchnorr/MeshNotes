@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.4.0] — 2026-07-28
+
+This release adds a dedicated six-view plate export for publication figures, and unifies the scale bar across every output.
+
+### Added
+
+- **Six-View Plate export (PNG / PDF)** — renders the model from all six axis directions and arranges them in the unfolded-cube net used for object plates (`Back | Left | Front | Right`, with Top and Bottom above and below Front). Framing is derived from the model's bounding box, not from the viewport, so the object is shown as large as possible while all six views stay at one shared scale — which is what makes the single scale bar below the block valid. The same model always produces the same plate, and two objects exported the same way are directly comparable. PNG output has a transparent background for direct placement in figures; PDF output fits the block to the page using the existing PDF page-size and orientation settings, with the scale bar drawn as vector lines.
+- **Six-View Plate settings** — cell shape (fit to object, or square) and PNG plate width (2000 / 4000 / 8000 px).
+
+### Changed
+
+- **Scale bar redrawn as an "I-beam"** everywhere — a thin rule with a tick at each end and the length centred below it, replacing the alternating black/white bar on a translucent panel. This matches the scale bar the cutting-plane profile export already used, so screenshots, profiles, plates and the PDF report are now consistent. The bar is drawn bare in black or white, whichever contrasts with the background, which also lets it sit on transparent exports.
+- **Axis Views page of the PDF report** now shares one implementation with the plate export, and follows the same net order and orientation. Each cell is rendered at its final size instead of being cropped from the viewport, and the tighter bounding-box fit means the model fills considerably more of each cell than before.
+- **Line thickness in high-resolution exports** now scales with the image. Annotation and measurement lines previously kept their on-screen pixel width during tiled rendering, so 2x and 4x screenshots came out with proportionally thinner lines.
+- Renderer is created with `alpha: true` to allow transparent exports. No visible change in normal use.
+
+### Fixed
+
+- **Scale bar too short in PDF reports** — screenshots in the report are upscaled by the DPI setting, but the scale bar was drawn at the unscaled device-pixel ratio, making it roughly 2x too short at 150 DPI and 4x too short at 300 DPI. Screenshots taken with the Screenshot button were never affected.
+- **Top and Bottom views rotated 180 degrees** in the report's axis-views page — their up-vectors were mirrored relative to the four side views, so the unfolded cube did not fold back into a cube. Visible only on clearly asymmetric objects.
+
+### Internal
+
+- New modules `js/export/scalebar.js` (one scale-bar geometry, canvas and jsPDF renderers), `js/export/render-capture.js` (tiled off-screen rendering at arbitrary resolution), `js/export/views-plate.js` (net layout and plate output), and `js/export/pdf-layout.js` (page geometry shared by the PDF exports).
+- Camera pose save/restore moved to `js/core/camera.js` as `saveCameraPose()` / `restoreCameraPose()`, replacing a private copy in `pdf-report.js`.
+
+
 ## [1.3.1] — 2026-07-20
 
 ### Fixed
@@ -108,6 +135,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.4.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.0
 [1.3.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.1
 [1.3.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.0
 [1.2.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.2.0
