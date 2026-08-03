@@ -7,9 +7,12 @@
 //   [ Back ] [ Left ] [ Front ] [ Right ]
 //                [ Bottom ]
 //
-// All six views share one camera frustum, so they share one scale by
-// construction and a single scale bar below the block is true for the whole
-// plate. Output is either a transparent PNG or a PDF page (fit to page).
+// The layout is a TRUE net: every cell is exactly the size of the face it
+// shows, so the plate packs tightly and the six views still share one scale.
+//
+// The unit that ties everything together is `ppu` — output pixels per model
+// unit. Cell sizes, image sizes and the scale bar are all derived from it, so
+// a shared scale holds by construction rather than by reading the camera back.
 //
 // This module is the single implementation behind both the standalone plate
 // export and the "Axis Views" page of the PDF report.
@@ -32,127 +35,191 @@ import {
     scalebarBlockHeightMm
 } from './scalebar.js';
 
-// Grid positions follow the net above: row 1 = Top over Front, row 2 = the
-// horizontal strip with Back as the left-hand tail, row 3 = Bottom under Front.
+// Grid positions follow the net above: row 1 = the horizontal strip with Back
+// as the left-hand tail, Top and Bottom above and below Front.
 //
 // Directions and up-vectors are in internal Three.js Y-up space. Every view in
 // the strip keeps up = +Y, so the model stays upright and the Back view needs
 // no 180-degree correction (unlike GigaMesh, which tips the object over a
 // horizontal axis to produce it).
 //
-// Top and Bottom take up = +Z and -Z respectively. Both give a screen-right of
-// -X, matching the strip; the mirrored pair (-Z / +Z) that this code used
-// before v1.4.0 put screen-right at +X, i.e. rotated 180 degrees against the
-// rest of the net, which only showed on clearly asymmetric objects.
+// wAxis / hAxis record which bounding-box dimensions each view projects onto
+// the horizontal and vertical of its image. Working these out from the up
+// vectors: Front/Back show X across and Y up, Left/Right show Z across and Y
+// up, Top/Bottom show X across and Z up. That is what makes the net tile
+// exactly — the four strip cells are sx, sz, sx, sz wide, and the three rows
+// are sz, sy, sz high.
 export const PLATE_VIEWS = [
-    { name: 'Top',    col: 2, row: 0, dir: new THREE.Vector3(0, 1, 0),  up: new THREE.Vector3(0, 0, 1) },
-    { name: 'Back',   col: 0, row: 1, dir: new THREE.Vector3(0, 0, 1),  up: new THREE.Vector3(0, 1, 0) },
-    { name: 'Left',   col: 1, row: 1, dir: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0) },
-    { name: 'Front',  col: 2, row: 1, dir: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) },
-    { name: 'Right',  col: 3, row: 1, dir: new THREE.Vector3(1, 0, 0),  up: new THREE.Vector3(0, 1, 0) },
-    { name: 'Bottom', col: 2, row: 2, dir: new THREE.Vector3(0, -1, 0), up: new THREE.Vector3(0, 0, -1) }
+    { name: 'Top',    col: 2, row: 0, dir: new THREE.Vector3(0, 1, 0),  up: new THREE.Vector3(0, 0, 1),  wAxis: 'x', hAxis: 'z' },
+    { name: 'Back',   col: 0, row: 1, dir: new THREE.Vector3(0, 0, 1),  up: new THREE.Vector3(0, 1, 0),  wAxis: 'x', hAxis: 'y' },
+    { name: 'Left',   col: 1, row: 1, dir: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0),  wAxis: 'z', hAxis: 'y' },
+    { name: 'Front',  col: 2, row: 1, dir: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0),  wAxis: 'x', hAxis: 'y' },
+    { name: 'Right',  col: 3, row: 1, dir: new THREE.Vector3(1, 0, 0),  up: new THREE.Vector3(0, 1, 0),  wAxis: 'z', hAxis: 'y' },
+    { name: 'Bottom', col: 2, row: 2, dir: new THREE.Vector3(0, -1, 0), up: new THREE.Vector3(0, 0, -1), wAxis: 'x', hAxis: 'z' }
 ];
 
 export const PLATE_COLS = 4;
 export const PLATE_ROWS = 3;
 
+// Breathing room around each face and between cells, as fractions of the
+// model's largest dimension.
+const PAD_FRACTION = 0.02;
+const GAP_FRACTION = 0.025;
+
+// Conservative canvas ceilings. Browsers reject canvases beyond roughly
+// 16384 px on a side, and very large areas fail on memory long before that.
+const MAX_CANVAS_DIM = 16000;
+const MAX_CANVAS_AREA = 150e6;
+
 /**
- * Works out the shared frustum for the six views.
+ * Bounding box of everything the model actually draws.
  *
- * Framing is always derived from the model's bounding box, never from the live
+ * Box3.setFromObject() includes meshes whose `visible` flag is false, so a
+ * model carrying hidden geometry (a proxy mesh, a disabled scan chunk, a
+ * hidden node left in by the exporter) frames as though that geometry were
+ * there — the object is rendered small inside a frustum sized for something
+ * invisible. traverseVisible() skips those subtrees, so the box matches what
+ * ends up in the image.
+ *
+ * @returns {THREE.Box3}
+ */
+export function getVisibleModelBox() {
+    const box = new THREE.Box3();
+    const childBox = new THREE.Box3();
+
+    state.currentModel.updateWorldMatrix(false, true);
+    state.currentModel.traverseVisible(obj => {
+        const geom = obj.geometry;
+        if (!geom || !(obj.isMesh || obj.isPoints || obj.isLine)) return;
+        if (!geom.boundingBox) geom.computeBoundingBox();
+        if (!geom.boundingBox) return;
+        childBox.copy(geom.boundingBox).applyMatrix4(obj.matrixWorld);
+        box.union(childBox);
+    });
+
+    // Fall back to the whole object if nothing visible was found, so a model
+    // that is entirely hidden still exports something rather than nothing.
+    if (box.isEmpty()) box.setFromObject(state.currentModel);
+    return box;
+}
+
+/**
+ * Works out the per-view frustums.
+ *
+ * Framing is derived from the model's bounding box, never from the live
  * camera. A plate is a normed figure: two exports of the same object, or two
  * objects in the same publication, have to be directly comparable, which rules
  * out anything that depends on where the user happened to be zoomed.
  *
- * @param {{cellShape?: string}} [opts] - 'fit' (default) or 'square'
+ * Modes:
+ *   'net'     — each view framed to the face it shows (tight; the default)
+ *   'uniform' — all views share the worst-case extents
+ *   'square'  — all views share a square frustum (the PDF report's grid)
+ *
+ * Note that a shared *scale* does not require a shared *frustum*. Giving each
+ * view its own extents and rendering all of them at one pixels-per-unit keeps
+ * the scale bar valid while removing the dead margin that a single worst-case
+ * frustum forces onto every cell.
+ *
+ * @param {{mode?: string}} [opts]
  * @returns {Object|null} framing descriptor, or null if no model is loaded
  */
 export function getPlateFraming(opts = {}) {
     if (!state.currentModel) return null;
 
-    const cellShape = opts.cellShape === 'square' ? 'square' : 'fit';
+    const mode = opts.mode || 'net';
 
-    const box = new THREE.Box3().setFromObject(state.currentModel);
+    const box = getVisibleModelBox();
     const size = box.getSize(new THREE.Vector3());
     const target = box.getCenter(new THREE.Vector3());
 
-    // One frustum shared by all six views, so they share one scale and the
-    // single scale bar below the block is true for the whole plate.
-    //
-    // Each view projects a different pair of bounding-box dimensions:
-    //   Front / Back  ->  X wide, Y high
-    //   Left / Right  ->  Z wide, Y high
-    //   Top / Bottom  ->  X wide, Z high
-    // so the shared half-extents are the worst case of each pair. Fitting every
-    // view to its own extents would pack each cell tighter, but the views would
-    // then be at different scales, which one scale bar cannot describe.
-    const MARGIN = 1.03;
-    let halfW = (Math.max(size.x, size.z) / 2) * MARGIN;
-    let halfH = (Math.max(size.y, size.z) / 2) * MARGIN;
+    const dims = {
+        x: Math.max(size.x, 1e-6),
+        y: Math.max(size.y, 1e-6),
+        z: Math.max(size.z, 1e-6)
+    };
+    const maxDim = Math.max(dims.x, dims.y, dims.z);
+    const pad = maxDim * PAD_FRACTION;
 
-    // Guard flat or degenerate geometry (a plane has a zero extent on one axis).
-    if (!(halfW > 0)) halfW = 1;
-    if (!(halfH > 0)) halfH = 1;
+    const views = PLATE_VIEWS.map(v => {
+        let w;
+        let h;
+        if (mode === 'square') {
+            w = maxDim;
+            h = maxDim;
+        } else if (mode === 'uniform') {
+            w = Math.max(dims.x, dims.z);
+            h = Math.max(dims.y, dims.z);
+        } else {
+            w = dims[v.wAxis];
+            h = dims[v.hAxis];
+        }
+        return { ...v, halfW: w / 2 + pad, halfH: h / 2 + pad };
+    });
 
-    // Square cells equalise to the larger half-extent, adding empty margin
-    // rather than cropping. Needed by the PDF report, whose grid cells are
-    // square, and available as a setting for a tidier grid.
-    if (cellShape === 'square') {
-        const half = Math.max(halfW, halfH);
-        halfW = half;
-        halfH = half;
+    // Column widths and row heights, in model units. In every mode each column
+    // holds views of one width and each row views of one height, so the net
+    // tiles without slack.
+    const cols = [];
+    for (let c = 0; c < PLATE_COLS; c++) {
+        cols.push(Math.max(...views.filter(v => v.col === c).map(v => v.halfW * 2)));
     }
-
-    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const rows = [];
+    for (let r = 0; r < PLATE_ROWS; r++) {
+        rows.push(Math.max(...views.filter(v => v.row === r).map(v => v.halfH * 2)));
+    }
 
     return {
         target,
-        halfW,
-        halfH,
+        views,
+        cols,
+        rows,
+        maxDim,
+        gap: maxDim * GAP_FRACTION,
         distance: maxDim * 1.8,
-        frustumWidth: halfW * 2,
-        aspect: halfW / halfH
+        blockWidth: cols.reduce((a, b) => a + b, 0),
+        blockHeight: rows.reduce((a, b) => a + b, 0)
     };
 }
 
 /**
- * Renders the six views into canvases at a given cell width.
+ * Renders the six views at a given pixels-per-unit.
  *
  * @param {Object} params
  * @param {Object} params.framing - from getPlateFraming()
- * @param {number} params.cellWidthPx
+ * @param {number} params.ppu - output pixels per model unit
  * @param {boolean} [params.transparent=false]
- * @returns {Promise<{views: Array, cellW: number, cellH: number, frustumWidth: number}>}
+ * @returns {Promise<{views: Array}>}
  */
-export async function renderSixViews({ framing, cellWidthPx, transparent = false }) {
-    const { target, halfW, halfH, distance } = framing;
-
-    const cellW = Math.max(1, Math.round(cellWidthPx));
-    const cellH = Math.max(1, Math.round(cellW * halfH / halfW));
+export async function renderSixViews({ framing, ppu, transparent = false }) {
+    const { target, distance, views } = framing;
 
     const savedPose = saveCameraPose();
     const savedLightMode = state.lightFollowsCamera;
-
-    // A perspective camera cannot use the frustum directly, so pull it back far
-    // enough that the same extents fill the frame. Orthographic is the norm for
-    // a plate; this only matters when the user declined the switch.
-    const cellAspect = cellW / cellH;
-    let perspectiveDistance = distance;
-    if (!state.isOrthographic) {
-        const halfFov = THREE.MathUtils.degToRad(state.camera.fov) / 2;
-        const distForHeight = halfH / Math.tan(halfFov);
-        const distForWidth = halfW / (Math.tan(halfFov) * cellAspect);
-        perspectiveDistance = Math.max(distForHeight, distForWidth) + distance * 0.1;
-    }
 
     // Camera-linked lighting for all six views, so faces are lit consistently
     // regardless of the user's current light setting.
     state.lightFollowsCamera = true;
 
-    const views = [];
+    const out = [];
 
-    for (const view of PLATE_VIEWS) {
-        const dist = state.isOrthographic ? distance : perspectiveDistance;
+    for (const view of views) {
+        const wPx = Math.max(1, Math.round(view.halfW * 2 * ppu));
+        const hPx = Math.max(1, Math.round(view.halfH * 2 * ppu));
+        const aspect = wPx / hPx;
+
+        // A perspective camera cannot take the frustum directly, so pull it
+        // back far enough that the same extents fill the frame. Orthographic
+        // is the norm for a plate; this only matters when the user declined
+        // the switch.
+        let dist = distance;
+        if (!state.isOrthographic) {
+            const halfFov = THREE.MathUtils.degToRad(state.camera.fov) / 2;
+            dist = Math.max(
+                view.halfH / Math.tan(halfFov),
+                view.halfW / (Math.tan(halfFov) * aspect)
+            ) + distance * 0.1;
+        }
 
         state.camera.up.copy(view.up);
         state.camera.position.copy(target).addScaledVector(view.dir, dist);
@@ -160,13 +227,13 @@ export async function renderSixViews({ framing, cellWidthPx, transparent = false
         state.camera.lookAt(target);
 
         if (state.isOrthographic) {
-            state.camera.left = -halfW;
-            state.camera.right = halfW;
-            state.camera.top = halfH;
-            state.camera.bottom = -halfH;
+            state.camera.left = -view.halfW;
+            state.camera.right = view.halfW;
+            state.camera.top = view.halfH;
+            state.camera.bottom = -view.halfH;
             state.camera.zoom = 1;
         } else {
-            state.camera.aspect = cellAspect;
+            state.camera.aspect = aspect;
         }
         state.camera.updateProjectionMatrix();
 
@@ -174,11 +241,13 @@ export async function renderSixViews({ framing, cellWidthPx, transparent = false
         // light at the new camera position before we capture.
         await delay(50);
 
-        views.push({
+        out.push({
             name: view.name,
             col: view.col,
             row: view.row,
-            canvas: captureAtSize(cellW, cellH, { transparent })
+            widthPx: wPx,
+            heightPx: hPx,
+            canvas: captureAtSize(wPx, hPx, { transparent })
         });
     }
 
@@ -189,7 +258,19 @@ export async function renderSixViews({ framing, cellWidthPx, transparent = false
     }
     state.renderer.render(state.scene, state.camera);
 
-    return { views, cellW, cellH, frustumWidth: halfW * 2 };
+    return { views: out };
+}
+
+/**
+ * Scale-bar length for a plate, sized against the widest column so the bar
+ * stays a sensible fraction of the figure.
+ * @param {Object} framing
+ * @param {number} scale - pixels (or mm) per model unit
+ * @returns {{units: number, pixelWidth: number}|null}
+ */
+function plateScalebarParams(framing, scale) {
+    const widest = Math.max(...framing.cols);
+    return computeScalebarParams(widest * scale, widest);
 }
 
 // ============ Entry points ============
@@ -239,59 +320,87 @@ function startPlateExport(run) {
     }
 }
 
+function plateMode() {
+    return state.plateCellShape === 'uniform' ? 'uniform' : 'net';
+}
+
 // ============ PNG plate ============
 
 async function doExportViewsPng(includeScalebar) {
     showStatus('Rendering six-view plate...');
 
-    const framing = getPlateFraming({ cellShape: state.plateCellShape });
+    const framing = getPlateFraming({ mode: plateMode() });
     if (!framing) return;
 
-    // Gaps are proportional so the plate looks identical at any resolution.
-    // Total width = 4 cells + 3 inner gaps + 2 outer margins, margin = gap.
-    const gapFraction = 0.03;
-    const plateWidth = state.platePngWidth || 4000;
-    const cellWidthPx = Math.floor(plateWidth / (PLATE_COLS + 5 * gapFraction));
-    const gap = Math.max(1, Math.round(cellWidthPx * gapFraction));
+    const { cols, rows, gap } = framing;
+    const withBar = includeScalebar && state.isOrthographic;
 
-    const { views, cellW, cellH, frustumWidth } = await renderSixViews({
-        framing,
-        cellWidthPx,
-        transparent: true
-    });
+    // Everything is laid out in model units first, then multiplied by ppu.
+    // Width = 4 cells + 3 inner gaps + 2 outer margins (margin = gap).
+    const totalUnitsW = framing.blockWidth + 5 * gap;
+    const gridUnitsH = framing.blockHeight + 2 * gap;
 
-    const margin = gap;
-    const gridW = PLATE_COLS * cellW + (PLATE_COLS - 1) * gap;
-    const gridH = PLATE_ROWS * cellH + (PLATE_ROWS - 1) * gap;
+    let ppu = (state.platePngWidth || 4000) / totalUnitsW;
 
-    const barScale = Math.max(1, cellW / 500);
-    const params = includeScalebar && state.isOrthographic
-        ? computeScalebarParams(cellW, frustumWidth)
-        : null;
-    const barGap = gap * 2;
-    const barBlock = params ? scalebarBlockHeight(barScale) : 0;
+    // The bar block is a fixed pixel height, so resolve the layout, then check
+    // it against the canvas ceilings and shrink once if needed.
+    const layout = () => {
+        const gapPx = Math.max(1, Math.round(gap * ppu));
+        const colsPx = cols.map(c => Math.round(c * ppu));
+        const rowsPx = rows.map(r => Math.round(r * ppu));
+        const gridW = colsPx.reduce((a, b) => a + b, 0) + 3 * gapPx;
+        const gridH = rowsPx.reduce((a, b) => a + b, 0) + 2 * gapPx;
+        const barScale = Math.max(1, (Math.max(...colsPx)) / 500);
+        const barBlock = withBar ? 2 * gapPx + scalebarBlockHeight(barScale) : 0;
+        return {
+            gapPx, colsPx, rowsPx, gridW, gridH, barScale, barBlock,
+            width: gridW + 2 * gapPx,
+            height: gridH + 2 * gapPx + barBlock
+        };
+    };
+
+    let L = layout();
+    const area = L.width * L.height;
+    const overDim = Math.max(L.width, L.height) / MAX_CANVAS_DIM;
+    const overArea = Math.sqrt(area / MAX_CANVAS_AREA);
+    const over = Math.max(overDim, overArea);
+    if (over > 1) {
+        ppu /= over;
+        L = layout();
+        showStatus(`Plate reduced to ${L.width}px wide (browser canvas limit)`);
+    }
+
+    const { views } = await renderSixViews({ framing, ppu, transparent: true });
 
     const plate = document.createElement('canvas');
-    plate.width = margin * 2 + gridW;
-    plate.height = margin * 2 + gridH + (params ? barGap + barBlock : 0);
+    plate.width = L.width;
+    plate.height = L.height;
     const ctx = plate.getContext('2d');
 
     // Left transparent on purpose — no background fill.
     for (const view of views) {
-        const x = margin + view.col * (cellW + gap);
-        const y = margin + view.row * (cellH + gap);
-        ctx.drawImage(view.canvas, x, y);
+        const x = L.gapPx + L.colsPx.slice(0, view.col).reduce((a, b) => a + b, 0) + view.col * L.gapPx;
+        const y = L.gapPx + L.rowsPx.slice(0, view.row).reduce((a, b) => a + b, 0) + view.row * L.gapPx;
+        // Centre inside the cell; in practice they match to within a pixel.
+        ctx.drawImage(
+            view.canvas,
+            x + (L.colsPx[view.col] - view.widthPx) / 2,
+            y + (L.rowsPx[view.row] - view.heightPx) / 2
+        );
     }
 
-    if (params) {
-        drawScalebarOnCanvas(plate, {
-            barPx: params.pixelWidth,
-            label: formatScalebarLabel(params.units),
-            scale: barScale,
-            color: autoScalebarColor({ transparent: true }),
-            x: margin,
-            y: margin + gridH + barGap
-        });
+    if (withBar) {
+        const params = plateScalebarParams(framing, ppu);
+        if (params) {
+            drawScalebarOnCanvas(plate, {
+                barPx: params.pixelWidth,
+                label: formatScalebarLabel(params.units),
+                scale: L.barScale,
+                color: autoScalebarColor({ transparent: true }),
+                x: L.gapPx,
+                y: L.gapPx + L.gridH + 2 * L.gapPx
+            });
+        }
     }
 
     downloadCanvasPng(plate);
@@ -315,7 +424,7 @@ function downloadCanvasPng(canvas) {
             setTimeout(() => URL.revokeObjectURL(url), 5000);
         }
 
-        showStatus('Six-view plate saved');
+        showStatus(`Six-view plate saved (${canvas.width}×${canvas.height})`);
     }, 'image/png');
 }
 
@@ -324,12 +433,12 @@ function downloadCanvasPng(canvas) {
 async function doExportViewsPdf(includeScalebar) {
     showStatus('Rendering six-view plate...');
 
-    const framing = getPlateFraming({ cellShape: state.plateCellShape });
+    const framing = getPlateFraming({ mode: plateMode() });
     if (!framing) return;
 
+    const { cols, rows, gap } = framing;
     const pageConfig = getPdfPageConfig();
     const margin = 15;
-    const gapMm = 5.5;
     const availW = pageConfig.pageWidth - 2 * margin;
     const availH = pageConfig.pageHeight - 2 * margin;
 
@@ -337,45 +446,46 @@ async function doExportViewsPdf(includeScalebar) {
     const barGapMm = 6;
     const barBlockMm = withBar ? barGapMm + scalebarBlockHeightMm() : 0;
 
-    // Fit to page: uniform scale, limited by whichever of width or height binds
-    // first. This mirrors adjustbox's max width / max height behaviour, and the
-    // scale bar shrinks with the images so it stays true either way.
-    const byWidth = (availW - (PLATE_COLS - 1) * gapMm) / PLATE_COLS;
-    const byHeight = ((availH - (PLATE_ROWS - 1) * gapMm - barBlockMm) / PLATE_ROWS) * framing.aspect;
-    const cellWmm = Math.min(byWidth, byHeight);
-    const cellHmm = cellWmm / framing.aspect;
+    // Fit to page: one uniform scale, limited by whichever of width or height
+    // binds first. This mirrors adjustbox's max width / max height behaviour,
+    // and the scale bar shrinks with the images so it stays true either way.
+    const blockUnitsW = framing.blockWidth + 3 * gap;
+    const blockUnitsH = framing.blockHeight + 2 * gap;
+    const mmPerUnit = Math.min(availW / blockUnitsW, (availH - barBlockMm) / blockUnitsH);
 
-    const dpi = state.pdfDpi || 150;
-    const cellWidthPx = Math.max(1, Math.round((cellWmm / 25.4) * dpi));
+    const dpi = state.platePdfDpi || 300;
+    const ppu = (mmPerUnit / 25.4) * dpi;
 
-    const { views, frustumWidth } = await renderSixViews({
-        framing,
-        cellWidthPx,
-        transparent: true
-    });
+    const { views } = await renderSixViews({ framing, ppu, transparent: true });
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF(pageConfig.orientation, 'mm', pageConfig.format);
 
-    const blockW = PLATE_COLS * cellWmm + (PLATE_COLS - 1) * gapMm;
-    const blockH = PLATE_ROWS * cellHmm + (PLATE_ROWS - 1) * gapMm + barBlockMm;
+    const gapMm = gap * mmPerUnit;
+    const colsMm = cols.map(c => c * mmPerUnit);
+    const rowsMm = rows.map(r => r * mmPerUnit);
+    const blockW = blockUnitsW * mmPerUnit;
+    const blockH = blockUnitsH * mmPerUnit + barBlockMm;
     const originX = margin + (availW - blockW) / 2;
     const originY = margin + (availH - blockH) / 2;
 
     for (const view of views) {
-        const x = originX + view.col * (cellWmm + gapMm);
-        const y = originY + view.row * (cellHmm + gapMm);
-        pdf.addImage(view.canvas.toDataURL('image/png'), 'PNG', x, y, cellWmm, cellHmm);
+        const x = originX + colsMm.slice(0, view.col).reduce((a, b) => a + b, 0) + view.col * gapMm;
+        const y = originY + rowsMm.slice(0, view.row).reduce((a, b) => a + b, 0) + view.row * gapMm;
+        pdf.addImage(
+            view.canvas.toDataURL('image/png'), 'PNG',
+            x, y, colsMm[view.col], rowsMm[view.row]
+        );
     }
 
     if (withBar) {
         // computeScalebarParams is unit-agnostic: feed it millimetres and it
         // returns the bar length in millimetres.
-        const params = computeScalebarParams(cellWmm, frustumWidth);
+        const params = plateScalebarParams(framing, mmPerUnit);
         if (params) {
             drawScalebarOnPdf(pdf, {
                 x: originX,
-                y: originY + PLATE_ROWS * cellHmm + (PLATE_ROWS - 1) * gapMm + barGapMm,
+                y: originY + blockUnitsH * mmPerUnit + barGapMm,
                 barMm: params.pixelWidth,
                 label: formatScalebarLabel(params.units)
             });
@@ -384,5 +494,5 @@ async function doExportViewsPdf(includeScalebar) {
 
     const base = (state.modelFileName || 'model').replace(/\.[^.]+$/, '');
     pdf.save(`meshnotes-views-${base}-${Date.now()}.pdf`);
-    showStatus('Six-view plate exported');
+    showStatus(`Six-view plate exported (${dpi} DPI)`);
 }

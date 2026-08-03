@@ -410,11 +410,17 @@ export function setPlatePngWidth(value) {
     dom.settingsPlatePngWidth.value = value;
 }
 
+export function setPlatePdfDpi(value) {
+    state.platePdfDpi = parseInt(value);
+    localStorage.setItem('meshnotes_platePdfDpi', value);
+    dom.settingsPlatePdfDpi.value = value;
+}
+
 export function setPlateCellShape(value) {
-    // Normalised so a stored 'viewport' from v1.4.0 (when framing followed the
-    // live camera) resolves to the current default rather than an option that
-    // no longer exists.
-    const shape = value === 'square' ? 'square' : 'fit';
+    // Normalised so values stored by earlier builds ('viewport', 'fit',
+    // 'square') resolve to one of the current options rather than leaving the
+    // select blank.
+    const shape = value === 'uniform' || value === 'square' ? 'uniform' : 'net';
     state.plateCellShape = shape;
     localStorage.setItem('meshnotes_plateCellShape', shape);
     dom.settingsPlateCellShape.value = shape;

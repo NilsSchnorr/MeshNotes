@@ -78,7 +78,8 @@ export const state = {
 
     // Six-view plate settings
     platePngWidth: 4000,        // Total plate width in px for the PNG export
-    plateCellShape: 'fit',      // 'fit' = aspect from the model, 'square' = square cells
+    platePdfDpi: 300,           // Render resolution for the PDF plate
+    plateCellShape: 'net',      // 'net' = per-face cells (tight), 'uniform' = equal cells
 
     // Tools
     currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure'
@@ -380,6 +381,7 @@ export function initDomReferences() {
     dom.settingsResetAll = document.getElementById('settings-reset-all');
     dom.settingsScreenshotQuality = document.getElementById('settings-screenshot-quality');
     dom.settingsPlatePngWidth = document.getElementById('settings-plate-png-width');
+    dom.settingsPlatePdfDpi = document.getElementById('settings-plate-pdf-dpi');
     dom.settingsPlateCellShape = document.getElementById('settings-plate-cell-shape');
     
     // Camera toggle and flip toggle (now in sliders panel)

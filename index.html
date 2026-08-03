@@ -535,7 +535,7 @@
                         <div class="manual-item-content">
                             <p>Click <strong>Screenshot ▾</strong> and choose <strong>Six-View Plate…</strong> to render the model from all six axis directions and arrange them in the unfolded-cube layout used for object plates in archaeological publications:</p>
                             <p style="margin-top: 10px; font-family: monospace; font-size: 12px; line-height: 1.6;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ Top ]<br>[ Back ] [ Left ] [ Front ] [ Right ]<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ Bottom ]</p>
-                            <p style="margin-top: 10px;"><strong>Framing is fixed to the object.</strong> All six views share one frustum sized from the model's bounding box, so the object is shown as large as it can be while every view stays at the same scale — which is what makes the single scale bar below the block valid. The plate does not follow the viewport, so the same model always produces the same plate, and two objects exported the same way are directly comparable.</p>
+                            <p style="margin-top: 10px;"><strong>Framing is fixed to the object.</strong> Each view is framed to the face it shows, and all six are rendered at one shared scale — which is what makes the single scale bar below the block valid. Framing comes from the model's bounding box rather than the viewport, so the same model always produces the same plate, and two objects exported the same way are directly comparable. Only geometry that is actually visible counts towards the framing, so hidden parts inside a model file do not push the object into a corner.</p>
                             <p style="margin-top: 10px;"><strong>What appears is what you see.</strong> Annotations, labels and measurements are included if they are visible in the viewport. To produce a clean object-only plate, toggle them off before exporting.</p>
                             <p style="margin-top: 10px;"><strong>PNG or PDF.</strong> After choosing Six-View Plate you are asked for an output format. <strong>PNG</strong> has a transparent background, so the plate can be placed directly onto a page or figure without a background block; the scale bar is drawn in black, on the assumption that it will sit on white paper. <strong>PDF</strong> places the same transparent images on a white page, fitted to the page size and orientation from the PDF Export settings, with the scale bar drawn as vector lines.</p>
                             <p style="margin-top: 10px;">As with screenshots, a plate exported from <strong>Perspective</strong> mode will be offered a switch to Orthographic first; without it the views are rendered but no scale bar is drawn.</p>
@@ -689,7 +689,7 @@
 
                             <p style="margin-top: 10px;"><strong>Screenshot:</strong> Choose the <strong>Screenshot Quality</strong> — Standard (1×) captures at screen resolution, High (2×) at double, and Ultra (4×) at four times resolution. Higher quality produces sharper images but may be slower on large models.</p>
                             
-                            <p style="margin-top: 10px;"><strong>Six-View Plate:</strong> <strong>Cell Shape</strong> selects whether each cell takes its proportions from the model's bounding box or is squared off. <strong>PNG Width</strong> sets the total width of the exported plate (2000, 4000 or 8000 px). The PDF plate takes its resolution from the PDF Export DPI setting instead.</p>
+                            <p style="margin-top: 10px;"><strong>Six-View Plate:</strong> <strong>Cell Shape</strong> selects between a tightly fitted net and uniform cells. <strong>PNG Width</strong> sets the total width of the exported plate, and <strong>PDF Resolution</strong> the render resolution of the PDF plate (independent of the PDF Report DPI).</p>
 
                             <p style="margin-top: 10px;"><strong>Model Display:</strong> Customize the <strong>Mesh Color</strong> and <strong>Wireframe Color</strong> used in the Mesh and Wireframe display modes.</p>
 
@@ -810,20 +810,30 @@
                     <div class="settings-row">
                         <label for="settings-plate-cell-shape">Cell Shape</label>
                         <select id="settings-plate-cell-shape">
-                            <option value="fit" selected>Fit to object</option>
-                            <option value="square">Square</option>
+                            <option value="net" selected>Fitted (unfolded net)</option>
+                            <option value="uniform">Uniform cells</option>
                         </select>
                     </div>
-                    <p class="settings-hint">Fit to object takes each cell's proportions from the model's bounding box. Square cells equalise them, which tidies the grid at the cost of empty margin around flat or elongated objects.</p>
+                    <p class="settings-hint">Fitted sizes every cell to the face it shows, so the plate packs tightly. Uniform gives all six views the same cell, which looks more regular but leaves margin around the narrower views.</p>
                     <div class="settings-row">
                         <label for="settings-plate-png-width">PNG Width</label>
                         <select id="settings-plate-png-width">
                             <option value="2000">2000 px</option>
                             <option value="4000" selected>4000 px</option>
                             <option value="8000">8000 px</option>
+                            <option value="12000">12000 px</option>
                         </select>
                     </div>
-                    <p class="settings-hint">Total width of the whole plate. The PDF plate uses the PDF Export DPI setting instead.</p>
+                    <p class="settings-hint">Total width of the whole plate. Very large plates may be reduced to stay within the browser's canvas limit; the export reports the size it actually produced.</p>
+                    <div class="settings-row">
+                        <label for="settings-plate-pdf-dpi">PDF Resolution</label>
+                        <select id="settings-plate-pdf-dpi">
+                            <option value="150">150 DPI</option>
+                            <option value="300" selected>300 DPI</option>
+                            <option value="600">600 DPI</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">Render resolution for the PDF plate, independent of the PDF Report DPI setting. 300 DPI suits most print work; 600 DPI is worth it for small objects reproduced large.</p>
                 </section>
                 
                 <section>

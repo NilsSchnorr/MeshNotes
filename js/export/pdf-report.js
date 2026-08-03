@@ -266,7 +266,7 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
     // Shared framing: the whole model in square cells. The net layout, the
     // view directions and the camera save/restore all live in views-plate.js
     // now, so this page and the standalone plate export cannot drift apart.
-    const framing = getPlateFraming({ cellShape: 'square' });
+    const framing = getPlateFraming({ mode: 'square' });
     if (!framing) return;
     
     // Calculate cell size dynamically based on available page space
@@ -296,16 +296,17 @@ async function pdfRenderAxisViews(pdf, layout, includeScalebar) {
     // final size rather than cropped from the viewport, so the scale bar can
     // be derived from the cell width directly.
     const cellPx = Math.max(1, Math.round((cellSize / 25.4) * (state.pdfDpi || 150)));
-    const { views, cellW, frustumWidth } = await renderSixViews({
+    const frustumWidth = framing.cols[0];
+    const { views } = await renderSixViews({
         framing,
-        cellWidthPx: cellPx,
+        ppu: cellPx / frustumWidth,
         transparent: false
     });
 
     const barParams = includeScalebar && state.isOrthographic
-        ? computeScalebarParams(cellW, frustumWidth)
+        ? computeScalebarParams(cellPx, frustumWidth)
         : null;
-    const barScale = Math.max(1, cellW / 500);
+    const barScale = Math.max(1, cellPx / 500);
 
     for (const view of views) {
         if (barParams) {
