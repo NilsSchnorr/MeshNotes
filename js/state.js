@@ -358,6 +358,8 @@ export function initDomReferences() {
     dom.btnSettings = document.getElementById('btn-settings');
     dom.settingsOverlay = document.getElementById('settings-overlay');
     dom.settingsModalClose = document.getElementById('settings-modal-close');
+    dom.settingsRailItems = Array.from(document.querySelectorAll('.settings-rail-item'));
+    dom.settingsPanes = Array.from(document.querySelectorAll('.settings-pane'));
     dom.settingsDefaultAuthor = document.getElementById('settings-default-author');
     dom.settingsDefaultAuthorOrcid = document.getElementById('settings-default-author-orcid');
     dom.settingsDefaultLanguage = document.getElementById('settings-default-language');

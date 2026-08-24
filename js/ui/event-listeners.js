@@ -886,13 +886,60 @@ export function setupEventListeners() {
     let isDraggingSettings = false;
     let settingsDragOffsetX = 0;
     let settingsDragOffsetY = 0;
+    // Where the panel was last dragged to, kept for the lifetime of the session
+    // so that reopening it does not throw it back over the model. Deliberately
+    // not persisted to localStorage: a position that suited one window size is
+    // rarely the right one days later on a different screen.
+    let settingsPosition = null;
+
+    // Rail pane switching. The panes carry both the .active class and the hidden
+    // attribute: the class drives the CSS, the attribute keeps the inactive panes
+    // out of the accessibility tree and out of sequential focus.
+    function showSettingsPane(name) {
+        dom.settingsRailItems.forEach(item => {
+            const isActive = item.dataset.pane === name;
+            item.classList.toggle('active', isActive);
+            item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        dom.settingsPanes.forEach(pane => {
+            const isActive = pane.id === `settings-pane-${name}`;
+            pane.classList.toggle('active', isActive);
+            pane.hidden = !isActive;
+        });
+        // Each pane scrolls independently in principle, but they share one
+        // scroller, so reset it or a short pane inherits a long pane's offset.
+        const panes = document.getElementById('settings-panes');
+        if (panes) panes.scrollTop = 0;
+    }
+
+    dom.settingsRailItems.forEach(item => {
+        item.addEventListener('click', () => showSettingsPane(item.dataset.pane));
+    });
+
+    function clampSettingsPosition(left, top) {
+        const maxX = Math.max(0, window.innerWidth - settingsModal.offsetWidth);
+        const maxY = Math.max(0, window.innerHeight - settingsModal.offsetHeight);
+        return {
+            left: Math.max(0, Math.min(left, maxX)),
+            top: Math.max(0, Math.min(top, maxY))
+        };
+    }
     
     dom.btnSettings.addEventListener('click', () => {
-        // Reset position to center when opening
-        settingsModal.style.left = '';
-        settingsModal.style.top = '';
-        settingsModal.style.transform = '';
         dom.settingsOverlay.classList.add('visible');
+        if (settingsPosition) {
+            // Clamped after the overlay is visible, so offsetWidth/offsetHeight
+            // are measurable and a since-resized window cannot strand the panel
+            // off-screen.
+            const pos = clampSettingsPosition(settingsPosition.left, settingsPosition.top);
+            settingsModal.style.left = `${pos.left}px`;
+            settingsModal.style.top = `${pos.top}px`;
+            settingsModal.style.transform = 'none';
+        } else {
+            settingsModal.style.left = '';
+            settingsModal.style.top = '';
+            settingsModal.style.transform = '';
+        }
     });
     dom.settingsModalClose.addEventListener('click', () => {
         dom.settingsOverlay.classList.remove('visible');
@@ -916,15 +963,14 @@ export function setupEventListeners() {
     document.addEventListener('mousemove', (e) => {
         if (!isDraggingSettings) return;
         
-        const newX = e.clientX - settingsDragOffsetX;
-        const newY = e.clientY - settingsDragOffsetY;
+        const pos = clampSettingsPosition(
+            e.clientX - settingsDragOffsetX,
+            e.clientY - settingsDragOffsetY
+        );
         
-        // Constrain to viewport
-        const maxX = window.innerWidth - settingsModal.offsetWidth;
-        const maxY = window.innerHeight - settingsModal.offsetHeight;
-        
-        settingsModal.style.left = Math.max(0, Math.min(newX, maxX)) + 'px';
-        settingsModal.style.top = Math.max(0, Math.min(newY, maxY)) + 'px';
+        settingsPosition = pos;
+        settingsModal.style.left = `${pos.left}px`;
+        settingsModal.style.top = `${pos.top}px`;
         settingsModal.style.transform = 'none';
     });
     
@@ -1046,7 +1092,7 @@ export function setupEventListeners() {
     
     // Settings: Reset All
     dom.settingsResetAll.addEventListener('click', () => {
-        if (confirm('Reset all settings to their default values?\n\nThis will clear your saved preferences for point size, text size, background color, model display colors, default author, and measurement unit.')) {
+        if (confirm('Reset all settings to their default values?\n\nThis clears every saved preference: author name, ORCID iD and annotation language; measurement unit and colours; point and text size; background and model display colours; the screenshot and six-view plate settings; and all PDF report settings, including the report title, institution and project name.')) {
             resetAllSettings();
             showStatus('Settings reset to defaults');
         }

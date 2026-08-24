@@ -274,6 +274,9 @@ export function resetAllSettings() {
     state.pdfCameraDistance = 1.0;
     state.pdfCameraAngle = 60;
     state.screenshotQuality = 2;
+    state.platePngWidth = 4000;
+    state.platePdfDpi = 300;
+    state.plateCellShape = 'net';
     
     // Reset UI elements
     dom.pointSizeSlider.value = 100;
@@ -302,6 +305,9 @@ export function resetAllSettings() {
     dom.settingsPdfCameraAngle.value = '60';
     dom.settingsPdfCameraAngleValue.textContent = '60°';
     dom.settingsScreenshotQuality.value = '2';
+    dom.settingsPlatePngWidth.value = '4000';
+    dom.settingsPlatePdfDpi.value = '300';
+    dom.settingsPlateCellShape.value = 'net';
     
     // Reset background color
     setBackgroundColor('#041D31');
