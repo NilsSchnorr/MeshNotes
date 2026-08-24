@@ -113,7 +113,7 @@ export function downloadManualAsPdf() {
                 return { type: 'note', content: noteContent };
             }
 
-            const allElements = contentClone.querySelectorAll('p, ul, .limitation-note');
+            const allElements = contentClone.querySelectorAll('h4, p, ul, .limitation-note');
 
             if (allElements.length > 0) {
                 allElements.forEach(child => {
@@ -123,6 +123,8 @@ export function downloadManualAsPdf() {
 
                     if (child.classList && child.classList.contains('limitation-note')) {
                         paragraphs.push(processLimitationNote(child));
+                    } else if (child.tagName === 'H4') {
+                        paragraphs.push({ type: 'subheading', text: sanitize(child.textContent.trim()) });
                     } else if (child.tagName === 'UL') {
                         const listItems = [];
                         child.querySelectorAll('li').forEach(li => {
@@ -259,6 +261,23 @@ export function downloadManualAsPdf() {
                     });
                 });
                 yPos += 3;
+            } else if (para.type === 'subheading') {
+                // Keep a sub-heading with at least a couple of lines of its text
+                // rather than letting it strand at the foot of a page.
+                if (yPos > pageHeight - margin - 20) {
+                    pdf.addPage();
+                    yPos = margin;
+                } else {
+                    yPos += 2;
+                }
+
+                pdf.setFontSize(11);
+                pdf.setFont(undefined, 'bold');
+                pdf.setTextColor(170, 129, 1);
+                pdf.text(para.text, margin, yPos);
+                pdf.setFont(undefined, 'normal');
+                pdf.setFontSize(10);
+                yPos += 6;
             } else {
                 pdf.setTextColor(60, 60, 60);
                 const textLines = pdf.splitTextToSize(para.text, contentWidth - 2);

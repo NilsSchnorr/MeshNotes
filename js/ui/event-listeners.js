@@ -895,11 +895,15 @@ export function setupEventListeners() {
     // Rail pane switching. The panes carry both the .active class and the hidden
     // attribute: the class drives the CSS, the attribute keeps the inactive panes
     // out of the accessibility tree and out of sequential focus.
-    function showSettingsPane(name) {
+    function showSettingsPane(name, { focusTab = false } = {}) {
         dom.settingsRailItems.forEach(item => {
             const isActive = item.dataset.pane === name;
             item.classList.toggle('active', isActive);
             item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            // Roving tabindex: the tablist is one Tab stop, and the arrow keys
+            // move between tabs inside it, per the ARIA tabs pattern.
+            item.tabIndex = isActive ? 0 : -1;
+            if (isActive && focusTab) item.focus();
         });
         dom.settingsPanes.forEach(pane => {
             const isActive = pane.id === `settings-pane-${name}`;
@@ -912,8 +916,28 @@ export function setupEventListeners() {
         if (panes) panes.scrollTop = 0;
     }
 
-    dom.settingsRailItems.forEach(item => {
+    dom.settingsRailItems.forEach((item, index) => {
+        item.tabIndex = item.classList.contains('active') ? 0 : -1;
         item.addEventListener('click', () => showSettingsPane(item.dataset.pane));
+        item.addEventListener('keydown', (e) => {
+            const last = dom.settingsRailItems.length - 1;
+            let target = null;
+
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                target = index === last ? 0 : index + 1;
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                target = index === 0 ? last : index - 1;
+            } else if (e.key === 'Home') {
+                target = 0;
+            } else if (e.key === 'End') {
+                target = last;
+            } else {
+                return;
+            }
+
+            e.preventDefault();
+            showSettingsPane(dom.settingsRailItems[target].dataset.pane, { focusTab: true });
+        });
     });
 
     function clampSettingsPosition(left, top) {

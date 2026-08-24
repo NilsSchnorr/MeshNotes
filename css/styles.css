@@ -3703,6 +3703,16 @@
             }
         }
 
+        /* Touch input: the rail is a primary navigation control, so its items
+           get the same minimum target size as the other touch affordances. */
+        @media (pointer: coarse) {
+            .settings-rail-item {
+                min-height: var(--touch-min, 44px);
+                display: flex;
+                align-items: center;
+            }
+        }
+
         #settings-modal-content section {
             margin-bottom: 24px;
         }
