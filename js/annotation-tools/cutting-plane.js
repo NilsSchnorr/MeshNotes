@@ -22,6 +22,15 @@ const INTERSECTION_COLOR = 0xFF4444;
 const INTERSECTION_LINE_WIDTH = 3;
 const SNAP_ANGLE_DEG = 15;
 
+// Endpoint welding tolerance for contour chaining, expressed as a fraction of the
+// model's largest absolute coordinate magnitude. Two intersection endpoints closer
+// together than this are treated as the same contour node. See chainSegments2D().
+const WELD_TOLERANCE_FACTOR = 1e-6;
+
+// Offsets of the 3x3 spatial-hash neighbourhood searched when welding contour
+// endpoints, as (dx, dy) pairs. The home cell (0, 0) comes first.
+const NEIGHBOUR_CELLS = [0, 0, -1, -1, -1, 0, -1, 1, 0, -1, 0, 1, 1, -1, 1, 0, 1, 1];
+
 // ============ Module State ============
 let planeGroup = null;          // THREE.Group holding plane mesh + outline
 let planeMesh = null;           // The semi-transparent plane mesh
@@ -30,6 +39,7 @@ let intersectionLines = null;   // THREE.LineSegments showing the cut preview
 let planeNormal = new THREE.Vector3(0, 0, 1);  // Current plane normal
 let planeCenter = new THREE.Vector3(0, 0, 0);  // Current plane center position
 let planeSize = 1;              // Plane size (based on model bounding box)
+let weldTolerance = 1e-6;       // Absolute endpoint weld radius, in world units
 
 // Drag/rotate state
 let isDragging = false;
@@ -65,6 +75,18 @@ export function spawnCuttingPlane() {
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     planeSize = Math.max(size.x, size.y, size.z) * 1.5;
+
+    // Derive the contour-welding tolerance from the largest absolute coordinate
+    // magnitude rather than from the model's extent: float32 vertex storage error
+    // is proportional to coordinate magnitude, so a model sitting far from the
+    // origin needs a proportionally larger weld radius.
+    weldTolerance = Math.max(
+        size.length(),
+        Math.abs(box.min.x), Math.abs(box.max.x),
+        Math.abs(box.min.y), Math.abs(box.max.y),
+        Math.abs(box.min.z), Math.abs(box.max.z),
+        1e-6
+    ) * WELD_TOLERANCE_FACTOR;
 
     // Get camera forward direction (the plane normal)
     const camera = state.camera;
@@ -173,10 +195,18 @@ export function extractProfile() {
     }
 
     // Project to 2D
-    const { points2D, segments2D, width, height, minU, minV, maxU, maxV } = projectTo2D(segments);
+    const { segments2D, width, height, minU, minV, maxU, maxV } = projectTo2D(segments);
+
+    // Stitch the unordered segments into ordered polylines, so the exported SVG
+    // carries real contours rather than a pile of isolated two-node subpaths.
+    const chains = chainSegments2D(segments2D, weldTolerance);
+    if (chains.length === 0) {
+        showStatus('No intersection found — move the plane through the model');
+        return;
+    }
 
     // Show preview overlay
-    showProfilePreview(segments2D, width, height, minU, minV, maxU, maxV);
+    showProfilePreview(chains, width, height, minU, minV, maxU, maxV);
 }
 
 // ============ Pointer Event Handlers ============
@@ -440,10 +470,18 @@ function computeIntersection() {
             _tryEdgeIntersection(_v2, _v0, d2, d0, s2, s0, intersectionPoints);
 
             if (intersectionPoints.length >= 2) {
-                segments.push({
-                    start: intersectionPoints[0].clone(),
-                    end: intersectionPoints[1].clone()
-                });
+                const pA = intersectionPoints[0];
+                const pB = intersectionPoints[1];
+                // Skip degenerate touches. A triangle with exactly one vertex on
+                // the plane and the other two on the same side pushes that vertex
+                // twice, once per incident edge, which would otherwise become a
+                // zero-length segment and a self-loop during chaining.
+                if (pA.distanceToSquared(pB) > weldTolerance * weldTolerance) {
+                    segments.push({
+                        start: pA.clone(),
+                        end: pB.clone()
+                    });
+                }
             }
         }
     });
@@ -566,12 +604,171 @@ function projectTo2D(segments) {
     return { segments2D, width, height, minU, minV, maxU, maxV };
 }
 
+// ============ Contour Chaining ============
+
+/**
+ * Stitch the unordered triangle-plane intersection segments into ordered polylines.
+ *
+ * computeIntersection() emits one independent segment per intersected triangle, in
+ * triangle-index order, with no record of which segment continues which. Written
+ * straight to SVG that yields a "segment soup": N two-node subpaths that merely
+ * look continuous. Vector editors then treat each segment as an isolated object,
+ * so deleting a single node opens a gap instead of bridging its neighbours.
+ *
+ * This function rebuilds the missing adjacency by welding coincident endpoints and
+ * walking the resulting graph. Endpoints are matched by position rather than by
+ * mesh topology because three.js produces non-indexed geometry for STL and OBJ
+ * (every triangle owns private vertices, so no mesh edge is ever shared), and
+ * because index-based matching could not bridge separate meshes or material
+ * islands within a single model.
+ *
+ * @param {Array<{su:number, sv:number, eu:number, ev:number}>} segments2D
+ * @param {number} tolerance Weld radius, in the same units as the 2D coordinates.
+ * @returns {Array<{points: Array<{u:number, v:number}>, closed: boolean}>}
+ */
+function chainSegments2D(segments2D, tolerance) {
+    const tol = tolerance > 0 ? tolerance : 1e-9;
+    const tolSq = tol * tol;
+    const cell = tol * 2;
+
+    const nodes = [];            // { u, v }
+    const buckets = new Map();   // cellHash -> array of node indices
+
+    // Numeric spatial hash. Collisions are harmless: they only add candidates to
+    // the distance test below, never hide one, because a given (cx, cy) always
+    // hashes to the same bucket on insert and on lookup.
+    function cellHash(cx, cy) {
+        return (Math.imul(cx, 73856093) ^ Math.imul(cy, 19349663)) | 0;
+    }
+
+    function nodeId(u, v) {
+        const cx = Math.floor(u / cell);
+        const cy = Math.floor(v / cell);
+
+        // Search the 3x3 neighbourhood: two near-identical points can straddle a
+        // cell boundary, so plain bucket equality would miss them. The home cell
+        // is visited first, since a match is overwhelmingly likely to be there.
+        for (let k = 0; k < NEIGHBOUR_CELLS.length; k += 2) {
+            const list = buckets.get(cellHash(cx + NEIGHBOUR_CELLS[k], cy + NEIGHBOUR_CELLS[k + 1]));
+            if (!list) continue;
+            for (let i = 0; i < list.length; i++) {
+                const n = nodes[list[i]];
+                const du = n.u - u;
+                const dv = n.v - v;
+                if (du * du + dv * dv <= tolSq) return list[i];
+            }
+        }
+
+        const id = nodes.length;
+        nodes.push({ u, v });
+        const key = cellHash(cx, cy);
+        let list = buckets.get(key);
+        if (!list) {
+            list = [];
+            buckets.set(key, list);
+        }
+        list.push(id);
+        return id;
+    }
+
+    // Build the edge list, dropping zero-length segments and duplicates. A
+    // duplicate arises wherever a mesh edge lies exactly in the cutting plane:
+    // both adjacent triangles emit that same edge.
+    const edges = [];
+    const seenEdges = new Set();
+    const incident = [];         // node id -> array of edge ids
+
+    for (const seg of segments2D) {
+        const a = nodeId(seg.su, seg.sv);
+        const b = nodeId(seg.eu, seg.ev);
+        if (a === b) continue;
+
+        // Pair key as a single number. Node counts here are bounded by the
+        // segment count, orders of magnitude below 2^26, so lo * 2^26 + hi stays
+        // well inside Number.MAX_SAFE_INTEGER.
+        const lo = a < b ? a : b;
+        const hi = a < b ? b : a;
+        const key = lo * 67108864 + hi;
+        if (seenEdges.has(key)) continue;
+        seenEdges.add(key);
+
+        const id = edges.length;
+        edges.push({ a, b });
+        if (!incident[a]) incident[a] = [];
+        if (!incident[b]) incident[b] = [];
+        incident[a].push(id);
+        incident[b].push(id);
+    }
+
+    const used = new Array(edges.length).fill(false);
+
+    function nextEdge(node) {
+        const list = incident[node];
+        if (!list) return -1;
+        for (let i = 0; i < list.length; i++) {
+            if (!used[list[i]]) return list[i];
+        }
+        return -1;
+    }
+
+    function walk(startNode, startEdge) {
+        const ids = [startNode];
+        let current = startNode;
+        let edgeId = startEdge;
+
+        while (edgeId !== -1) {
+            used[edgeId] = true;
+            const e = edges[edgeId];
+            const next = (e.a === current) ? e.b : e.a;
+            ids.push(next);
+            current = next;
+            if (current === startNode) break;   // closed loop
+            edgeId = nextEdge(current);
+        }
+
+        const closed = ids.length > 3 && ids[ids.length - 1] === ids[0];
+        if (closed) ids.pop();   // Z re-joins the first node; do not repeat it
+
+        return {
+            points: ids.map(id => nodes[id]),
+            closed
+        };
+    }
+
+    const chains = [];
+
+    // Pass 1: start at open ends (degree 1), so an open contour is traced from a
+    // true endpoint rather than from somewhere in its middle.
+    for (let n = 0; n < nodes.length; n++) {
+        const list = incident[n];
+        if (!list || list.length !== 1) continue;
+        const edgeId = nextEdge(n);
+        if (edgeId === -1) continue;
+        chains.push(walk(n, edgeId));
+    }
+
+    // Pass 2: whatever remains is a closed loop, or a fragment reachable only
+    // through a non-manifold junction. Junctions are left as chain breaks rather
+    // than guessed at.
+    for (let e = 0; e < edges.length; e++) {
+        if (used[e]) continue;
+        chains.push(walk(edges[e].a, e));
+    }
+
+    // Largest contour first, so the outline most likely to be edited sits at the
+    // head of the path data.
+    chains.sort((a, b) => b.points.length - a.points.length);
+
+    return chains.filter(c => c.points.length >= 2);
+}
+
 // ============ SVG Generation ============
 
 /**
  * Generate an SVG string of the profile with a scale bar.
+ * @param {Array<{points: Array<{u:number, v:number}>, closed: boolean}>} chains
  */
-function generateSVG(segments2D, width, height, minU, minV, maxU, maxV) {
+function generateSVG(chains, width, height, minU, minV, maxU, maxV) {
     const unit = state.measurementUnit || 'units';
     const margin = 40;
     const scaleBarMargin = 30;
@@ -589,13 +786,33 @@ function generateSVG(segments2D, width, height, minU, minV, maxU, maxV) {
         return { x, y };
     }
 
-    // Build path data from segments
-    let pathData = '';
-    for (const seg of segments2D) {
-        const s = toSVG(seg.su, seg.sv);
-        const e = toSVG(seg.eu, seg.ev);
-        pathData += `M${s.x.toFixed(2)},${s.y.toFixed(2)} L${e.x.toFixed(2)},${e.y.toFixed(2)} `;
+    // Build path data: one subpath per chained contour, closed loops terminated
+    // with Z. Nodes that collapse onto their predecessor at output precision are
+    // dropped, so dense meshes do not leave stacks of coincident nodes for the
+    // user to pick apart in a vector editor.
+    const subpaths = [];
+    for (const chain of chains) {
+        const coords = [];
+        let prev = null;
+        for (const p of chain.points) {
+            const s = toSVG(p.u, p.v);
+            const c = `${s.x.toFixed(3)},${s.y.toFixed(3)}`;
+            if (c !== prev) {
+                coords.push(c);
+                prev = c;
+            }
+        }
+
+        if (chain.closed) {
+            while (coords.length > 1 && coords[coords.length - 1] === coords[0]) coords.pop();
+            if (coords.length < 3) continue;
+            subpaths.push(`M${coords[0]} L${coords.slice(1).join(' L')} Z`);
+        } else {
+            if (coords.length < 2) continue;
+            subpaths.push(`M${coords[0]} L${coords.slice(1).join(' L')}`);
+        }
     }
+    const pathData = subpaths.join(' ');
 
     // Scale bar
     const scaleBarLength = _niceScaleBarLength(width);
@@ -652,17 +869,17 @@ function _escapeXml(str) {
 /**
  * Show the profile preview overlay with SVG/PNG download options.
  */
-function showProfilePreview(segments2D, width, height, minU, minV, maxU, maxV) {
+function showProfilePreview(chains, width, height, minU, minV, maxU, maxV) {
     const overlay = document.getElementById('profile-preview-overlay');
     const container = document.getElementById('profile-preview-container');
-    const svgString = generateSVG(segments2D, width, height, minU, minV, maxU, maxV);
+    const svgString = generateSVG(chains, width, height, minU, minV, maxU, maxV);
 
     // Display the SVG in the preview
     container.innerHTML = svgString;
 
     // Store data for download buttons
     overlay._svgString = svgString;
-    overlay._segments2D = segments2D;
+    overlay._chains = chains;
     overlay._dims = { width, height, minU, minV, maxU, maxV };
 
     overlay.classList.add('visible');
