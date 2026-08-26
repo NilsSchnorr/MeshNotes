@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.4.2] — 2026-08-26
+
+A bug-fix release. Very large models now build their raycasting acceleration structure successfully, restoring label occlusion, surface painting and annotation picking at photogrammetry scale.
+
+### Fixed
+
+- **Acceleration structure failed to build on very large models** — annotation picking, surface painting and label occlusion all rely on a spatial index (BVH) built once when a model loads. On large models that build failed: the bundled `three-mesh-bvh` library requested four times the memory it actually needed for one intermediate buffer, and past a certain size the browser refused the allocation. MeshNotes caught the failure and carried on without acceleration, so nothing crashed and no error was shown — but every click had to test every triangle in the model, and label occlusion switched itself off entirely. On a 27.2-million-face model the library asked for 2.43 GB in a single block where 622 MB was required. The bundled library has been updated to the upstream release that corrects this; that model now builds its index in about eleven seconds and all tools behave normally. Models that already loaded correctly are unaffected.
+
+### Internal
+
+- Vendored `three-mesh-bvh` updated 0.8.0 → 0.8.2. The vendored copy is byte-identical to the published upstream release; no local patch. Beyond the allocation fix the only difference is barycentric-coordinate data added to intersection results, which is inert on three.js r160 and unused by MeshNotes.
+- New `vendor/VERSIONS.md` records every vendored library with its exact upstream version and a verified SHA-256 checksum, plus an upgrade procedure. Nothing previously identified which release each vendored copy came from — `pdf-lib` in particular carries no version string at all — which made diagnosing this issue slower than it should have been.
+- The reasoning recorded at the BVH build block in `js/core/model-loader.js` was corrected: it claimed a model too large for the BVH would be too large for the GPU as well, which this model disproved by rendering perfectly while the index build failed. GPU capacity and a single contiguous host-side allocation are independent limits, and the surrounding `try`/`catch` — not a face-count ceiling — is what keeps the failure survivable.
+
+
 ## [1.4.1] — 2026-08-26
 
 A bug-fix release. It removes a crash that could take down the browser tab when a very large model was switched to Wireframe display, and sharpens the manual's guidance on large files.
@@ -155,6 +170,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.4.2]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.2
 [1.4.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.1
 [1.4.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.0
 [1.3.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.1
