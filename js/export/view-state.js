@@ -16,7 +16,7 @@ import { state, dom } from '../state.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
 import { setBrightness, setModelOpacity, setLightAzimuth, setLightElevation, toggleLightMode } from '../core/lighting.js';
-import { applyDisplayMode, updateTextureButtonLabel } from '../core/model-loader.js';
+import { applyDisplayMode, updateTextureButtonLabel, isWireframeSupported } from '../core/model-loader.js';
 import { renderAnnotations } from '../annotation-tools/render.js';
 
 // Bump only on a breaking change to the shape below. applyViewState() is
@@ -79,6 +79,10 @@ export function applyViewState(vs) {
         // colours; otherwise fall back to plain mesh.
         let mode = vs.displayMode;
         if (mode === 'vertexColors' && !state.hasVertexColors) mode = 'mesh';
+        // Wireframe is unavailable past WIREFRAME_FACE_LIMIT (see model-loader.js).
+        // A shared view captured on a smaller model must not be able to force it
+        // here, since the failure aborts the render loop rather than the call.
+        if (mode === 'wireframe' && !isWireframeSupported()) mode = 'mesh';
         if (mode !== state.displayMode) {
             state.displayMode = mode;
             applyDisplayMode();

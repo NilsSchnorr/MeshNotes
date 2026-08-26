@@ -39,6 +39,7 @@ export const state = {
     hasVertexColors: false,
     modelOpacity: 1.0,
     modelMeshes: [],
+    modelFaceCount: 0,         // Total triangle count across all meshes of the current model
     modelBoundingSize: 1,
     modelUpAxis: 'z-up', // 'y-up' or 'z-up'
     webglContextLost: false,

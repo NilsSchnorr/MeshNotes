@@ -23,6 +23,35 @@ THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
+// Face-count ceiling above which the wireframe display mode is unavailable.
+//
+// Three.js cannot reuse the triangle index buffer for wireframe rendering: it
+// must build a separate line-index buffer, emitting 6 indices per face
+// (three edges x two endpoints, undeduplicated) in updateWireframeAttribute().
+// That buffer is accumulated into a plain JS array via push(), and V8 caps the
+// backing store of a fast-mode array at roughly 134 million elements. Crossing
+// it throws "RangeError: Invalid array length" from inside WebGLRenderer.render(),
+// i.e. mid-frame, every frame, with no way to recover -- observed with a
+// 27.19M-face model (27,194,950 x 6 = 163,169,700 entries).
+//
+// The engine cap alone would put the ceiling near 22.3M faces, but the typed
+// array that follows (4 bytes per entry, plus an equal-sized GPU upload) makes
+// anything approaching that unusable well before the RangeError: at 22M faces
+// the index buffer alone is ~530 MB. The limit below is set lower so the mode
+// is withdrawn while it is still merely slow rather than fatal, while staying
+// clear of the photogrammetry scale MeshNotes targets.
+//
+// This is a single tunable number; raising it trades safety margin for reach.
+export const WIREFRAME_FACE_LIMIT = 12000000;
+
+/**
+ * Whether wireframe display is safe for the currently loaded model.
+ * @returns {boolean}
+ */
+export function isWireframeSupported() {
+    return state.modelFaceCount <= WIREFRAME_FACE_LIMIT;
+}
+
 // Late-bound reference to updateModelInfoDisplay (set by sidebar.js to avoid circular deps)
 let _updateModelInfoDisplay = null;
 export function setUpdateModelInfoDisplay(fn) {
@@ -205,6 +234,7 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
 
     state.originalMaterials.clear();
     state.modelMeshes = [];
+    state.modelFaceCount = 0;
     state.hasVertexColors = false;
     let totalFaces = 0;
     let bvhBuildFailed = false;
@@ -235,6 +265,10 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         }
     });
     
+    // Record the face count in state: the wireframe guard and any other
+    // scale-dependent feature reads it from there rather than recounting.
+    state.modelFaceCount = totalFaces;
+
     console.log(`setupLoadedModel: traversal complete — ${state.modelMeshes.length} meshes, ${totalFaces.toLocaleString()} faces, vertexColors: ${state.hasVertexColors}`);
     
     // Check WebGL context before proceeding with expensive operations
@@ -656,12 +690,18 @@ export function loadSTLModel(stlFile, upAxis) {
 export function toggleTexture() {
     if (!state.currentModel) return;
 
+    // Wireframe is skipped entirely on models past WIREFRAME_FACE_LIMIT: the
+    // line-index buffer Three.js would have to build is large enough to abort
+    // the render loop (see the constant's note). Mesh then cycles straight
+    // back to Texture.
+    const wireframeBlocked = !isWireframeSupported();
+
     if (state.displayMode === 'texture') {
         state.displayMode = state.hasVertexColors ? 'vertexColors' : 'mesh';
     } else if (state.displayMode === 'vertexColors') {
         state.displayMode = 'mesh';
     } else if (state.displayMode === 'mesh') {
-        state.displayMode = 'wireframe';
+        state.displayMode = wireframeBlocked ? 'texture' : 'wireframe';
     } else {
         state.displayMode = 'texture';
     }
@@ -675,7 +715,14 @@ export function toggleTexture() {
         'mesh': 'Mesh',
         'wireframe': 'Wireframe'
     };
-    showStatus(`Display: ${modeLabels[state.displayMode]}`);
+
+    if (wireframeBlocked && state.displayMode === 'texture') {
+        const millions = (state.modelFaceCount / 1000000).toFixed(1);
+        const limitMillions = (WIREFRAME_FACE_LIMIT / 1000000).toFixed(0);
+        showStatus(`Display: Texture — Wireframe unavailable above ${limitMillions}M faces (model has ${millions}M)`);
+    } else {
+        showStatus(`Display: ${modeLabels[state.displayMode]}`);
+    }
 }
 
 export function applyDisplayMode() {

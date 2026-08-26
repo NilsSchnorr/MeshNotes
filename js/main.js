@@ -91,30 +91,48 @@ function init() {
     animate();
 }
 
+// Set once a frame has thrown. requestAnimationFrame is re-armed at the top of
+// animate(), so without this an exception raised inside renderer.render() would
+// be re-thrown every frame forever: the viewport freezes on the last good frame
+// while the console fills with an ever-lengthening async stack, which is enough
+// to take the whole tab down. Stopping the loop turns any such failure into a
+// single reported error instead. (Observed with the wireframe line-index
+// overflow on a 27M-face model; the guard in model-loader.js prevents that
+// specific case, this catches the class.)
+let _renderLoopHalted = false;
+
 function animate() {
+    if (_renderLoopHalted) return;
+
     requestAnimationFrame(animate);
 
-    state.controls.update();
+    try {
+        state.controls.update();
 
-    // Update light to follow camera if in that mode
-    if (state.lightFollowsCamera) {
-        updateLightFromCamera();
-    }
-
-    // Render main scene
-    state.renderer.render(state.scene, state.camera);
-
-    // Render ViewHelper
-    if (state.viewHelper && state.viewHelperRenderer) {
-        state.viewHelper.render(state.viewHelperRenderer);
-    }
-
-    // Update ViewHelper animation
-    if (state.viewHelper) {
-        const delta = state.clock.getDelta();
-        if (state.viewHelper.animating) {
-            state.viewHelper.update(delta);
+        // Update light to follow camera if in that mode
+        if (state.lightFollowsCamera) {
+            updateLightFromCamera();
         }
+
+        // Render main scene
+        state.renderer.render(state.scene, state.camera);
+
+        // Render ViewHelper
+        if (state.viewHelper && state.viewHelperRenderer) {
+            state.viewHelper.render(state.viewHelperRenderer);
+        }
+
+        // Update ViewHelper animation
+        if (state.viewHelper) {
+            const delta = state.clock.getDelta();
+            if (state.viewHelper.animating) {
+                state.viewHelper.update(delta);
+            }
+        }
+    } catch (error) {
+        _renderLoopHalted = true;
+        console.error('Render loop halted after an error during frame render:', error);
+        showStatus('Rendering stopped due to an error — please reload the page.');
     }
 }
 
