@@ -8,7 +8,7 @@
 // IMPORTANT: bump CACHE on every release — alongside APP_VERSION in
 // js/state.js, CITATION.cff, and CHANGELOG.md — so existing clients pick up
 // newly deployed assets.
-const CACHE = 'meshnotes-v1.4.0';
+const CACHE = 'meshnotes-v1.4.1';
 
 // Precache the full app shell so a SINGLE online visit makes the app
 // offline-ready (no need to exercise every feature first). Paths are RELATIVE

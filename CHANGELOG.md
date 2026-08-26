@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.4.1] — 2026-08-26
+
+A bug-fix release. It removes a crash that could take down the browser tab when a very large model was switched to Wireframe display, and sharpens the manual's guidance on large files.
+
+### Fixed
+
+- **Browser tab crash when switching a very large model to Wireframe** — wireframe display cannot reuse a model's existing triangle data; a separate set of edge data has to be built alongside it, holding six entries per face. Past roughly 22 million faces this exceeds a hard limit in the browser's JavaScript engine, and the resulting error was raised from inside the render loop, so it repeated on every frame: the viewport froze on the last drawn image while the console filled, until the tab stopped responding. Wireframe is now withdrawn above 12 million faces, below the point where it becomes unreliable — the display button cycles Texture → Colors → Mesh → Texture instead, and the status bar names both the limit and the model's face count. Every other display mode remains available at any model size, and models under the limit are unaffected. Observed with a 27.2-million-face model.
+- **Shared views could force an unavailable display mode** — a share link or restored view captured on a smaller model carried its display mode over verbatim, so opening one against a model past the wireframe limit reproduced the same crash. Wireframe now falls back to Mesh in that case, matching the existing fallback for Colors on models without vertex color data.
+- **A single rendering error no longer brings down the session** — the render loop queued its next frame before drawing the current one, so any exception raised during a frame repeated indefinitely rather than surfacing once. Rendering now stops after the first failure and reports it in the status bar, leaving the page responsive so work in progress can still be exported before reloading.
+
+### Changed
+
+- **Manual — large files.** *Loading a Model* and *Model Preparation & Format Guide* now advise converting models above roughly 1 GB to GLB before loading, and say plainly that OBJ and PLY are the least reliable formats at that scale: OBJ stores geometry as plain text, and PLY is uncompressed, so both are substantially larger than the equivalent GLB for the same mesh. The format comparison list carries the same caution, and a new *File size* note explains that the practical ceiling depends on machine, browser, and available memory rather than sitting at a fixed value.
+- **Manual — wireframe limit.** *Texture & Display Controls* documents why Wireframe is unavailable on very large models and what the display button does instead.
+
+### Internal
+
+- `WIREFRAME_FACE_LIMIT` and `isWireframeSupported()` added to `js/core/model-loader.js`, with the underlying engine limit and the reasoning behind the chosen value recorded at the definition. The model's total face count is now kept in `state.modelFaceCount` instead of remaining a local during model setup.
+
+
 ## [1.4.0] — 2026-07-28
 
 This release adds a dedicated six-view plate export for publication figures, and unifies the scale bar across every output.
@@ -135,6 +155,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.4.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.1
 [1.4.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.0
 [1.3.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.1
 [1.3.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.3.0
