@@ -42,7 +42,7 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 // clear of the photogrammetry scale MeshNotes targets.
 //
 // This is a single tunable number; raising it trades safety margin for reach.
-export const WIREFRAME_FACE_LIMIT = 12000000;
+export const WIREFRAME_FACE_LIMIT = 18000000;
 
 /**
  * Whether wireframe display is safe for the currently loaded model.
@@ -288,9 +288,18 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     // raycast (annotation clicks, surface brush, box placement) brute-forces
     // all triangles, which is unusable at the 10M-face photogrammetry scale
     // MeshNotes targets. The trade-off — a one-time build at load (seconds,
-    // behind the loading UI) plus index memory — is accepted; if a model is
-    // too large for the BVH it is too large for the GPU anyway, and the
-    // webglcontextlost handler reports that case. (Historical value: 5000000.)
+    // behind the loading UI) plus index memory — is accepted.
+    // (Historical value: 5000000.)
+    //
+    // A BVH build can fail INDEPENDENTLY of GPU capacity: it needs one
+    // contiguous host-side ArrayBuffer, and that request can be refused while
+    // the very same geometry uploads and renders without trouble. A
+    // 27.19M-face model did exactly that against three-mesh-bvh 0.8.0, which
+    // over-allocated the triangle bounds buffer 4x (2.43 GiB instead of
+    // 622 MiB); upstream fixed it in 0.8.2, which is the vendored version.
+    // So the try/catch below — not a face-count ceiling — is what makes this
+    // safe: a failed build degrades to brute-force raycasting (and disables
+    // label occlusion via state.bvhAvailable) instead of aborting the load.
     const BVH_FACE_LIMIT = Infinity;
     
     if (totalFaces > BVH_FACE_LIMIT) {
