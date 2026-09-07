@@ -98,22 +98,69 @@ function formatMultiplier(multiplier) {
     }
 }
 
-export function setPointSize(value) {
-    state.pointSizeMultiplier = sliderToMultiplier(value);
-    dom.pointSizeValue.textContent = formatMultiplier(state.pointSizeMultiplier);
-    localStorage.setItem('meshnotes_pointSize', value);
-    // Note: renderAnnotations() will be called by the event listener
-    // to avoid circular dependency, caller is responsible for re-rendering
+/**
+ * Builds a size-slider setter.
+ *
+ * Every marker/label size slider has the same shape — map the raw slider
+ * position to a multiplier, store it on `state`, update the numeric readout,
+ * persist the raw value — so they are generated from one factory rather than
+ * written out five times.
+ *
+ * None of these re-render: renderAnnotations() lives downstream of this module
+ * and importing it here would close a dependency cycle. The event listener that
+ * calls the setter is responsible for re-rendering.
+ *
+ * @param {string} stateKey    Property on `state` holding the multiplier.
+ * @param {string} storageKey  localStorage key holding the raw slider value.
+ * @param {string} domValueKey Property on `dom` for the numeric readout span.
+ * @returns {(value: number) => void}
+ */
+function makeSizeSetter(stateKey, storageKey, domValueKey) {
+    return function (value) {
+        state[stateKey] = sliderToMultiplier(value);
+        dom[domValueKey].textContent = formatMultiplier(state[stateKey]);
+        localStorage.setItem(storageKey, value);
+    };
 }
+
+// ============ Marker Size Controls ============
+// One setter per marker class. 'meshnotes_pointSize' keeps its original key so
+// a user's existing preference survives the split (see loadSavedSettings() in
+// main.js, which seeds the three new keys from it when they are absent).
+
+export const setPointSize = makeSizeSetter(
+    'pointSizeMultiplier', 'meshnotes_pointSize', 'pointSizeValue');
+
+export const setVertexSize = makeSizeSetter(
+    'vertexSizeMultiplier', 'meshnotes_vertexSize', 'vertexSizeValue');
+
+export const setBoxHandleSize = makeSizeSetter(
+    'boxHandleSizeMultiplier', 'meshnotes_boxHandleSize', 'boxHandleSizeValue');
+
+export const setMeasureMarkerSize = makeSizeSetter(
+    'measureMarkerSizeMultiplier', 'meshnotes_measureMarkerSize', 'measureMarkerSizeValue');
 
 // ============ Text Size Control ============
 
-export function setTextSize(value) {
-    state.textSizeMultiplier = sliderToMultiplier(value);
-    dom.textSizeValue.textContent = formatMultiplier(state.textSizeMultiplier);
-    localStorage.setItem('meshnotes_textSize', value);
-    // Note: renderAnnotations() will be called by the event listener
-    // to avoid circular dependency, caller is responsible for re-rendering
+export const setTextSize = makeSizeSetter(
+    'textSizeMultiplier', 'meshnotes_textSize', 'textSizeValue');
+
+// ============ Selection Callout Opacity ============
+
+/**
+ * Sets the opacity of the annotation selection callout.
+ *
+ * Written to a CSS custom property on the document root rather than to the
+ * element itself, so it applies live even when the callout is already on
+ * screen, and so selection-callout.js needs to know nothing about settings.
+ *
+ * @param {number} value Percentage, 20–100.
+ */
+export function setCalloutOpacity(value) {
+    state.calloutOpacity = value / 100;
+    dom.calloutOpacityValue.textContent = `${value}%`;
+    document.documentElement.style.setProperty('--ac-opacity', state.calloutOpacity);
+    localStorage.setItem('meshnotes_calloutOpacity', value);
 }
 
 // ============ Light Mode Controls ============
@@ -254,7 +301,11 @@ export function resetAllSettings() {
     
     // Reset state to defaults
     state.pointSizeMultiplier = 1.0;
+    state.vertexSizeMultiplier = 1.0;
+    state.boxHandleSizeMultiplier = 1.0;
+    state.measureMarkerSizeMultiplier = 1.0;
     state.textSizeMultiplier = 1.0;
+    state.calloutOpacity = 1.0;
     state.defaultAuthor = '';
     state.defaultAuthorOrcid = '';
     state.defaultLanguage = '';
@@ -281,8 +332,17 @@ export function resetAllSettings() {
     // Reset UI elements
     dom.pointSizeSlider.value = 100;
     dom.pointSizeValue.textContent = '×1.0';
+    dom.vertexSizeSlider.value = 100;
+    dom.vertexSizeValue.textContent = '×1.0';
+    dom.boxHandleSizeSlider.value = 100;
+    dom.boxHandleSizeValue.textContent = '×1.0';
+    dom.measureMarkerSizeSlider.value = 100;
+    dom.measureMarkerSizeValue.textContent = '×1.0';
     dom.textSizeSlider.value = 100;
     dom.textSizeValue.textContent = '×1.0';
+    dom.calloutOpacitySlider.value = 100;
+    dom.calloutOpacityValue.textContent = '100%';
+    document.documentElement.style.setProperty('--ac-opacity', 1);
     dom.settingsDefaultAuthor.value = '';
     dom.settingsDefaultAuthorOrcid.value = '';
     dom.settingsDefaultLanguage.value = '';

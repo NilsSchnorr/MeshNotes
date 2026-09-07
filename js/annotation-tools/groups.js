@@ -4,6 +4,8 @@ import { state, dom } from '../state.js';
 import { getIcon } from '../ui/icons.js';
 import { generateUUID, generateInternalId, escapeHtml, showStatus, toDisplayCoords } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
+import { applySelectionHighlight } from './selection-highlight.js';
+import { showSelectionCallout, hideSelectionCallout } from './selection-callout.js';
 
 // Late-bound references
 let _openGroupPopup = null;
@@ -129,6 +131,34 @@ export function selectAnnotation(id, skipRebuild = false) {
         // Just update the visual selection without rebuilding DOM
         updateSelectionHighlight(id);
     }
+
+    // Emphasise the annotation in the model and raise its callout.
+    applySelectionHighlight();
+    if (ann) showSelectionCallout(ann);
+}
+
+/**
+ * Clears the current selection: sidebar highlight, model emphasis and callout.
+ *
+ * Deliberately does NOT move the camera — deselecting should leave the view
+ * exactly where the user put it.
+ *
+ * @param {{skipRebuild?: boolean}} [options] Pass skipRebuild: false to rebuild
+ *   the whole sidebar list instead of just stripping the selected class.
+ */
+export function deselectAnnotation({ skipRebuild = true } = {}) {
+    if (state.selectedAnnotation === null) return;
+
+    state.selectedAnnotation = null;
+
+    if (skipRebuild) {
+        updateSelectionHighlight(null);
+    } else {
+        updateGroupsList();
+    }
+
+    applySelectionHighlight();
+    hideSelectionCallout();
 }
 
 function updateSelectionHighlight(selectedId) {
@@ -212,13 +242,16 @@ export function initGroupsEventDelegation() {
             return;
         }
 
-        // Edit button: open annotation popup immediately, no delay
+        // Edit button: open annotation popup immediately, no delay. The
+        // callout stands down first — editing and the callout are alternative
+        // views of the same annotation, never shown together.
         const editBtn = e.target.closest('[data-action="edit-annotation"]');
         if (editBtn) {
             const item = editBtn.closest('.annotation-item');
             if (!item) return;
             const id = parseInt(item.dataset.id);
             const ann = state.annotations.find(a => a.id === id);
+            deselectAnnotation();
             if (ann && _openAnnotationPopupForEdit) {
                 _openAnnotationPopupForEdit(ann);
             }
@@ -237,7 +270,12 @@ export function initGroupsEventDelegation() {
         // Delay single-click action to allow dblclick to fire first
         clickTimeout = setTimeout(() => {
             const id = parseInt(item.dataset.id);
-            selectAnnotation(id, true); // skipRebuild=true to preserve DOM
+            // Clicking the already-selected item toggles the selection off.
+            if (state.selectedAnnotation === id) {
+                deselectAnnotation();
+            } else {
+                selectAnnotation(id, true); // skipRebuild=true to preserve DOM
+            }
             clickTimeout = null;
         }, 200);
     });
@@ -254,6 +292,7 @@ export function initGroupsEventDelegation() {
         
         const id = parseInt(item.dataset.id);
         const ann = state.annotations.find(a => a.id === id);
+        deselectAnnotation();
         if (ann && _openAnnotationPopupForEdit) {
             _openAnnotationPopupForEdit(ann);
         }

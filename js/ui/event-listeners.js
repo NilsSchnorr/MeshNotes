@@ -4,10 +4,10 @@ import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helper
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setTextSize, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, resetAllSettings } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setVertexSize, setBoxHandleSize, setMeasureMarkerSize, setTextSize, setCalloutOpacity, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, cancelUnfinishedDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
-import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm } from '../annotation-tools/groups.js';
+import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm, deselectAnnotation } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
@@ -81,7 +81,7 @@ function getSelectedUpAxis(radioName) {
 function clearAnnotationsAndGroups() {
     state.annotations = [];
     state.groups = [];
-    state.selectedAnnotation = null;
+    deselectAnnotation();
     state.editingAnnotation = null;
     // New model = fresh metadata (metadata is per-model). The loader resets
     // modelInfo too; resetting here keeps the sidebar in sync immediately.
@@ -766,8 +766,17 @@ export function setupEventListeners() {
     dom.lightToggle.addEventListener('click', toggleLightMode);
     dom.lightAzimuthSlider.addEventListener('input', (e) => setLightAzimuth(parseInt(e.target.value)));
     dom.lightElevationSlider.addEventListener('input', (e) => setLightElevation(parseInt(e.target.value)));
+    // Marker sizes. renderAnnotations() rebuilds measurements too (it calls
+    // renderMeasurements() at the end), so the measurement marker slider needs
+    // no separate refresh path.
     dom.pointSizeSlider.addEventListener('input', (e) => { setPointSize(parseInt(e.target.value)); renderAnnotations(); });
+    dom.vertexSizeSlider.addEventListener('input', (e) => { setVertexSize(parseInt(e.target.value)); renderAnnotations(); });
+    dom.boxHandleSizeSlider.addEventListener('input', (e) => { setBoxHandleSize(parseInt(e.target.value)); renderAnnotations(); });
+    dom.measureMarkerSizeSlider.addEventListener('input', (e) => { setMeasureMarkerSize(parseInt(e.target.value)); renderAnnotations(); });
     dom.textSizeSlider.addEventListener('input', (e) => { setTextSize(parseInt(e.target.value)); renderAnnotations(); });
+    // No re-render: the callout is a DOM overlay, and the CSS variable applies
+    // to it immediately.
+    dom.calloutOpacitySlider.addEventListener('input', (e) => setCalloutOpacity(parseInt(e.target.value)));
     
     // Background color controls
     dom.backgroundColorPicker.addEventListener('input', (e) => setBackgroundColor(e.target.value));
@@ -1267,6 +1276,11 @@ export function setupEventListeners() {
             hideInlineGroupForm();
             state.controls.enabled = true;
 
+            // Escape also clears an annotation selection. Redundant when the
+            // annotation popup was open (the observer below handles that), but
+            // needed when the callout is up on its own.
+            deselectAnnotation();
+
             if (state.currentTool === 'measure') {
                 clearAllMeasurements();
                 showStatus('Measurements cleared');
@@ -1644,10 +1658,27 @@ function setupPopupBackdrop() {
     const metadataPopup = document.getElementById('metadata-popup');
     const popupsToWatch = [dom.annotationPopup, dom.groupPopup, metadataPopup];
 
+    // The annotation popup can be dismissed five different ways (✕, Cancel,
+    // Save, Escape, backdrop click), each with its own teardown block. Watching
+    // the class transition here catches all of them in one place — and any
+    // sixth path added later — instead of five parallel edits that must be kept
+    // in step. The same hook covers the popup opening, which is what stands the
+    // callout down when the editor is reached from the callout's own Details
+    // button rather than from the sidebar.
+    let annPopupWasVisible = dom.annotationPopup.classList.contains('visible');
+
     // Use MutationObserver to auto-show/hide backdrop when any viewport popup toggles visibility
     const observer = new MutationObserver(() => {
         const anyVisible = popupsToWatch.some(p => p && p.classList.contains('visible'));
         backdrop.classList.toggle('visible', anyVisible);
+
+        const annPopupVisible = dom.annotationPopup.classList.contains('visible');
+        if (annPopupWasVisible !== annPopupVisible) {
+            // Opening the editor supersedes the callout; closing it ends the
+            // selection. Either way the selection does not survive.
+            deselectAnnotation();
+        }
+        annPopupWasVisible = annPopupVisible;
     });
 
     popupsToWatch.forEach(popup => {

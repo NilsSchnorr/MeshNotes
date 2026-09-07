@@ -7,6 +7,7 @@ import { state } from '../state.js';
 import { createScaledTextSprite, getViewportWidth, getViewportHeight } from '../core/scene.js';
 import { toDisplayCoords, boxDisplayQuaternion } from '../utils/helpers.js';
 import { forceOcclusionUpdate } from '../utils/label-occlusion.js';
+import { applySelectionHighlight } from './selection-highlight.js';
 
 // Late-bound reference to avoid circular dependency
 // (editing.js imports from render.js, render.js needs renderMeasurements from editing.js)
@@ -33,6 +34,11 @@ export function renderAnnotations() {
         }
         state.annotationObjects.remove(child);
     }
+
+    // Anchors are rebuilt from scratch alongside the objects. Annotations in a
+    // hidden group get no anchor, which is what makes the selection callout
+    // disappear when its group is switched off.
+    state.annotationAnchors.clear();
 
     const modelSize = state.currentModel ?
         new THREE.Box3().setFromObject(state.currentModel).getSize(new THREE.Vector3()) :
@@ -118,7 +124,7 @@ export function renderAnnotations() {
                 const marker = new THREE.Mesh(geometry, material);
                 const vp = toDisplayCoords(p);
                 marker.position.set(vp.x, vp.y, vp.z);
-                marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier);
+                marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.vertexSizeMultiplier);
                 marker.userData.annotationId = ann.id;
                 marker.userData.pointIndex = index;
                 marker.userData.isAnnotationMarker = true;
@@ -189,6 +195,10 @@ export function renderAnnotations() {
             occlusionCheckPos = new THREE.Vector3(bc.x, bc.y, bc.z);
         }
 
+        if (occlusionCheckPos) {
+            state.annotationAnchors.set(ann.id, occlusionCheckPos);
+        }
+
         if (ann.name && labelPosition) {
             const label = createScaledTextSprite(ann.name, group.color, labelPosition, 0.8);
             if (groupOpacity < 1) {
@@ -210,6 +220,11 @@ export function renderAnnotations() {
 
     // Update label visibility based on occlusion after all labels are created
     forceOcclusionUpdate();
+
+    // Everything above is freshly built, so the selected annotation's emphasis
+    // was lost with the objects it was applied to. Re-apply it last, after the
+    // occlusion pass, so hiding the selected annotation's name label sticks.
+    applySelectionHighlight();
 }
 
 export function renderSurfaceAnnotation(ann, color, groupOpacity = 1.0) {
@@ -367,7 +382,7 @@ export function renderBoxAnnotation(ann, color, maxDim, groupOpacity = 1.0) {
 
         // Slightly larger handles when unlocked for better visibility
         const handleScale = isUnlocked ? 1.3 : 1.0;
-        handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier * handleScale);
+        handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.boxHandleSizeMultiplier * handleScale);
         handle.userData.isBoxHandle = true;
         handle.userData.handleIndex = index;
         handle.userData.isAnnotationMarker = true;

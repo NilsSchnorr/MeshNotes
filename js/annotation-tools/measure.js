@@ -92,7 +92,7 @@ export function addMeasureMarker(point) {
         const box = new THREE.Box3().setFromObject(state.currentModel);
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * state.pointSizeMultiplier);
+        marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * state.measureMarkerSizeMultiplier);
     }
 
     state.annotationObjects.add(marker);
@@ -510,7 +510,7 @@ export function renderMeasurements() {
             const marker = new THREE.Mesh(geometry, material);
             marker.position.set(point.x, point.y, point.z);
             marker.renderOrder = 1000;
-            marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * state.pointSizeMultiplier);
+            marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.05 * state.measureMarkerSizeMultiplier);
             state.annotationObjects.add(marker);
             newMarkers.push(marker);
         });

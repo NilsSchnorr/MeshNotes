@@ -705,6 +705,11 @@
             border-left-color: var(--color-gold);
         }
 
+        .annotation-item.selected .name {
+            font-weight: 700;
+            color: var(--color-gold);
+        }
+
         .annotation-item .header {
             display: flex;
             align-items: center;
@@ -3555,6 +3560,138 @@
             color: #888;
             font-size: 12px;
             padding: 6px 0;
+        }
+
+        /* ---- Selection callout (anchored to the selected annotation) ---- */
+        #annotation-callout {
+            display: none;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: min(260px, calc(100vw - 300px));
+            box-sizing: border-box;
+            padding: 10px 12px;
+            background: var(--color-blue-dark);
+            border: 1px solid var(--color-blue);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px var(--color-overlay-light);
+            z-index: 190;
+            /* The box must not swallow orbit drags — only the button is
+               interactive (see .ac-details below). */
+            pointer-events: none;
+            /* Set from the Viewport settings pane via setCalloutOpacity(). */
+            opacity: var(--ac-opacity, 1);
+            will-change: transform;
+        }
+
+        #annotation-callout.visible {
+            display: block;
+        }
+
+        /* Anchor off screen or behind the camera: keep the selection, hide the box. */
+        #annotation-callout.anchor-lost {
+            visibility: hidden;
+        }
+
+        /* Tail pointing back at the annotation. --ac-tail-y tracks the anchor
+           so the tail still points at it when the box is clamped to an edge. */
+        #annotation-callout::before {
+            content: '';
+            position: absolute;
+            top: var(--ac-tail-y, 50%);
+            left: -7px;
+            margin-top: -7px;
+            border-style: solid;
+            border-width: 7px 7px 7px 0;
+            border-color: transparent var(--color-blue) transparent transparent;
+        }
+
+        #annotation-callout.flip-left::before {
+            left: auto;
+            right: -7px;
+            border-width: 7px 0 7px 7px;
+            border-color: transparent transparent transparent var(--color-blue);
+        }
+
+        #annotation-callout .ac-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-gold);
+            line-height: 1.3;
+            word-break: break-word;
+        }
+
+        #annotation-callout .ac-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 8px;
+            align-items: center;
+            font-size: 11px;
+            color: var(--color-text-muted);
+            margin-top: 5px;
+        }
+
+        #annotation-callout .ac-type {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+            border-radius: 4px;
+            padding: 1px 7px;
+        }
+
+        #annotation-callout .ac-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        #annotation-callout .ac-group-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        #annotation-callout .ac-desc {
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 1.45;
+            color: var(--color-text-light);
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+        }
+
+        #annotation-callout .ac-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 9px;
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        #annotation-callout .ac-details {
+            /* The one part of the callout that accepts clicks. */
+            pointer-events: auto;
+            background: none;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            color: var(--color-text-light);
+            font-size: 11px;
+            padding: 3px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #annotation-callout .ac-details:hover {
+            background: var(--color-blue);
+            border-color: var(--color-gold);
+            color: var(--color-gold);
         }
 
         #settings-modal {

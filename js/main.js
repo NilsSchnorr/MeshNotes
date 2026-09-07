@@ -18,6 +18,8 @@ import { importAnnotations } from './export/import-json.js';
 import { applyViewState } from './export/view-state.js';
 import { openAnnotationShareDialog } from './export/share.js';
 import { openAnnotationViewer, initAnnotationViewer } from './annotation-tools/annotation-viewer.js';
+import { initSelectionCallout, setCalloutCallbacks, showSelectionCallout, updateSelectionCallout } from './annotation-tools/selection-callout.js';
+import { applySelectionHighlight } from './annotation-tools/selection-highlight.js';
 import { initMetadata, updateMetadataDisplay } from './metadata/metadata-ui.js';
 import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUntilExpiry } from './core/url-params.js';
 import * as THREE from 'three';
@@ -39,6 +41,9 @@ setGroupCallbacks({
 });
 setRenderCallbacks({
     renderMeasurements
+});
+setCalloutCallbacks({
+    openAnnotationPopupForEdit
 });
 
 // Session persistence (offline + crash recovery). The hash-ready hook offers a
@@ -84,6 +89,8 @@ function init() {
     // offer to restore it when the same model is reopened (offline / crash safety).
     initSessionPersistence();
 
+    initSelectionCallout();
+
     // Load SVG icons and inject into DOM (non-blocking)
     loadIcons().then(() => initIcons());
 
@@ -113,6 +120,10 @@ function animate() {
         if (state.lightFollowsCamera) {
             updateLightFromCamera();
         }
+
+        // Keep the selection callout pinned to its annotation. Returns on the
+        // first line when nothing is selected, which is the normal case.
+        updateSelectionCallout();
 
         // Render main scene
         state.renderer.render(state.scene, state.camera);
@@ -264,9 +275,13 @@ function focusOnAnnotation(uuid, { moveCamera = true } = {}) {
     }
 
     // Select it and open the read-only viewer so the shared annotation "pops
-    // up" without exposing the editable fields.
+    // up" without exposing the editable fields. The callout comes up alongside
+    // it, so the anchor is visible in the model as well; the viewer closes
+    // itself on the first sidebar click and the callout carries on from there.
     state.selectedAnnotation = ann.id;
     updateGroupsList();
+    applySelectionHighlight();
+    showSelectionCallout(ann);
     openAnnotationViewer(ann);
 }
 
@@ -295,24 +310,55 @@ function formatMultiplier(multiplier) {
     }
 }
 
+/**
+ * Restores one size slider from localStorage.
+ *
+ * @param {string} storageKey  localStorage key holding the raw slider value.
+ * @param {string} stateKey    Property on `state` to receive the multiplier.
+ * @param {string} sliderKey   Property on `dom` for the range input.
+ * @param {string} valueKey    Property on `dom` for the numeric readout span.
+ * @param {?string} fallbackValue Raw slider value to use when the key is
+ *        absent. Used to seed the marker sliders introduced in the point-size
+ *        split from the single 'meshnotes_pointSize' key they replaced, so a
+ *        user's existing preference carries over instead of silently
+ *        resetting to ×1.0. Pass null for sliders with no predecessor.
+ */
+function restoreSizeSlider(storageKey, stateKey, sliderKey, valueKey, fallbackValue = null) {
+    const saved = localStorage.getItem(storageKey) ?? fallbackValue;
+    if (!saved) return;
+    const sliderValue = parseInt(saved);
+    if (!Number.isFinite(sliderValue)) return;
+    dom[sliderKey].value = sliderValue;
+    state[stateKey] = sliderToMultiplier(sliderValue);
+    dom[valueKey].textContent = formatMultiplier(state[stateKey]);
+}
+
 // Load saved settings
 function loadSavedSettings() {
-    // Point size
+    // Marker sizes. Point size keeps the original key; the other three fall
+    // back to it so a pre-split preference applies to all marker classes.
     const savedPointSize = localStorage.getItem('meshnotes_pointSize');
-    if (savedPointSize) {
-        const sliderValue = parseInt(savedPointSize);
-        dom.pointSizeSlider.value = sliderValue;
-        state.pointSizeMultiplier = sliderToMultiplier(sliderValue);
-        dom.pointSizeValue.textContent = formatMultiplier(state.pointSizeMultiplier);
-    }
+    restoreSizeSlider('meshnotes_pointSize', 'pointSizeMultiplier',
+        'pointSizeSlider', 'pointSizeValue');
+    restoreSizeSlider('meshnotes_vertexSize', 'vertexSizeMultiplier',
+        'vertexSizeSlider', 'vertexSizeValue', savedPointSize);
+    restoreSizeSlider('meshnotes_boxHandleSize', 'boxHandleSizeMultiplier',
+        'boxHandleSizeSlider', 'boxHandleSizeValue', savedPointSize);
+    restoreSizeSlider('meshnotes_measureMarkerSize', 'measureMarkerSizeMultiplier',
+        'measureMarkerSizeSlider', 'measureMarkerSizeValue', savedPointSize);
 
     // Text size
-    const savedTextSize = localStorage.getItem('meshnotes_textSize');
-    if (savedTextSize) {
-        const sliderValue = parseInt(savedTextSize);
-        dom.textSizeSlider.value = sliderValue;
-        state.textSizeMultiplier = sliderToMultiplier(sliderValue);
-        dom.textSizeValue.textContent = formatMultiplier(state.textSizeMultiplier);
+    restoreSizeSlider('meshnotes_textSize', 'textSizeMultiplier',
+        'textSizeSlider', 'textSizeValue');
+
+    // Selection callout opacity
+    const savedCalloutOpacity = localStorage.getItem('meshnotes_calloutOpacity');
+    if (savedCalloutOpacity) {
+        const sliderValue = parseInt(savedCalloutOpacity);
+        dom.calloutOpacitySlider.value = sliderValue;
+        state.calloutOpacity = sliderValue / 100;
+        dom.calloutOpacityValue.textContent = `${sliderValue}%`;
+        document.documentElement.style.setProperty('--ac-opacity', state.calloutOpacity);
     }
     
     // Background color

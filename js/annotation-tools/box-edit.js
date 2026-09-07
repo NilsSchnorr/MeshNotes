@@ -235,7 +235,7 @@ export function renderPendingBox() {
             center.z + localPos.z
         );
 
-        handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.pointSizeMultiplier);
+        handle.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.boxHandleSizeMultiplier);
         handle.userData.isPendingBoxHandle = true;
         handle.userData.handleIndex = index;
         handle.renderOrder = 3;

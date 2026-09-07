@@ -4,7 +4,7 @@ import { getViewportWidth, getViewportHeight } from '../core/scene.js';
 import { generateUUID, generateInternalId, getDefaultLanguage, escapeHtml, safeUrl, showStatus, getLastAuthor, saveLastAuthor } from '../utils/helpers.js';
 import { computeProjectedEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
-import { updateGroupsList, updateGroupSelect } from './groups.js';
+import { updateGroupsList, updateGroupSelect, deselectAnnotation } from './groups.js';
 import { clearTempDrawing } from './editing.js';
 import { hideAllToolPanels, restoreToolHelp } from '../ui/tool-help.js';
 
@@ -981,7 +981,9 @@ export function deleteAnnotation() {
         state.annotations = state.annotations.filter(a => a.id !== state.editingAnnotation.id);
         dom.annotationPopup.classList.remove('visible');
         state.editingAnnotation = null;
-        state.selectedAnnotation = null;
+        // Clears the sidebar highlight, the model emphasis and the callout.
+        // A bare `state.selectedAnnotation = null` would leave the callout up.
+        deselectAnnotation();
         updateGroupsList();
         renderAnnotations();
         showStatus('Annotation deleted');

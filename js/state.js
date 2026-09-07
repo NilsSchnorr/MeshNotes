@@ -48,7 +48,15 @@ export const state = {
     modelHash: null,            // SHA-256 hex of the primary model file (for annotation/model binding)
 
     // UI Multipliers
-    pointSizeMultiplier: 1.0,
+    // Marker size is split by marker class so each can be tuned on its own —
+    // e.g. small vertices on a dense polygon while standalone points stay
+    // large. All four default to 1.0, which reproduces the single-slider
+    // rendering exactly: the per-class base factors in render.js / measure.js
+    // already carry the intended relative balance.
+    pointSizeMultiplier: 1.0,          // point annotations
+    vertexSizeMultiplier: 1.0,         // line & polygon vertices
+    boxHandleSizeMultiplier: 1.0,      // box corner handles (saved and pending)
+    measureMarkerSizeMultiplier: 1.0,  // measurement markers
     textSizeMultiplier: 1.0,
     
     // User preferences
@@ -154,6 +162,15 @@ export const state = {
 
     // Three.js annotation objects
     annotationObjects: new THREE.Group(),
+
+    // Anchor point (display coords) per annotation id, filled by
+    // renderAnnotations(). Used to position the selection callout; it is the
+    // same position the label-occlusion pass checks against, so it is already
+    // flip-aware and already correct per annotation type.
+    annotationAnchors: new Map(),
+
+    // Opacity of the selection callout, 0.2–1.0 (see setCalloutOpacity).
+    calloutOpacity: 1.0,
 
     // Pending files (for dialogs)
     pendingObjFile: null,
@@ -337,8 +354,18 @@ export function initDomReferences() {
     dom.lightElevationValue = document.getElementById('light-elevation-value');
     dom.pointSizeSlider = document.getElementById('point-size-slider');
     dom.pointSizeValue = document.getElementById('point-size-value');
+    dom.vertexSizeSlider = document.getElementById('vertex-size-slider');
+    dom.vertexSizeValue = document.getElementById('vertex-size-value');
+    dom.boxHandleSizeSlider = document.getElementById('box-handle-size-slider');
+    dom.boxHandleSizeValue = document.getElementById('box-handle-size-value');
+    // Lives in the Measurements settings pane, but is the same kind of control
+    // as the three above and is driven by the same setter factory.
+    dom.measureMarkerSizeSlider = document.getElementById('measure-marker-size-slider');
+    dom.measureMarkerSizeValue = document.getElementById('measure-marker-size-value');
     dom.textSizeSlider = document.getElementById('text-size-slider');
     dom.textSizeValue = document.getElementById('text-size-value');
+    dom.calloutOpacitySlider = document.getElementById('callout-opacity-slider');
+    dom.calloutOpacityValue = document.getElementById('callout-opacity-value');
     dom.backgroundColorPicker = document.getElementById('background-color-picker');
     dom.slidersPanel = document.getElementById('sliders-panel');
     dom.slidersPanelToggle = document.getElementById('sliders-panel-toggle');
