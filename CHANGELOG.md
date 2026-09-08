@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.5.0] — 2026-09-08
+
+This release reorganises the Settings panel, adds a callout that surfaces an annotation's details in the viewport when it is selected, and splits marker sizing into separate controls per marker class.
+
+### Added
+
+- **Annotation callout** — selecting an annotation in the sidebar list now raises a small panel beside it in the viewport showing its name, type, group and most recent entry, along with a **Details** button that opens the full annotation for editing. The annotation itself is emphasised in the model at the same time: its markers grow, lines thicken, surface and box fills become more opaque, and its colour brightens towards white, so the annotation under discussion is unambiguous even in a crowded scene. The 3D name label is hidden while the callout is up, since the callout already carries the name and two copies a few pixels apart read as a rendering fault. Click the same sidebar entry again, or press <kbd>Esc</kbd>, to clear the selection; opening the annotation editor supersedes the callout rather than showing both. Selection is driven from the sidebar list only — clicking a marker in the 3D view does not raise the callout. A **Callout Opacity** setting (20–100%, under Viewport) controls how much of the model shows through the panel, and applies immediately, including while the callout is on screen.
+- **Separate marker size controls** — the single Point Size slider has been replaced by four independent multipliers: **Point Markers**, **Line & Polygon Vertices**, **Box Corner Handles** (under Viewport) and **Marker Size** for measurement points (under Measurements). Each marker class already had its own base size, so the balance between them was fixed; splitting the controls means a detailed polygon can carry small vertices while standalone points stay prominent, or box corners can be kept large enough to grab on a model where the annotation markers are deliberately small. All four default to ×1.0, which reproduces the previous rendering exactly, and an existing Point Size preference is carried over to all four on first launch rather than being reset.
+
+### Changed
+
+- **Settings panel reorganised** — the settings are now grouped into four categories listed down the left-hand side (**Identity**, **Viewport**, **Measure**, **Export**) instead of one long scrolling list, with each group carrying a short note explaining what its settings affect and where they apply. The categories are reachable with the arrow keys as well as the mouse, and the panel can be dragged clear of the model by its title bar, holding its position for the rest of the session.
+- **Manual** — *Tips* documents selecting an annotation and the callout; the *Settings* walkthrough covers the four categories, the callout opacity setting and the separate marker size sliders; *Texture & Display Controls* describes the four size sliders in place of the single Point Size slider.
+
+### Fixed
+
+- **Two modules were missing from the offline precache** — `selection-callout.js` and `selection-highlight.js` were not listed in the service worker's precache set. Because activating a new service worker deletes every older cache, a client that activated this version while offline would have found both modules absent and the app unable to start. Both are now precached; the full module list is verified against the source tree.
+
+### Internal
+
+- New modules `js/annotation-tools/selection-callout.js` (the HTML overlay, anchored from `state.annotationAnchors`) and `js/annotation-tools/selection-highlight.js` (material and scale emphasis, with the original values stored per object so the effect can be reversed without a full rebuild). Selection emphasis mutates objects already in the scene rather than re-running `renderAnnotations()`, which would otherwise dispose and rebuild every annotation — including surface meshes that walk `faceData` — on each sidebar click.
+- The five marker and label size sliders are now generated from one `makeSizeSetter()` factory in `js/core/lighting.js`, and restored by one `restoreSizeSlider()` helper in `js/main.js`, replacing five near-identical copies of the same setter and loader.
+
+
 ## [1.4.2] — 2026-08-26
 
 A bug-fix release. Very large models now build their raycasting acceleration structure successfully, restoring label occlusion, surface painting and annotation picking at photogrammetry scale.
@@ -170,6 +194,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.5.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.5.0
 [1.4.2]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.2
 [1.4.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.1
 [1.4.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.0

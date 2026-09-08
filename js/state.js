@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 // ============ Version ============
-export const APP_VERSION = '1.4.2';
+export const APP_VERSION = '1.5.0';
 
 // ============ Application State ============
 export const state = {
