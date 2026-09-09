@@ -3,83 +3,320 @@ import * as THREE from 'three';
 import { state } from '../state.js';
 import { showStatus, flipTransform } from '../utils/helpers.js';
 
+// ---- Projection quality tuning ---------------------------------------------
+// Sampling density and OUTPUT density are two separate budgets and must not be
+// conflated. Sampling density controls how faithfully the closest-point walk
+// follows the surface — it is paid once, in BVH queries, when an annotation is
+// edited. Output density controls how many vertices land in the Line2 geometry,
+// and is paid on every renderAnnotations() call, including once per pointermove
+// while a point is being dragged. We therefore sample finely and emit coarsely.
+
+// Target spacing between samples along an edge, as a fraction of the model's
+// bounding size. 0.004 ≈ 250 samples across the full extent of the object.
+const SAMPLE_SPACING_RELATIVE = 0.004;
+
+// Never fewer than this many segments, however short the edge.
+const MIN_SEGMENTS = 8;
+
+// Hard ceiling on samples per edge, so a line spanning a whole large model
+// cannot blow up the BVH query count.
+const MAX_SEGMENTS = 256;
+
+// Hard ceiling on emitted points per edge (see the two-budget note above).
+const MAX_OUTPUT_POINTS = 64;
+
+// Laplacian smoothing passes over the raw projected polyline. Two is enough to
+// remove per-triangle jitter without visibly shrinking the curve.
+const SMOOTHING_ROUNDS = 2;
+
+// ---- Module scratch ---------------------------------------------------------
+// getFaceWorldNormal runs once per sample; at up to 256 samples per edge, the
+// old per-call allocation of six Vector3 plus a Matrix3 was real GC pressure.
+// These are reused across every call and must never be held onto by callers.
+const _vA = new THREE.Vector3();
+const _vB = new THREE.Vector3();
+const _vC = new THREE.Vector3();
+const _edge1 = new THREE.Vector3();
+const _edge2 = new THREE.Vector3();
+
+// closestPointToPoint writes into (and returns) this target. Reused across every
+// sample; callers must copy out of it before the next query.
+const _hitTarget = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
+const _scratchNormalMatrix = new THREE.Matrix3();
+const _rayOrigin = new THREE.Vector3();
+const _rayDir = new THREE.Vector3();
+
 /**
- * Get the world-space face normal for a given face index on a mesh.
+ * Write the world-space face normal for a given face index into `target`.
  * Works with both indexed and non-indexed geometry.
  *
+ * `normalMatrix` is supplied by the caller because mesh.matrixWorld is constant
+ * for the duration of a projection call — deriving it per sample was pure waste.
+ *
  * Note: deliberately kept separate from surface-paint.js's _computeLocalFaceNormal.
- * This returns a WORLD-space normal (applies the mesh normal matrix) and allocates
- * per call — fine here, where it runs once per raycast hit. The surface-paint
- * variant stays in LOCAL space and is zero-allocation for its per-face paint hot
- * path. They are not interchangeable; do not merge them.
+ * This returns a WORLD-space normal; the surface-paint variant stays in LOCAL
+ * space for its per-face paint hot path. They are not interchangeable; do not
+ * merge them.
  */
-function getFaceWorldNormal(mesh, faceIndex) {
+function getFaceWorldNormal(mesh, faceIndex, normalMatrix, target) {
     const geo = mesh.geometry;
     const posAttr = geo.getAttribute('position');
     const index = geo.index;
 
-    const vA = new THREE.Vector3();
-    const vB = new THREE.Vector3();
-    const vC = new THREE.Vector3();
-
     if (index) {
-        vA.fromBufferAttribute(posAttr, index.getX(faceIndex * 3));
-        vB.fromBufferAttribute(posAttr, index.getX(faceIndex * 3 + 1));
-        vC.fromBufferAttribute(posAttr, index.getX(faceIndex * 3 + 2));
+        _vA.fromBufferAttribute(posAttr, index.getX(faceIndex * 3));
+        _vB.fromBufferAttribute(posAttr, index.getX(faceIndex * 3 + 1));
+        _vC.fromBufferAttribute(posAttr, index.getX(faceIndex * 3 + 2));
     } else {
-        vA.fromBufferAttribute(posAttr, faceIndex * 3);
-        vB.fromBufferAttribute(posAttr, faceIndex * 3 + 1);
-        vC.fromBufferAttribute(posAttr, faceIndex * 3 + 2);
+        _vA.fromBufferAttribute(posAttr, faceIndex * 3);
+        _vB.fromBufferAttribute(posAttr, faceIndex * 3 + 1);
+        _vC.fromBufferAttribute(posAttr, faceIndex * 3 + 2);
     }
 
-    const edge1 = new THREE.Vector3().subVectors(vB, vA);
-    const edge2 = new THREE.Vector3().subVectors(vC, vA);
-    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+    _edge1.subVectors(_vB, _vA);
+    _edge2.subVectors(_vC, _vA);
+    target.crossVectors(_edge1, _edge2).normalize();
+    target.applyMatrix3(normalMatrix).normalize();
 
-    // Transform to world space
-    const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
-    normal.applyMatrix3(normalMatrix).normalize();
+    return target;
+}
 
-    return normal;
+// ---- Per-call mesh contexts -------------------------------------------------
+// The inverse world matrix and normal matrix of each BVH-bearing mesh, derived
+// once per projection call rather than once per sample. Entries are pooled.
+
+const _meshContexts = [];
+let _meshContextCount = 0;
+
+function buildMeshContexts() {
+    _meshContextCount = 0;
+    for (const mesh of state.modelMeshes) {
+        if (!mesh.geometry || !mesh.geometry.boundsTree) continue;
+
+        let ctx = _meshContexts[_meshContextCount];
+        if (!ctx) {
+            ctx = {
+                mesh: null,
+                invMatrix: new THREE.Matrix4(),
+                normalMatrix: new THREE.Matrix3()
+            };
+            _meshContexts[_meshContextCount] = ctx;
+        }
+        ctx.mesh = mesh;
+        ctx.invMatrix.copy(mesh.matrixWorld).invert();
+        ctx.normalMatrix.getNormalMatrix(mesh.matrixWorld);
+        _meshContextCount++;
+    }
+    return _meshContextCount;
 }
 
 /**
- * Find the face normal at the closest surface point to a given world-space position.
- * Returns null if no BVH-accelerated mesh is available.
+ * Find the face normal at the closest surface point to a given world-space
+ * position. Returns null if no BVH-accelerated mesh is available.
+ * Assumes buildMeshContexts() has already run for this call.
  */
 function getClosestSurfaceNormal(worldPoint) {
     const localPoint = new THREE.Vector3();
-    const invMatrix = new THREE.Matrix4();
     let bestDistance = Infinity;
-    let bestNormal = null;
+    let bestCtx = null;
+    let bestFaceIndex = -1;
 
-    for (const mesh of state.modelMeshes) {
-        if (!mesh.geometry.boundsTree) continue;
+    for (let m = 0; m < _meshContextCount; m++) {
+        const ctx = _meshContexts[m];
+        localPoint.copy(worldPoint).applyMatrix4(ctx.invMatrix);
 
-        invMatrix.copy(mesh.matrixWorld).invert();
-        localPoint.copy(worldPoint).applyMatrix4(invMatrix);
-
-        const target = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
-        const result = mesh.geometry.boundsTree.closestPointToPoint(localPoint, target);
+        const result = ctx.mesh.geometry.boundsTree.closestPointToPoint(localPoint, _hitTarget);
 
         if (result && result.distance < bestDistance) {
             bestDistance = result.distance;
-            bestNormal = getFaceWorldNormal(mesh, result.faceIndex);
+            bestCtx = ctx;
+            bestFaceIndex = result.faceIndex;
         }
     }
 
-    return bestNormal;
+    if (!bestCtx) return null;
+    return getFaceWorldNormal(bestCtx.mesh, bestFaceIndex, bestCtx.normalMatrix, new THREE.Vector3());
 }
 
-export function projectEdgeToSurface(pointA, pointB, segments = 30) {
+/**
+ * Resolve how many segments to sample an edge with.
+ *
+ * An explicit count from the caller wins outright — that is how the interactive
+ * tiers (the drawing preview and the live drag re-projection) keep their fixed,
+ * deliberately cheap budgets.
+ *
+ * Otherwise the count is derived from arc length so that density is a property
+ * of the edge, not of the call site. A fixed count meant a 2 m edge and a 2 cm
+ * edge got the same 30 samples: far too coarse on one, wasteful on the other.
+ * The spacing is floored at the mesh's own mean triangle edge (≈ boundingSize /
+ * sqrt(faceCount)), because sampling below the resolution of the geometry only
+ * traces its facets and its noise.
+ */
+function resolveSegmentCount(chordLength, explicit) {
+    if (typeof explicit === 'number' && isFinite(explicit) && explicit > 0) {
+        return Math.max(1, Math.round(explicit));
+    }
+
+    const modelSize = state.modelBoundingSize || 1;
+    let spacing = modelSize * SAMPLE_SPACING_RELATIVE;
+
+    const faces = state.modelFaceCount || 0;
+    if (faces > 0) {
+        const meanTriangleEdge = modelSize / Math.sqrt(faces);
+        if (meanTriangleEdge > spacing) spacing = meanTriangleEdge;
+    }
+
+    if (!(spacing > 0)) return MIN_SEGMENTS;
+
+    const n = Math.round(chordLength / spacing);
+    return Math.max(MIN_SEGMENTS, Math.min(MAX_SEGMENTS, n));
+}
+
+/**
+ * In-place Laplacian smoothing of a projected polyline, constrained to the
+ * surface by a tangent-plane snap.
+ *
+ * Corner-cutting (Chaikin) would have been the obvious choice but it multiplies
+ * the point count and every new point needs its own closestPointToPoint. Moving
+ * the existing points instead keeps the count fixed, and pushing each smoothed
+ * point back onto the plane of the face it was projected onto keeps it on the
+ * surface to first order — which is all that is needed, since no point travels
+ * more than a fraction of a triangle. Cost: pure arithmetic, no BVH queries.
+ *
+ * Endpoints are held fixed. They are the projections of the user's own placed
+ * vertices, and adjacent edges share them; letting them drift would open gaps
+ * between edges and pull the polyline away from its vertex markers.
+ *
+ * @param {Array<{x,y,z}>} points - modified in place.
+ * @param {Float32Array} normals - flat xyz per point, surface normal at each sample.
+ * @param {Uint8Array} normalValid - 1 where the matching normal is usable.
+ */
+function smoothOnSurface(points, normals, normalValid) {
+    const n = points.length;
+    if (n < 3) return;
+
+    const buf = new Float64Array(n * 3);
+
+    for (let round = 0; round < SMOOTHING_ROUNDS; round++) {
+        for (let i = 1; i < n - 1; i++) {
+            const prev = points[i - 1];
+            const cur = points[i];
+            const next = points[i + 1];
+
+            // [1, 2, 1] / 4 — a mild λ = 0.5 Laplacian.
+            let sx = (prev.x + 2 * cur.x + next.x) * 0.25;
+            let sy = (prev.y + 2 * cur.y + next.y) * 0.25;
+            let sz = (prev.z + 2 * cur.z + next.z) * 0.25;
+
+            if (normalValid[i]) {
+                const nx = normals[i * 3];
+                const ny = normals[i * 3 + 1];
+                const nz = normals[i * 3 + 2];
+                // Remove the component of the displacement along the normal, so
+                // the point slides across the surface instead of sinking into it.
+                const d = (sx - cur.x) * nx + (sy - cur.y) * ny + (sz - cur.z) * nz;
+                sx -= nx * d;
+                sy -= ny * d;
+                sz -= nz * d;
+            }
+
+            buf[i * 3] = sx;
+            buf[i * 3 + 1] = sy;
+            buf[i * 3 + 2] = sz;
+        }
+
+        for (let i = 1; i < n - 1; i++) {
+            points[i].x = buf[i * 3];
+            points[i].y = buf[i * 3 + 1];
+            points[i].z = buf[i * 3 + 2];
+        }
+    }
+}
+
+/**
+ * Re-space a polyline evenly by arc length, optionally reducing its point count.
+ *
+ * Sampling uniformly in t along the straight chord does not map to uniform
+ * spacing on the surface: points bunch where the surface runs close to the chord
+ * and stretch where it bulges away. Re-spacing fixes that, and capping the
+ * output count is what keeps the denser sampling from reaching the render path.
+ *
+ * Never upsamples — a coarse interactive tier stays coarse.
+ */
+function resampleByArcLength(points, maxOutputPoints) {
+    const n = points.length;
+    if (n < 3) return points;
+
+    const targetCount = Math.min(maxOutputPoints, n);
+    if (targetCount < 2) return points;
+
+    const cumulative = new Float64Array(n);
+    for (let i = 1; i < n; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dz = b.z - a.z;
+        cumulative[i] = cumulative[i - 1] + Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    const total = cumulative[n - 1];
+    if (!(total > 0)) return points;
+
+    const out = new Array(targetCount);
+    out[0] = points[0];
+    out[targetCount - 1] = points[n - 1];
+
+    let seg = 1;
+    for (let k = 1; k < targetCount - 1; k++) {
+        const distanceAlong = total * k / (targetCount - 1);
+        while (seg < n - 1 && cumulative[seg] < distanceAlong) seg++;
+
+        const l0 = cumulative[seg - 1];
+        const l1 = cumulative[seg];
+        const span = l1 - l0;
+        const t = span > 0 ? (distanceAlong - l0) / span : 0;
+
+        const a = points[seg - 1];
+        const b = points[seg];
+        out[k] = {
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t,
+            z: a.z + (b.z - a.z) * t
+        };
+    }
+
+    return out;
+}
+
+/**
+ * Project the edge A→B onto the model surface.
+ *
+ * @param {THREE.Vector3} pointA
+ * @param {THREE.Vector3} pointB
+ * @param {number|null} segments - explicit sample count for the interactive
+ *        tiers; null/omitted selects an arc-length-adaptive count.
+ * @returns {Array<{x,y,z}>|null}
+ */
+export function projectEdgeToSurface(pointA, pointB, segments = null) {
     if (state.modelMeshes.length === 0) return null;
+    if (buildMeshContexts() === 0) return null;
+
+    const chordLength = pointA.distanceTo(pointB);
+    const sampleCount = resolveSegmentCount(chordLength, segments);
 
     const projectedPoints = [];
+    const sampleNormals = new Float32Array((sampleCount + 1) * 3);
+    const sampleNormalValid = new Uint8Array(sampleCount + 1);
+
     const tempPoint = new THREE.Vector3();
     const localPoint = new THREE.Vector3();
-    const invMatrix = new THREE.Matrix4();
+    const bestPoint = new THREE.Vector3();
+    const bestFaceNormal = new THREE.Vector3();
+    const faceNormal = new THREE.Vector3();
+    const hitNormal = new THREE.Vector3();
 
-    // Get reference normals at the endpoints for normal-consistency filtering.
+    // Reference normals at the endpoints, for normal-consistency filtering.
     // This prevents projection from "jumping" to the opposite side of thin-walled
     // geometry (e.g. inside of a vase when annotating the outside).
     const refNormalA = getClosestSurfaceNormal(pointA);
@@ -89,69 +326,86 @@ export function projectEdgeToSurface(pointA, pointB, segments = 30) {
     const raycaster = new THREE.Raycaster();
     const rayOffset = (state.modelBoundingSize || 1) * 0.1;
 
-    for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
+    for (let i = 0; i <= sampleCount; i++) {
+        const t = i / sampleCount;
         tempPoint.lerpVectors(pointA, pointB, t);
 
         let bestDistance = Infinity;
-        let bestPoint = null;
-        let bestFaceNormal = null;
+        let haveBest = false;
 
-        for (const mesh of state.modelMeshes) {
-            if (!mesh.geometry.boundsTree) continue;
+        for (let m = 0; m < _meshContextCount; m++) {
+            const ctx = _meshContexts[m];
+            localPoint.copy(tempPoint).applyMatrix4(ctx.invMatrix);
 
-            invMatrix.copy(mesh.matrixWorld).invert();
-            localPoint.copy(tempPoint).applyMatrix4(invMatrix);
-
-            const target = { point: new THREE.Vector3(), distance: 0, faceIndex: 0 };
-            const result = mesh.geometry.boundsTree.closestPointToPoint(localPoint, target);
+            const result = ctx.mesh.geometry.boundsTree.closestPointToPoint(localPoint, _hitTarget);
 
             if (result && result.distance < bestDistance) {
                 bestDistance = result.distance;
-                bestPoint = result.point.clone().applyMatrix4(mesh.matrixWorld);
-                bestFaceNormal = getFaceWorldNormal(mesh, result.faceIndex);
+                bestPoint.copy(result.point).applyMatrix4(ctx.mesh.matrixWorld);
+                getFaceWorldNormal(ctx.mesh, result.faceIndex, ctx.normalMatrix, bestFaceNormal);
+                haveBest = true;
             }
         }
 
+        let haveNormal = haveBest;
+
         // Normal consistency check: reject points projected onto the wrong surface
-        if (bestPoint && hasRefNormals && bestFaceNormal) {
+        if (haveBest && hasRefNormals) {
             interpolatedNormal.lerpVectors(refNormalA, refNormalB, t).normalize();
 
             if (bestFaceNormal.dot(interpolatedNormal) < 0) {
                 // The closest point is on the opposite-facing surface.
                 // Raycast from above the correct surface to find the right one.
-                const rayOrigin = tempPoint.clone().addScaledVector(interpolatedNormal, rayOffset);
-                const rayDir = interpolatedNormal.clone().negate();
-                raycaster.set(rayOrigin, rayDir);
+                _rayOrigin.copy(tempPoint).addScaledVector(interpolatedNormal, rayOffset);
+                _rayDir.copy(interpolatedNormal).negate();
+                raycaster.set(_rayOrigin, _rayDir);
 
-                let fallbackPoint = null;
+                let foundFallback = false;
                 for (const mesh of state.modelMeshes) {
                     const hits = raycaster.intersectObject(mesh);
                     if (hits.length > 0) {
                         // Use the first hit whose normal is consistent
+                        _scratchNormalMatrix.getNormalMatrix(mesh.matrixWorld);
                         for (const hit of hits) {
-                            const hitNormal = getFaceWorldNormal(mesh, hit.faceIndex);
-                            if (hitNormal.dot(interpolatedNormal) >= 0) {
-                                fallbackPoint = hit.point.clone();
+                            getFaceWorldNormal(mesh, hit.faceIndex, _scratchNormalMatrix, faceNormal);
+                            if (faceNormal.dot(interpolatedNormal) >= 0) {
+                                bestPoint.copy(hit.point);
+                                hitNormal.copy(faceNormal);
+                                foundFallback = true;
                                 break;
                             }
                         }
-                        if (fallbackPoint) break;
+                        if (foundFallback) break;
                     }
                 }
 
-                bestPoint = fallbackPoint; // null → linear interpolation fallback
+                if (foundFallback) {
+                    bestFaceNormal.copy(hitNormal);
+                } else {
+                    // null → linear interpolation fallback
+                    haveBest = false;
+                    haveNormal = false;
+                }
             }
         }
 
-        if (bestPoint) {
+        if (haveBest) {
             projectedPoints.push({ x: bestPoint.x, y: bestPoint.y, z: bestPoint.z });
         } else {
             projectedPoints.push({ x: tempPoint.x, y: tempPoint.y, z: tempPoint.z });
         }
+
+        if (haveNormal) {
+            sampleNormals[i * 3] = bestFaceNormal.x;
+            sampleNormals[i * 3 + 1] = bestFaceNormal.y;
+            sampleNormals[i * 3 + 2] = bestFaceNormal.z;
+            sampleNormalValid[i] = 1;
+        }
     }
 
-    return projectedPoints;
+    smoothOnSurface(projectedPoints, sampleNormals, sampleNormalValid);
+
+    return resampleByArcLength(projectedPoints, MAX_OUTPUT_POINTS);
 }
 
 export function isProjectionAcceptable(projectedPoints, pointA, pointB) {
@@ -178,7 +432,7 @@ export function isProjectionAcceptable(projectedPoints, pointA, pointB) {
     return true;
 }
 
-export function computeProjectedEdges(points, closePolygon = false, segments = 30) {
+export function computeProjectedEdges(points, closePolygon = false, segments = null) {
     const edges = [];
     const vec3Points = points.map(p => new THREE.Vector3(p.x, p.y, p.z));
 
@@ -257,7 +511,7 @@ export function recomputeAdjacentEdges(ann, pointIndex) {
  * Converts storage-space points to display space for projection math,
  * then converts results back to storage space.
  */
-export function computeProjectedEdgesFlipAware(points, closePolygon = false, segments = 30) {
+export function computeProjectedEdgesFlipAware(points, closePolygon = false, segments = null) {
     if (!state.isFlipped) {
         return computeProjectedEdges(points, closePolygon, segments);
     }
