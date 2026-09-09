@@ -4,7 +4,7 @@ import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helper
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setVertexSize, setBoxHandleSize, setMeasureMarkerSize, setTextSize, setCalloutOpacity, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, resetAllSettings } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setVertexSize, setBoxHandleSize, setMeasureMarkerSize, setTextSize, setCalloutOpacity, setCalloutEnabled, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, cancelUnfinishedDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm, deselectAnnotation } from '../annotation-tools/groups.js';
@@ -777,6 +777,15 @@ export function setupEventListeners() {
     // No re-render: the callout is a DOM overlay, and the CSS variable applies
     // to it immediately.
     dom.calloutOpacitySlider.addEventListener('input', (e) => setCalloutOpacity(parseInt(e.target.value)));
+    // Toggling the callout mid-selection would leave the current annotation
+    // half-applied: applySelectionHighlight() skips objects that already carry
+    // _selPrev, so a plain re-apply would not flip the name sprite back.
+    // Dropping the selection has no such edge cases — the setting governs what
+    // the next selection does.
+    dom.calloutEnabledToggle.addEventListener('change', (e) => {
+        setCalloutEnabled(e.target.checked);
+        deselectAnnotation();
+    });
     
     // Background color controls
     dom.backgroundColorPicker.addEventListener('input', (e) => setBackgroundColor(e.target.value));

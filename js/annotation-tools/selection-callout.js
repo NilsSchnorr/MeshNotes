@@ -94,6 +94,12 @@ export function showSelectionCallout(ann) {
     const panel = el();
     if (!panel || !ann) return;
 
+    // Switched off under Settings → Viewport. Guarding here rather than at each
+    // call site covers both the sidebar selection path and the shared-annotation
+    // path in main.js, and leaves hideSelectionCallout() unguarded so a callout
+    // already on screen when the setting changes still comes down.
+    if (!state.calloutEnabled) return;
+
     _annotationId = ann.id;
 
     const group = state.groups.find(g => g.id === ann.groupId);

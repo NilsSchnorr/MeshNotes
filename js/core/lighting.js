@@ -163,6 +163,26 @@ export function setCalloutOpacity(value) {
     localStorage.setItem('meshnotes_calloutOpacity', value);
 }
 
+/**
+ * Turns the annotation selection callout on or off.
+ *
+ * Only the panel is affected. Selecting an annotation still centres the camera
+ * and emphasises the geometry; with the callout off the annotation's name stays
+ * on its 3D label sprite, which is where it lived before the callout existed.
+ *
+ * The opacity slider is meaningless while the callout is off, so it is disabled
+ * and dimmed rather than left as a live control with no effect.
+ *
+ * @param {boolean} enabled
+ */
+export function setCalloutEnabled(enabled) {
+    state.calloutEnabled = enabled;
+    dom.calloutEnabledToggle.checked = enabled;
+    dom.calloutOpacitySlider.disabled = !enabled;
+    dom.calloutOpacityRow.classList.toggle('row-disabled', !enabled);
+    localStorage.setItem('meshnotes_calloutEnabled', enabled ? 'true' : 'false');
+}
+
 // ============ Light Mode Controls ============
 
 export function toggleLightMode() {
@@ -306,6 +326,7 @@ export function resetAllSettings() {
     state.measureMarkerSizeMultiplier = 1.0;
     state.textSizeMultiplier = 1.0;
     state.calloutOpacity = 1.0;
+    state.calloutEnabled = true;
     state.defaultAuthor = '';
     state.defaultAuthorOrcid = '';
     state.defaultLanguage = '';
@@ -340,6 +361,9 @@ export function resetAllSettings() {
     dom.measureMarkerSizeValue.textContent = '×1.0';
     dom.textSizeSlider.value = 100;
     dom.textSizeValue.textContent = '×1.0';
+    dom.calloutEnabledToggle.checked = true;
+    dom.calloutOpacitySlider.disabled = false;
+    dom.calloutOpacityRow.classList.remove('row-disabled');
     dom.calloutOpacitySlider.value = 100;
     dom.calloutOpacityValue.textContent = '100%';
     document.documentElement.style.setProperty('--ac-opacity', 1);

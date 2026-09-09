@@ -3887,6 +3887,42 @@
             font-weight: 500;
         }
 
+        /* Boolean settings. The default .settings-row label is a two-span flex
+           row (name left, value right in gold), which would push a checkbox and
+           its text to opposite edges and colour the text as if it were a value
+           readout, so both are overridden here. */
+        .settings-row label.settings-checkbox-label {
+            justify-content: flex-start;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+
+        .settings-row label.settings-checkbox-label input[type="checkbox"] {
+            width: auto;
+            flex: none;
+            margin: 0;
+            cursor: pointer;
+            accent-color: var(--color-gold);
+        }
+
+        .settings-row label.settings-checkbox-label span:last-child {
+            color: var(--color-text-medium);
+            font-weight: 400;
+        }
+
+        /* A row whose control is inert because another setting switched it off.
+           Dimmed rather than hidden, so the option stays discoverable. */
+        .settings-row.row-disabled label {
+            opacity: 0.45;
+        }
+
+        .settings-row input[type="range"]:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
         .settings-row input[type="range"] {
             width: 100%;
             height: 6px;

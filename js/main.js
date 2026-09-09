@@ -2,7 +2,7 @@
 import { state, dom, initDomReferences, APP_VERSION } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
-import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape } from './core/lighting.js';
+import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, setCalloutEnabled } from './core/lighting.js';
 import { setUpdateModelInfoDisplay, onceModelSetupComplete, setModelHashReadyCallback, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
@@ -350,6 +350,14 @@ function loadSavedSettings() {
     // Text size
     restoreSizeSlider('meshnotes_textSize', 'textSizeMultiplier',
         'textSizeSlider', 'textSizeValue');
+
+    // Selection callout on/off. Restored before the opacity below, because the
+    // setter disables the opacity slider when the callout is off and the
+    // opacity restore only writes that slider's value.
+    const savedCalloutEnabled = localStorage.getItem('meshnotes_calloutEnabled');
+    if (savedCalloutEnabled !== null) {
+        setCalloutEnabled(savedCalloutEnabled === 'true');
+    }
 
     // Selection callout opacity
     const savedCalloutOpacity = localStorage.getItem('meshnotes_calloutOpacity');

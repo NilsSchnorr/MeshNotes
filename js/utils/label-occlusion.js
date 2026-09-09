@@ -132,7 +132,9 @@ function updateAllLabelVisibility() {
         // The selected annotation's name is shown by the callout instead, so
         // its sprite stays hidden regardless of occlusion. Without this, the
         // next camera move would undo what applySelectionHighlight() did.
-        if (ann.id === state.selectedAnnotation) {
+        // With the callout switched off the label is the only place the name
+        // appears, so it falls through to the normal occlusion test instead.
+        if (state.calloutEnabled && ann.id === state.selectedAnnotation) {
             sprite.visible = false;
             continue;
         }

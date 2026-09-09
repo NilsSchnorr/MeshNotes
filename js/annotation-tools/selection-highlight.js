@@ -77,6 +77,12 @@ function highlight(obj) {
         // already shows the name, and two copies of it a few pixels apart
         // reads as a rendering glitch. label-occlusion.js has a matching
         // guard so a camera move doesn't bring it back.
+        //
+        // With the callout switched off in Settings the label is the only
+        // place the name appears, so it stays put. Returning before _selPrev
+        // is written is deliberate: nothing was changed, so restore() has
+        // nothing to undo.
+        if (!state.calloutEnabled) return;
         prev.visible = obj.visible;
         obj.visible = false;
     } else if (obj.material && obj.material.isLineMaterial) {

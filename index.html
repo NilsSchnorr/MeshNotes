@@ -663,7 +663,7 @@
                             <ul>
                                 <li>Use the opacity slider to see annotations on the back side of the model.</li>
                                 <li>Group annotations by excavation phase, feature type, or team member for better organization.</li>
-                                <li><strong>Selecting an annotation:</strong> Click an entry in the sidebar list to select it. Its marker is emphasised in the model and a small callout appears beside it showing the name, type, group and most recent entry. Click the same entry again, or press <strong>Esc</strong>, to clear the selection; click <strong>Details</strong> in the callout (or double-click the sidebar entry) to open the full annotation for editing. Selection is driven from the sidebar list only — clicking a marker in the 3D view does not raise the callout. Callout opacity is adjustable under <strong>Settings → Viewport → Annotation Callout</strong>.</li>
+                                <li><strong>Selecting an annotation:</strong> Click an entry in the sidebar list to select it. Its marker is emphasised in the model and a small callout appears beside it showing the name, type, group and most recent entry. Click the same entry again, or press <strong>Esc</strong>, to clear the selection; click <strong>Details</strong> in the callout (or double-click the sidebar entry) to open the full annotation for editing. Selection is driven from the sidebar list only — clicking a marker in the 3D view does not raise the callout. The callout can be switched off, and its opacity adjusted, under <strong>Settings → Viewport → Annotation Callout</strong>; with it off, the name stays on the annotation's label in the model and selecting still centres the camera and emphasises the marker.</li>
                                 <li>Export frequently to back up your work.</li>
                                 <li>The tool runs entirely in your browser — your data stays on your computer unless you explicitly use the Share feature to generate a link.</li>
                             </ul>
@@ -705,7 +705,7 @@
 
                             <p style="margin-top: 10px;"><strong>Marker &amp; Label Size:</strong> Separate multipliers scale <strong>point markers</strong>, <strong>line &amp; polygon vertices</strong>, <strong>box corner handles</strong> and <strong>text labels</strong>, so each class can be tuned for your model without disturbing the others; measurement markers have their own slider in the <strong>Measurements</strong> section. Note that markers double as the grab targets for dragging points and resizing boxes — if one becomes too small to hit reliably, enlarge it here. The sliders use exponential scaling for easy fine-tuning at both small and large values.</p>
 
-                            <p style="margin-top: 10px;"><strong>Annotation Callout:</strong> <strong>Opacity</strong> (20–100%) sets how solid the callout panel is that appears beside an annotation while it is selected in the sidebar. Lower it to let the model show through on close-up views. The change applies immediately, including while the callout is already on screen.</p>
+                            <p style="margin-top: 10px;"><strong>Annotation Callout:</strong> <strong>Show callout when an annotation is selected</strong> controls whether the panel appears at all. Switch it off and a selected annotation keeps its name on the label in the model instead, as it did before the callout existed; camera centring and marker emphasis are unaffected. <strong>Opacity</strong> (20–100%) sets how solid the panel is. Lower it to let the model show through on close-up views. Both changes apply immediately, including while the callout is already on screen.</p>
 
                             <h4 style="margin-top: 14px;">Measure</h4>
 
@@ -847,13 +847,19 @@
                 <section>
                     <h3>Annotation Callout</h3>
                     <div class="settings-row">
+                        <label class="settings-checkbox-label">
+                            <input type="checkbox" id="callout-enabled-toggle" checked>
+                            <span>Show callout when an annotation is selected</span>
+                        </label>
+                    </div>
+                    <div class="settings-row" id="callout-opacity-row">
                         <label>
                             <span>Opacity</span>
                             <span id="callout-opacity-value">100%</span>
                         </label>
                         <input type="range" id="callout-opacity-slider" min="20" max="100" step="5" value="100">
                     </div>
-                    <p class="settings-hint">The panel shown beside an annotation while it is selected in the sidebar. Lower values let the model show through it. The callout is interface only — it never appears in screenshots, the six-view plate or the PDF report.</p>
+                    <p class="settings-hint">The panel shown beside an annotation while it is selected in the sidebar. Lower values let the model show through it. Switch the callout off to keep the older behaviour, in which the annotation's name stays on its label in the model; either way, selecting still centres the camera and emphasises the geometry. The callout is interface only — it never appears in screenshots, the six-view plate or the PDF report.</p>
                 </section>
                 </div>
 

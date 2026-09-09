@@ -172,6 +172,12 @@ export const state = {
     // Opacity of the selection callout, 0.2–1.0 (see setCalloutOpacity).
     calloutOpacity: 1.0,
 
+    // Whether the selection callout is raised at all (Settings → Viewport).
+    // When false, selecting an annotation still centres the camera and
+    // emphasises the geometry, but the name stays on its 3D label sprite
+    // instead of moving into the callout panel.
+    calloutEnabled: true,
+
     // Pending files (for dialogs)
     pendingObjFile: null,
     pendingPlyFile: null,
@@ -364,6 +370,8 @@ export function initDomReferences() {
     dom.measureMarkerSizeValue = document.getElementById('measure-marker-size-value');
     dom.textSizeSlider = document.getElementById('text-size-slider');
     dom.textSizeValue = document.getElementById('text-size-value');
+    dom.calloutEnabledToggle = document.getElementById('callout-enabled-toggle');
+    dom.calloutOpacityRow = document.getElementById('callout-opacity-row');
     dom.calloutOpacitySlider = document.getElementById('callout-opacity-slider');
     dom.calloutOpacityValue = document.getElementById('callout-opacity-value');
     dom.backgroundColorPicker = document.getElementById('background-color-picker');
