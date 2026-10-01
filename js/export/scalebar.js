@@ -26,6 +26,12 @@ const GEOM = {
     margin: 20        // padding used when the bar is an in-image overlay
 };
 
+// Screenshots draw the bar larger than the base geometry, so it stays legible
+// once the image is scaled down onto a page or slide. Multiplies stroke, ticks,
+// text and margins alike. The bar's length is a measurement and is never
+// scaled by this.
+const SCREENSHOT_BAR_SIZE = 1.5;
+
 export const SCALEBAR_CAPTION = '(scale depends on model source)';
 
 /**
@@ -210,6 +216,58 @@ export function drawViewportScalebar(targetCanvas, effectiveDpr, opts = {}) {
         scale,
         color: autoScalebarColor(opts)
     });
+}
+
+/**
+ * Screenshot variant of the viewport bar: returns a new canvas holding the
+ * capture plus a strip below it in the background colour, with the bar drawn
+ * bottom-left inside that strip. The bar therefore never covers the model,
+ * however far the view is zoomed in, and always sits in the same place.
+ *
+ * Bar length, label and colour are computed exactly as for the overlay. The
+ * drawing itself is SCREENSHOT_BAR_SIZE times the base geometry. The strip is
+ * one margin above the tick tops, the bar block, and one margin below.
+ *
+ * @param {HTMLCanvasElement} sourceCanvas - the rendered capture
+ * @param {number} effectiveDpr - device-pixel ratio x any upscaling applied
+ * @returns {HTMLCanvasElement} the extended canvas, or sourceCanvas unchanged
+ *   when no bar can be computed (perspective camera, no model)
+ */
+export function appendViewportScalebarStrip(sourceCanvas, effectiveDpr) {
+    const params = calculateScalebarParams();
+    if (!params) return sourceCanvas;
+
+    const dpr = effectiveDpr || (window.devicePixelRatio || 1);
+    const scale = dpr * SCREENSHOT_BAR_SIZE;
+    const caption = getScalebarCaption();
+    const margin = GEOM.margin * scale;
+    const stripH = Math.ceil(
+        margin + GEOM.tickHalf * scale + scalebarBlockHeight(scale, !!caption) + margin
+    );
+
+    const out = document.createElement('canvas');
+    out.width = sourceCanvas.width;
+    out.height = sourceCanvas.height + stripH;
+
+    // Same hex the scene background is built from; the renderer outputs sRGB,
+    // so the strip matches the rendered background pixel for pixel.
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = state.backgroundColor || '#041D31';
+    ctx.fillRect(0, sourceCanvas.height, out.width, stripH);
+    ctx.drawImage(sourceCanvas, 0, 0);
+
+    // Default x/y of drawScalebarOnCanvas put the block one margin above the
+    // bottom edge, which with this strip height lands the tick tops one margin
+    // below the image.
+    drawScalebarOnCanvas(out, {
+        barPx: params.pixelWidth * dpr,
+        label: formatScalebarLabel(params.units),
+        caption,
+        scale,
+        color: autoScalebarColor()
+    });
+
+    return out;
 }
 
 /**

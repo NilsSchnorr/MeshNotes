@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.5.1] — 2026-10-01
+
+A small release. Orthographic screenshots now carry their scale bar in a strip below the image, so it can no longer cover the model, and the annotation callout introduced in 1.5.0 can be switched off.
+
+### Added
+
+- **Option to switch off the annotation callout** — a new **Show callout when an annotation is selected** checkbox under **Settings → Viewport → Annotation Callout** turns the callout panel off. With it off, a selected annotation keeps its name on its label in the model, as it did before 1.5.0; selecting still centres the camera and emphasises the annotation. The opacity slider is disabled while the callout is off. The choice is remembered between sessions, and changing it clears the current selection.
+
+### Changed
+
+- **Screenshot scale bar moved into a strip below the image** — orthographic screenshots used to draw the scale bar as an overlay in the bottom-left corner of the image, where it covered the model whenever the view was zoomed in far enough. The image is now extended downwards by a strip in the background colour, and the scale bar sits bottom-left in that strip, so it never overlaps the model at any zoom level. Screenshots with a scale bar are therefore slightly taller than the viewport; screenshots without one (perspective mode) keep the viewport's exact size. The bar's length and value are calculated exactly as before. This applies to the Screenshot export; the view image in the PDF report is unchanged.
+- **Larger scale bar on screenshots** — the screenshot scale bar is drawn at 1.5 times its previous size: a thicker rule and end ticks, and larger value and caption text, so it stays legible once a screenshot is scaled down onto a page or slide. Scale bars on the six-view plate, the PDF report and cutting-plane profiles keep their size.
+- **Surface-following line and polygon edges** — edges of line and polygon annotations that are projected onto the model surface are now sampled according to their length instead of with a fixed 30 samples per edge. Long edges get up to 256 samples and follow the relief more closely, short edges are no longer oversampled, and sample spacing never goes finer than the model's average triangle edge. The projected path is then lightly smoothed along the surface to remove per-triangle jitter, and re-spaced evenly to at most 64 points per edge for display, which keeps redrawing cheap while a vertex is being dragged.
+- **Manual** — *Screenshots & Scalebar* describes the strip below the image; *Tips* and the *Settings* walkthrough cover switching the callout off.
+
+### Internal
+
+- `js/annotation-tools/projection.js` keeps sampling density and output density as separate budgets (`SAMPLE_SPACING_RELATIVE`, `MIN_SEGMENTS`, `MAX_SEGMENTS`, `MAX_OUTPUT_POINTS`, `SMOOTHING_ROUNDS`). An explicit segment count from the caller still wins, so the drawing preview and live drag re-projection keep their fixed, cheap budgets. Scratch vectors are now reused across samples instead of allocated per sample, and each mesh's inverse world and normal matrices are derived once per projection call rather than once per sample.
+- New `appendViewportScalebarStrip()` in `js/export/scalebar.js` builds the extended screenshot canvas; `drawViewportScalebar()` remains for the PDF report's overlay. The screenshot bar size is a single constant, `SCREENSHOT_BAR_SIZE`.
+- The callout setting is held in `state.calloutEnabled` and persisted as `meshnotes_calloutEnabled`; `setCalloutEnabled()` lives in `js/core/lighting.js` alongside `setCalloutOpacity()`.
+
+
 ## [1.5.0] — 2026-09-08
 
 This release reorganises the Settings panel, adds a callout that surfaces an annotation's details in the viewport when it is selected, and splits marker sizing into separate controls per marker class.
@@ -194,6 +216,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.5.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.5.1
 [1.5.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.5.0
 [1.4.2]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.2
 [1.4.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.4.1

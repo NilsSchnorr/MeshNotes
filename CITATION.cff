@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "MeshNotes"
 type: software
-version: 1.5.0
-date-released: "2026-09-08"
+version: 1.5.1
+date-released: "2026-10-01"
 license: Apache-2.0
 repository-code: "https://github.com/NilsSchnorr/MeshNotes"
 url: "https://meshnotes.org"

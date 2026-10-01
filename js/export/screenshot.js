@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { showStatus } from '../utils/helpers.js';
 import { toggleCamera } from '../core/camera.js';
 import { showScalebarConfirm } from '../annotation-tools/data.js';
-import { drawViewportScalebar } from './scalebar.js';
+import { appendViewportScalebarStrip } from './scalebar.js';
 import { captureAtSize } from './render-capture.js';
 
 export function takeScreenshot() {
@@ -39,12 +39,19 @@ export function captureScreenshot(includeScalebar) {
     // captureAtSize() renders in tiles no larger than the on-screen buffer, so
     // no GPU or browser canvas size limit is ever exceeded, and it keeps line
     // widths proportional to the exported image.
-    const outputCanvas = captureAtSize(fullW, fullH);
+    let outputCanvas = captureAtSize(fullW, fullH);
 
-    // Add scalebar
+    // Add scalebar in a strip below the image, so it never covers the model
     if (includeScalebar && state.isOrthographic) {
         const effectiveDpr = currentPixelRatio * scaleFactor;
-        drawViewportScalebar(outputCanvas, effectiveDpr);
+        const withStrip = appendViewportScalebarStrip(outputCanvas, effectiveDpr);
+        if (withStrip !== outputCanvas) {
+            // Release the capture's backing store now rather than at GC; at
+            // Ultra (4x) it can run to hundreds of MB.
+            outputCanvas.width = 0;
+            outputCanvas.height = 0;
+            outputCanvas = withStrip;
+        }
     }
 
     // Download
