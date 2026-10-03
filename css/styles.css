@@ -306,7 +306,7 @@
             background: var(--color-blue);
         }
 
-        #file-input, #import-input, #obj-material-input, #ply-texture-input {
+        #file-input, #import-input, #survey-csv-input, #obj-material-input, #ply-texture-input {
             display: none;
         }
 
@@ -633,6 +633,45 @@
             color: var(--color-gold);
         }
 
+        /* Collapse chevron: points down when expanded, right when collapsed */
+        .group-collapse {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px;
+            margin-left: -4px;
+            background: none;
+            border: none;
+            color: var(--color-text-light);
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+            opacity: 0.7;
+        }
+
+        .group-collapse:hover {
+            opacity: 1;
+        }
+
+        .group-collapse svg {
+            width: 1.2em;
+            height: 1.2em;
+            display: block;
+        }
+
+        .group-collapse.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        /* Touch input: the chevron is the smallest control in the header */
+        @media (pointer: coarse) {
+            .group-collapse {
+                min-width: 32px;
+                min-height: 32px;
+                margin-left: -8px;
+            }
+        }
+
         /* Model Information Section */
         #model-info-section {
             padding: 0 8px 12px 8px;
@@ -733,6 +772,21 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        /* Padlock beside the name of an annotation with the position lock */
+        .annotation-lock {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+
+        .annotation-lock svg {
+            width: 1.3em;
+            height: 1.3em;
+            display: block;
         }
 
         .annotation-edit-btn {
@@ -1117,6 +1171,132 @@
             margin: 0;
             cursor: pointer;
             accent-color: var(--color-gold);
+        }
+
+        /* Position lock in the edit popup: the padlock follows the checkbox.
+           Two classes, so `.popup label { display: block }` does not win. */
+        .popup .lock-checkbox-label {
+            display: flex;
+            margin: 4px 0 2px 0;
+        }
+
+        .lock-state-icon {
+            display: inline-flex;
+            align-items: center;
+            opacity: 0.8;
+        }
+
+        .lock-state-icon svg {
+            width: 1.4em;
+            height: 1.4em;
+            display: block;
+        }
+
+        #ann-locked:checked ~ .lock-state-open,
+        #ann-locked:not(:checked) ~ .lock-state-closed {
+            display: none;
+        }
+
+        .lock-hint {
+            font-size: 11px;
+            color: var(--color-text-muted);
+            margin: 0 0 10px 0;
+            line-height: 1.4;
+        }
+
+        /* ---- Surveyed position block (edit popup and read-only viewer) ---- */
+        .survey-block {
+            background: rgba(4, 29, 49, 0.6);
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin: 0 0 10px 0;
+            font-size: 12px;
+        }
+
+        .survey-block-title {
+            color: var(--color-text-medium);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .survey-block-rows,
+        .survey-attr-list {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 3px 10px;
+            margin: 0;
+        }
+
+        .survey-block dt {
+            color: var(--color-text-muted);
+        }
+
+        .survey-block dd {
+            margin: 0;
+            color: var(--color-text-light);
+            word-break: break-word;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .survey-block dd.survey-muted {
+            color: var(--color-text-muted);
+            font-style: italic;
+        }
+
+        .survey-block-note {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        /* Two classes, so `.popup button` does not override the padding and size. */
+        .survey-block .survey-attr-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 11px;
+            cursor: pointer;
+            padding: 6px 0 2px 0;
+            width: 100%;
+            text-align: left;
+        }
+
+        .survey-attr-toggle:hover {
+            color: var(--color-text-medium);
+        }
+
+        .survey-attr-toggle .toggle-icon {
+            font-size: 9px;
+            transition: transform 0.2s;
+        }
+
+        .survey-attr-toggle.expanded .toggle-icon {
+            transform: rotate(90deg);
+        }
+
+        .survey-attr-toggle .survey-attr-count {
+            background: var(--color-blue);
+            color: var(--color-text-medium);
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            margin-left: auto;
+        }
+
+        .survey-attr-list {
+            display: none;
+            margin-top: 4px;
+            font-size: 11px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .survey-attr-toggle.expanded + .survey-attr-list {
+            display: grid;
         }
 
         .popup input,
@@ -1659,6 +1839,992 @@
         .confirm-dialog .btn-delete {
             background: var(--color-danger);
             color: white;
+        }
+
+        /* Dropdowns inside confirm dialogs (e.g. the group delete target) */
+        .confirm-dialog label {
+            display: block;
+            text-align: left;
+            color: var(--color-text-medium);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .confirm-dialog select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            background: var(--color-blue-darkest);
+            color: var(--color-text-light);
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        /* Survey CSV import dialogs (column mapping, selection, summary).
+           z-index 250: above the popup backdrop (199) and the read-only viewer
+           (200), below the confirm overlay (300), so showConfirm stays on top.
+           The header and toolbar (z-index 500, 92px) stay above every overlay,
+           so the dialog is kept below them. Only one survey dialog is open at
+           a time. */
+        .survey-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--color-overlay);
+            z-index: 250;
+            align-items: center;
+            justify-content: center;
+            padding: 108px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+        }
+
+        .survey-overlay.visible {
+            display: flex;
+        }
+
+        .survey-dialog {
+            background: var(--color-blue-dark);
+            border: 1px solid var(--color-blue);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px var(--color-overlay-light);
+            width: min(920px, 100%);
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            color: var(--color-text-light);
+            font-size: 13px;
+        }
+
+        .survey-dialog-narrow {
+            width: min(620px, 100%);
+        }
+
+        .survey-dialog-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--color-blue);
+        }
+
+        .survey-dialog-heading {
+            min-width: 0;
+        }
+
+        .survey-dialog-header h3 {
+            color: var(--color-gold);
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .survey-dialog-subtitle {
+            color: var(--color-text-muted);
+            font-size: 12px;
+            margin-top: 2px;
+            overflow-wrap: anywhere;
+        }
+
+        .survey-dialog-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            padding: 12px 16px;
+        }
+
+        .survey-dialog-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
+            padding: 10px 16px 14px;
+            border-top: 1px solid var(--color-blue);
+        }
+
+        .survey-dialog button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .survey-dialog .btn-save {
+            background: var(--color-gold-dark);
+            color: white;
+        }
+
+        .survey-dialog .btn-cancel {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
+        .survey-dialog .btn-save:hover:not(:disabled) {
+            background: var(--color-gold-hover);
+            color: var(--color-blue-darkest);
+        }
+
+        .survey-dialog .btn-cancel:hover:not(:disabled) {
+            background: var(--color-blue-hover);
+        }
+
+        .survey-dialog button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .survey-dialog .btn-small {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
+        .survey-dialog .dialog-close-btn {
+            padding: 2px 6px;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .survey-section {
+            margin-bottom: 16px;
+        }
+
+        .survey-section h4 {
+            color: var(--color-text-medium);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .survey-hint {
+            color: var(--color-text-muted);
+            font-size: 12px;
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+
+        .survey-hint:empty {
+            display: none;
+        }
+
+        .survey-field-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px 12px;
+        }
+
+        .survey-field label {
+            display: block;
+            color: var(--color-text-medium);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .survey-field-check {
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .survey-dialog select,
+        .survey-dialog input[type="text"],
+        .survey-dialog input[type="number"] {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            background: var(--color-blue-darkest);
+            color: var(--color-text-light);
+            font-size: 13px;
+        }
+
+        .survey-dialog input[type="checkbox"] {
+            accent-color: var(--color-gold);
+            cursor: pointer;
+        }
+
+        .survey-field .survey-check-label,
+        .survey-check-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--color-text-medium);
+            font-size: 12px;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .survey-check-label span {
+            overflow-wrap: anywhere;
+        }
+
+        .survey-check-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 4px 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 6px 8px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+        }
+
+        .survey-check-grid:empty {
+            display: none;
+        }
+
+        .survey-tag {
+            color: var(--color-orange);
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        /* Preview and selection tables: scroll inside their frame */
+        .survey-table-wrap {
+            overflow: auto;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+        }
+
+        .survey-preview-wrap {
+            max-height: 260px;
+        }
+
+        .survey-select-wrap {
+            max-height: min(420px, 50vh);
+        }
+
+        .survey-table {
+            border-collapse: collapse;
+            font-size: 12px;
+            width: max-content;
+            min-width: 100%;
+        }
+
+        .survey-table th,
+        .survey-table td {
+            padding: 4px 8px;
+            border-bottom: 1px solid rgba(26, 90, 138, 0.5);
+            text-align: left;
+            white-space: nowrap;
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .survey-table thead th {
+            position: sticky;
+            top: 0;
+            background: var(--color-blue-dark);
+            color: var(--color-text-medium);
+            font-weight: 600;
+            z-index: 1;
+        }
+
+        .survey-table .survey-num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .survey-table .survey-col-mapped {
+            background: rgba(237, 192, 64, 0.07);
+        }
+
+        .survey-table td.survey-cell-bad {
+            background: rgba(220, 53, 69, 0.28);
+        }
+
+        .survey-role-badge {
+            display: inline-block;
+            background: var(--color-gold-dark);
+            color: white;
+            border-radius: 3px;
+            padding: 0 4px;
+            margin-right: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .survey-select-table tr.survey-row-off td {
+            color: var(--color-text-muted);
+        }
+
+        .survey-select-table td.survey-dist-warn {
+            color: var(--color-orange);
+        }
+
+        .survey-select-table tbody tr:hover td {
+            background: var(--color-white-hover);
+        }
+
+        /* Checks and warnings */
+        .survey-issues {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .survey-issue {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 10px;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            border-left: 3px solid var(--color-blue-hover);
+            background: rgba(26, 90, 138, 0.35);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .survey-issue.error {
+            border-left-color: var(--color-danger);
+            background: rgba(220, 53, 69, 0.18);
+        }
+
+        .survey-issue.warning {
+            border-left-color: var(--color-orange);
+            background: rgba(232, 163, 60, 0.14);
+        }
+
+        .survey-issue.ok {
+            border-left-color: #4CAF50;
+        }
+
+        .survey-issue-text {
+            flex: 1 1 260px;
+            overflow-wrap: anywhere;
+        }
+
+        /* Selection step */
+        .survey-select-summary {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .survey-select-limit-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 10px;
+            margin-bottom: 6px;
+        }
+
+        .survey-select-limit-row label {
+            color: var(--color-text-medium);
+            font-size: 12px;
+        }
+
+        .survey-dialog .survey-select-limit-row input[type="number"] {
+            width: 90px;
+        }
+
+        .survey-select-limit-row .survey-hint {
+            margin-bottom: 0;
+        }
+
+        .survey-progress {
+            color: var(--color-gold);
+            font-size: 12px;
+            min-height: 1.4em;
+            margin-bottom: 6px;
+        }
+
+        .survey-nomatch {
+            display: none;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--color-orange);
+            border-radius: 4px;
+            background: rgba(232, 163, 60, 0.14);
+        }
+
+        .survey-nomatch.visible {
+            display: block;
+        }
+
+        .survey-nomatch p {
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .survey-nomatch .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        /* Summary */
+        .survey-summary-figures {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .survey-figure {
+            background: rgba(26, 90, 138, 0.35);
+            border-radius: 4px;
+            padding: 8px 10px;
+        }
+
+        .survey-figure-value {
+            color: var(--color-gold);
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .survey-figure-label {
+            color: var(--color-text-muted);
+            font-size: 11px;
+        }
+
+        .survey-summary-details h4 {
+            color: var(--color-text-medium);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin: 12px 0 6px;
+        }
+
+        .survey-summary-details p {
+            color: var(--color-text-medium);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .survey-summary-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-height: 180px;
+            overflow-y: auto;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .survey-summary-list li {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(26, 90, 138, 0.4);
+            overflow-wrap: anywhere;
+        }
+
+        .survey-summary-row {
+            color: var(--color-text-muted);
+            margin-right: 8px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Touch input: larger targets for the checkboxes and buttons */
+        @media (pointer: coarse) {
+            .survey-dialog input[type="checkbox"] {
+                width: 20px;
+                height: 20px;
+            }
+
+            .survey-dialog button {
+                min-height: 40px;
+            }
+
+            .survey-dialog .btn-small {
+                min-height: 36px;
+            }
+
+            .survey-table th,
+            .survey-table td {
+                padding: 6px 8px;
+            }
+        }
+
+        /* ---- Survey picking panel (Step B) ----
+           A side panel in the viewport's top-left corner, so the model stays
+           free to navigate. z-index 210: above the popup backdrop (199), the
+           read-only viewer and the popups (200), below the survey dialogs
+           (250) and confirmations (300). The bottom 96px stay free for the
+           status line and the controls hint, and the tool help moves to the
+           panel's right (#viewport.survey-picking). Built on .survey-dialog,
+           which styles its header, buttons and fields. */
+        #survey-pick-panel {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: min(330px, calc(100% - 20px));
+            max-height: calc(100% - 106px);
+            z-index: 210;
+        }
+
+        #survey-pick-panel.visible {
+            display: flex;
+        }
+
+        #viewport.survey-picking #tool-help {
+            left: 350px;
+        }
+
+        /* Too narrow for the tool help beside the panel (ui-alignment.js,
+           NARROW_VIEWPORT): it would cover the view gizmo */
+        #viewport.survey-picking.survey-pick-narrow #tool-help {
+            display: none;
+        }
+
+        #survey-pick-header {
+            cursor: move;
+            user-select: none;
+        }
+
+        #survey-pick-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px 12px;
+        }
+
+        #survey-pick-body .survey-hint {
+            margin-bottom: 0;
+        }
+
+        #survey-pick-search {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            background: var(--color-blue-darkest);
+            color: var(--color-text-light);
+            font-size: 13px;
+        }
+
+        #survey-pick-rows {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-height: min(320px, 40vh);
+            overflow-y: auto;
+            flex-shrink: 0;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+        }
+
+        .survey-pick-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(26, 90, 138, 0.5);
+            border-left: 3px solid transparent;
+            cursor: pointer;
+        }
+
+        .survey-pick-row:last-child {
+            border-bottom: none;
+        }
+
+        .survey-pick-row:hover {
+            background: var(--color-white-hover);
+        }
+
+        .survey-pick-row.picked {
+            border-left-color: var(--color-gold);
+        }
+
+        .survey-pick-row.disabled {
+            border-left-color: var(--color-text-muted);
+        }
+
+        .survey-pick-row.disabled .survey-pick-row-name {
+            color: var(--color-text-muted);
+        }
+
+        .survey-pick-row.outlier {
+            border-left-color: var(--color-orange);
+        }
+
+        .survey-pick-row.selected {
+            background: rgba(0, 229, 255, 0.1);
+            box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.6);
+        }
+
+        .survey-pick-row-main {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .survey-pick-row-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .survey-pick-row-meta {
+            color: var(--color-text-muted);
+            font-size: 11px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .survey-pick-row-status {
+            color: var(--color-gold);
+            font-size: 11px;
+        }
+
+        .survey-pick-row.outlier .survey-pick-row-status {
+            color: var(--color-orange);
+        }
+
+        .survey-pick-row-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .survey-pick-note {
+            padding: 6px 8px;
+            color: var(--color-text-muted);
+            font-size: 12px;
+        }
+
+        #survey-pick-selected {
+            padding: 8px 10px;
+            border-left: 3px solid #00E5FF;
+            border-radius: 4px;
+            background: rgba(0, 229, 255, 0.08);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        #survey-pick-selected label {
+            display: block;
+            color: var(--color-text-medium);
+            margin: 8px 0 4px;
+        }
+
+        #survey-pick-footer {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+        }
+
+        #survey-pick-fit {
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .survey-pick-figures {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .survey-verdict-badge {
+            display: inline-block;
+            border-radius: 3px;
+            padding: 0 6px;
+            margin-right: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-blue-darkest);
+        }
+
+        .survey-verdict-badge.good {
+            background: #4CAF50;
+        }
+
+        .survey-verdict-badge.check {
+            background: var(--color-orange);
+        }
+
+        .survey-verdict-badge.poor {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .survey-level-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 4px 12px;
+        }
+
+        .survey-level-row .survey-hint {
+            flex-basis: 100%;
+            margin-bottom: 0;
+        }
+
+        .survey-check-label.suggested span {
+            color: var(--color-gold);
+        }
+
+        .survey-pick-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .survey-pick-buttons #survey-pick-undo {
+            margin-right: auto;
+        }
+
+        /* Review (Step C) */
+        .survey-verdict {
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            border-left: 3px solid var(--color-blue-hover);
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .survey-verdict.good {
+            border-left-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.15);
+        }
+
+        .survey-verdict.check {
+            border-left-color: var(--color-orange);
+            background: rgba(232, 163, 60, 0.14);
+        }
+
+        .survey-verdict.poor {
+            border-left-color: var(--color-danger);
+            background: rgba(220, 53, 69, 0.18);
+        }
+
+        .survey-review-compare {
+            color: var(--color-text-medium);
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .survey-review-table tr.survey-row-off td {
+            color: var(--color-text-muted);
+        }
+
+        .survey-review-table tr.survey-review-outlier td {
+            color: var(--color-orange);
+        }
+
+        /* Narrow windows: the picking panel becomes a bottom sheet that
+           scrolls as a whole, so the row list is never squeezed out */
+        @media (max-width: 760px) {
+            #survey-pick-panel {
+                top: auto;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-height: 60%;
+                overflow-y: auto;
+                border-radius: 8px 8px 0 0;
+            }
+
+            #survey-pick-body {
+                flex: 0 0 auto;
+                overflow: visible;
+            }
+
+            #survey-pick-header {
+                cursor: default;
+            }
+
+            #survey-pick-rows {
+                max-height: 26vh;
+            }
+
+            /* The sheet would cover the tool help; the status line moves
+               above the sheet */
+            #viewport.survey-picking #tool-help {
+                display: none;
+            }
+
+            #viewport.survey-picking #status {
+                bottom: calc(60% + 8px);
+            }
+        }
+
+        /* Touch input: larger rows; 16px text keeps iOS from zooming into the search field */
+        @media (pointer: coarse) {
+            .survey-pick-row {
+                min-height: 48px;
+            }
+
+            #survey-pick-search {
+                font-size: 16px;
+            }
+        }
+
+        /* ---- Alignment Manager (survey alignments) ----
+           The manager and the refine preview are .survey-overlay dialogs
+           (z-index 250, below the confirm overlay, so the delete question
+           and showConfirm show on top). The control-point view is a side
+           panel like the picking panel: top-left in the viewport, the tool
+           help moves to its right, a bottom sheet in narrow windows. */
+        .alignment-manager-empty p {
+            color: var(--color-text-medium);
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .alignment-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .alignment-item {
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            border: 1px solid var(--color-blue);
+            border-left: 3px solid var(--color-blue-hover);
+            border-radius: 4px;
+            background: rgba(26, 90, 138, 0.2);
+        }
+
+        .alignment-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .alignment-item.default {
+            border-left-color: var(--color-gold);
+        }
+
+        .alignment-item-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .alignment-item-name {
+            color: var(--color-gold);
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: auto;
+            overflow-wrap: anywhere;
+        }
+
+        .alignment-badge {
+            border: 1px solid var(--color-gold);
+            border-radius: 3px;
+            padding: 0 6px;
+            color: var(--color-gold);
+            font-size: 11px;
+        }
+
+        .alignment-item .survey-verdict-badge {
+            margin-right: 0;
+        }
+
+        .alignment-facts {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 2px 12px;
+            margin: 0 0 8px;
+            font-size: 12px;
+        }
+
+        .alignment-facts dt {
+            color: var(--color-text-muted);
+        }
+
+        .alignment-facts dd {
+            margin: 0;
+            overflow-wrap: anywhere;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .alignment-item .survey-issues {
+            margin-bottom: 8px;
+        }
+
+        .alignment-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .alignment-edit .survey-field-grid {
+            margin-bottom: 6px;
+        }
+
+        .alignment-edit .alignment-actions {
+            justify-content: flex-end;
+        }
+
+        .survey-dialog .btn-delete {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .survey-dialog .btn-delete:hover:not(:disabled) {
+            filter: brightness(1.15);
+        }
+
+        .alignment-refine-text {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        /* Control-point view (read-only), built on .survey-dialog */
+        #alignment-view-panel {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: min(330px, calc(100% - 20px));
+            max-height: calc(100% - 106px);
+            z-index: 210;
+        }
+
+        #alignment-view-panel.visible {
+            display: flex;
+        }
+
+        #viewport.alignment-viewing #tool-help {
+            left: 350px;
+        }
+
+        #alignment-view-panel .survey-verdict {
+            font-size: 13px;
+        }
+
+        #alignment-view-panel .survey-summary-figures {
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        }
+
+        #alignment-view-panel .survey-figure-value {
+            font-size: 15px;
+        }
+
+        @media (max-width: 760px) {
+            #alignment-view-panel {
+                top: auto;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-height: 60%;
+                overflow-y: auto;
+                border-radius: 8px 8px 0 0;
+            }
+
+            #alignment-view-body {
+                flex: 0 0 auto;
+                overflow: visible;
+            }
+
+            #viewport.alignment-viewing #tool-help {
+                display: none;
+            }
+
+            #viewport.alignment-viewing #status {
+                bottom: calc(60% + 8px);
+            }
         }
 
         #group-popup {
@@ -2252,6 +3418,37 @@
 
         #model-stats .warning {
             color: var(--color-orange);
+        }
+
+        /* Survey alignment status chip (opens the Alignment Manager). The
+           chip shows with #model-stats, i.e. once a model is loaded. */
+        #model-stats .alignment-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 1px 7px;
+            border: 1px solid var(--color-blue-hover);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--color-text-light);
+            font-size: 11px;
+            line-height: 1.4;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+
+        #model-stats .alignment-chip:hover {
+            background: var(--color-blue);
+        }
+
+        #model-stats .alignment-chip.none {
+            color: var(--color-text-medium);
+        }
+
+        .alignment-chip-icon {
+            display: inline-flex;
+            font-size: 12px;
         }
 
         /* ViewHelper (orientation gizmo) */
@@ -3556,6 +4753,10 @@
             flex-shrink: 0;
         }
 
+        #annotation-viewer-survey {
+            margin-bottom: 12px;
+        }
+
         #annotation-viewer .av-empty {
             color: #888;
             font-size: 12px;
@@ -3662,6 +4863,16 @@
             line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            word-break: break-word;
+        }
+
+        /* Surveyed E, N, H of an imported survey point */
+        #annotation-callout .ac-survey {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--color-text-medium);
+            font-variant-numeric: tabular-nums;
+            white-space: pre-wrap;
             word-break: break-word;
         }
 
@@ -4236,6 +5447,13 @@
             #model-stats {
                 bottom: calc(24px + env(safe-area-inset-bottom, 0px));
                 right: calc(230px + env(safe-area-inset-right, 0px));
+            }
+
+            /* The alignment chip is a touch target */
+            #model-stats .alignment-chip {
+                min-height: 32px;
+                padding: 4px 10px;
+                border-radius: 16px;
             }
 
             /* Instructions / status: inward from edge + above home indicator */

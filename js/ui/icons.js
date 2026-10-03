@@ -35,6 +35,9 @@ const ICON_FILES = {
     eyeOpen:        'eye-open.svg',
     eyeClosed:      'eye-closed.svg',
     edit:           'pen.svg',
+    chevron:        'chevron.svg',
+    lock:           'lock.svg',
+    unlock:         'unlock.svg',
 
     // Metadata popup
     jsonDownload:   'json-download.svg',

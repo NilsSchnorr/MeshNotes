@@ -6,7 +6,21 @@ import { computeProjectedEdgesFlipAware } from './projection.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList, updateGroupSelect, deselectAnnotation } from './groups.js';
 import { clearTempDrawing } from './editing.js';
-import { hideAllToolPanels, restoreToolHelp } from '../ui/tool-help.js';
+import { renderSurveyBlock } from './survey-block.js';
+import { hideAllToolPanels, restoreToolHelp, clearBoxEditState } from '../ui/tool-help.js';
+
+// What the Locked toggle covers, per type. The lock covers position only (for
+// a box: position, size and rotation); renaming, regrouping, adding entries and
+// deleting stay possible. Surfaces have no drag editing, but the toggle is
+// shown for them too, so every annotation can carry the lock.
+const LOCK_HINTS = {
+    point: 'When locked, the point cannot be dragged.',
+    line: 'When locked, the vertices cannot be dragged.',
+    polygon: 'When locked, the vertices cannot be dragged.',
+    box: 'When locked, the box cannot be moved, resized or rotated.',
+    surface: 'Surfaces cannot be dragged; the lock is kept with the annotation.'
+};
+const LOCK_HINT_SUFFIX = ' Name, group and entries stay editable.';
 
 export function positionPopup(popup, x, y) {
     popup.style.transform = 'none';
@@ -73,6 +87,10 @@ export function openAnnotationPopup(event, type, points, extraData = null) {
         dom.surfaceProjectionToggle.style.display = 'none';
     }
 
+    // New annotations start unlocked; the lock and the survey block are edit-only.
+    dom.annLockedRow.style.display = 'none';
+    renderSurveyBlock(dom.annSurveyBlock, null, state.alignments);
+
     if (type === 'surface' && extraData) {
         dom.annotationPopup.dataset.faceData = JSON.stringify(extraData);
     } else {
@@ -119,6 +137,15 @@ export function openAnnotationPopupForEdit(ann) {
     } else {
         dom.surfaceProjectionToggle.style.display = 'none';
     }
+
+    // Position lock, applied on Save like the fields above.
+    dom.annLockedRow.style.display = 'block';
+    dom.annLocked.checked = ann.locked === true;
+    dom.annLockedHint.textContent = (LOCK_HINTS[ann.type] || LOCK_HINTS.point) +
+        (ann.type === 'surface' ? '' : LOCK_HINT_SUFFIX);
+
+    // Surveyed position of an imported point (hidden for anything else).
+    renderSurveyBlock(dom.annSurveyBlock, ann, state.alignments);
 
     document.getElementById('popup-main-fields').style.display = 'block';
     dom.entriesContainer.style.display = 'block';
@@ -877,6 +904,7 @@ export function saveAnnotation() {
     const points = JSON.parse(dom.annotationPopup.dataset.points);
     const name = dom.annName.value.trim() || 'Unnamed';
     const groupId = parseInt(dom.annGroup.value) || state.groups[0].id;
+    let lockStatus = '';
 
     if (state.editingAnnotation) {
         // Create version snapshots before applying changes
@@ -898,6 +926,19 @@ export function saveAnnotation() {
             } else if (!wantsProjection && hadProjection) {
                 delete state.editingAnnotation.projectedEdges;
                 state.editingAnnotation.surfaceProjection = false;
+            }
+        }
+
+        // Position lock. Only a change writes the field, so an annotation that
+        // was never locked gets no `locked` key. No timestamp changes: in a
+        // merge the lock follows the copy whose position wins.
+        const wantsLocked = dom.annLocked.checked;
+        if (wantsLocked !== (state.editingAnnotation.locked === true)) {
+            state.editingAnnotation.locked = wantsLocked;
+            lockStatus = wantsLocked ? ' (position locked)' : ' (position unlocked)';
+            // Locking a box that is unlocked for editing ends its edit mode.
+            if (wantsLocked && state.boxEditUnlocked === state.editingAnnotation.id) {
+                clearBoxEditState();
             }
         }
 
@@ -968,8 +1009,8 @@ export function saveAnnotation() {
     clearTempDrawing();
     updateGroupsList();
     renderAnnotations();
-    showStatus(`Saved: ${name}`);
-    
+    showStatus(`Saved: ${name}${lockStatus}`);
+
     // Restore tool help if a tool is still active
     restoreToolHelp();
 }

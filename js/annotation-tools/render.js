@@ -17,11 +17,20 @@ export function setRenderCallbacks({ renderMeasurements }) {
     _renderMeasurements = renderMeasurements;
 }
 
+// Sphere geometries (radius 0.02) shared by every point and vertex marker and
+// kept across rebuilds; final size is 0.02 * each marker's scale. Each marker
+// still gets its own material, because the selection highlight recolours it.
+// The clear loop below skips geometries flagged userData.shared.
+const POINT_MARKER_GEOMETRY = new THREE.SphereGeometry(0.02, 16, 16);
+POINT_MARKER_GEOMETRY.userData.shared = true;
+const VERTEX_MARKER_GEOMETRY = new THREE.SphereGeometry(0.02, 12, 12);
+VERTEX_MARKER_GEOMETRY.userData.shared = true;
+
 export function renderAnnotations() {
-    // Clear existing and dispose GPU resources
+    // Clear existing and dispose GPU resources (shared marker geometry stays)
     while (state.annotationObjects.children.length > 0) {
         const child = state.annotationObjects.children[0];
-        if (child.geometry) child.geometry.dispose();
+        if (child.geometry && !child.geometry.userData.shared) child.geometry.dispose();
         if (child.material) {
             const mats = Array.isArray(child.material) ? child.material : [child.material];
             mats.forEach(m => {
@@ -56,13 +65,12 @@ export function renderAnnotations() {
         let occlusionCheckPos; // Position to check for occlusion (annotation center, not label position)
 
         if (ann.type === 'point') {
-            const geometry = new THREE.SphereGeometry(0.02, 16, 16);
             const material = new THREE.MeshBasicMaterial({
                 color,
                 transparent: groupOpacity < 1,
                 opacity: groupOpacity
             });
-            const marker = new THREE.Mesh(geometry, material);
+            const marker = new THREE.Mesh(POINT_MARKER_GEOMETRY, material);
             const dp = toDisplayCoords(ann.points[0]);
             marker.position.set(dp.x, dp.y, dp.z);
             marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.025 * state.pointSizeMultiplier);
@@ -115,13 +123,12 @@ export function renderAnnotations() {
             state.annotationObjects.add(line);
 
             ann.points.forEach((p, index) => {
-                const geometry = new THREE.SphereGeometry(0.02, 12, 12);
                 const material = new THREE.MeshBasicMaterial({
                     color,
                     transparent: groupOpacity < 1,
                     opacity: groupOpacity
                 });
-                const marker = new THREE.Mesh(geometry, material);
+                const marker = new THREE.Mesh(VERTEX_MARKER_GEOMETRY, material);
                 const vp = toDisplayCoords(p);
                 marker.position.set(vp.x, vp.y, vp.z);
                 marker.scale.setScalar(Math.pow(maxDim, 0.8) * 0.018 * state.vertexSizeMultiplier);
@@ -199,7 +206,9 @@ export function renderAnnotations() {
             state.annotationAnchors.set(ann.id, occlusionCheckPos);
         }
 
-        if (ann.name && labelPosition) {
+        // The anchor above is set regardless, so the selection callout still
+        // finds the annotation when its group's labels are switched off.
+        if (ann.name && labelPosition && group.labelsVisible !== false) {
             const label = createScaledTextSprite(ann.name, group.color, labelPosition, 0.8);
             if (groupOpacity < 1) {
                 label.material.opacity = groupOpacity;

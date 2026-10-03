@@ -2,6 +2,11 @@
 import * as THREE from 'three';
 import { state } from '../state.js';
 import { generateUUID, generateInternalId, getModelMimeType } from '../utils/helpers.js';
+import { wktNum, wktPointZ, parsePointZ, parseWKT, pointToZUp, pointFromZUp } from '../utils/coords.js';
+import { annotationSurveyToJsonLd, annotationSurveyFromJsonLd } from '../survey/alignment.js';
+
+// Moved to js/utils/coords.js; re-exported so existing importers keep working.
+export { pointToZUp, pointFromZUp };
 
 // URI of the published MeshNotes 3D Selector Specification that every selector
 // declares conformance to. See https://meshnotes.org/spec/selector/v1/
@@ -62,91 +67,12 @@ function deriveAnnotationCreator(ann) {
     return { name: first.author || '', orcid: first.authorOrcid };
 }
 
-// ============ WKT + quaternion helpers ============
+// ============ Quaternion helper ============
 
 // Basis-change quaternion mapping the internal Three.js (Y-up) frame to the
 // exported Z-up frame: a +90 deg rotation about X (matches pointToZUp).
 function basisYupToZup() {
     return new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-}
-
-// Formats a number for WKT output without exponential notation.
-// 6 decimals is sub-micron at metre scale; trailing zeros are trimmed.
-function wktNum(n) {
-    if (typeof n !== 'number' || !isFinite(n)) return '0';
-    const s = n.toFixed(6).replace(/\.?0+$/, '');
-    return (s === '' || s === '-0') ? '0' : s;
-}
-
-// Builds a WKT "POINT Z (x y z)" string from a {x,y,z} point.
-function wktPointZ(p) {
-    return `POINT Z (${wktNum(p.x)} ${wktNum(p.y)} ${wktNum(p.z)})`;
-}
-
-// Parses the first parenthesised coordinate triple of a WKT string into {x,y,z}.
-// Tolerates an optional leading CRS URI, e.g. "<...> POINT Z (...)".
-function parsePointZ(wkt) {
-    if (typeof wkt !== 'string') return null;
-    const m = wkt.match(/\(([^()]*)\)/);
-    if (!m) return null;
-    const n = m[1].trim().split(/[\s,]+/).map(Number);
-    if (n.length < 3 || n.some(isNaN)) return null;
-    return { x: n[0], y: n[1], z: n[2] };
-}
-
-// Parses a WKT POINT / LINESTRING / POLYGON (Z) string into { type, points }.
-// Coordinates are returned as stored (Z-up); frame conversion happens later.
-function parseWKT(wkt) {
-    if (typeof wkt !== 'string') return null;
-    let s = wkt.trim();
-    if (s.startsWith('<')) { const i = s.indexOf('>'); if (i >= 0) s = s.slice(i + 1).trim(); }
-    const head = s.toUpperCase();
-    const toPt = (pair) => { const n = pair.trim().split(/\s+/).map(Number); return { x: n[0], y: n[1], z: n[2] }; };
-    if (head.startsWith('POINT')) {
-        const p = parsePointZ(s);
-        return p ? { type: 'point', points: [p] } : null;
-    }
-    if (head.startsWith('LINESTRING')) {
-        const inner = s.slice(s.indexOf('(') + 1, s.lastIndexOf(')'));
-        return { type: 'line', points: inner.split(',').map(toPt) };
-    }
-    if (head.startsWith('POLYGON')) {
-        const inner = s.slice(s.indexOf('((') + 2, s.lastIndexOf('))'));
-        let pts = inner.split(',').map(toPt);
-        // Drop the OGC closing duplicate vertex for the internal model.
-        if (pts.length > 1) {
-            const a = pts[0], b = pts[pts.length - 1];
-            if (a.x === b.x && a.y === b.y && a.z === b.z) pts = pts.slice(0, -1);
-        }
-        return { type: 'polygon', points: pts };
-    }
-    return null;
-}
-
-// ============ Coordinate Transforms ============
-
-/**
- * Transforms a point from Three.js Y-up world space to Z-up export space.
- * MeshNotes always exports in Z-up coordinates for interoperability with
- * photogrammetry/archaeology tools (Agisoft, CloudCompare, Blender, etc.).
- *
- * The model was rotated -90 deg around X on load (Z-up -> Y-up), so the
- * inverse transform converts back: (x, y, z)_threejs -> (x, -z, y)_zup
- * @param {{x: number, y: number, z: number}} p - Point in Three.js Y-up space
- * @returns {{x: number, y: number, z: number}} Point in Z-up space
- */
-export function pointToZUp(p) {
-    return { x: p.x, y: -p.z, z: p.y };
-}
-
-/**
- * Transforms a point from Z-up import space to Three.js Y-up world space.
- * Inverse of pointToZUp: (x, y, z)_zup -> (x, z, -y)_threejs
- * @param {{x: number, y: number, z: number}} p - Point in Z-up space
- * @returns {{x: number, y: number, z: number}} Point in Three.js Y-up space
- */
-export function pointFromZUp(p) {
-    return { x: p.x, y: p.z, z: -p.y };
 }
 
 // ============ Selector Formatting ============
@@ -470,6 +396,11 @@ export function convertToW3CAnnotation(ann, group) {
     // kept only as a fallback when reading older files).
     w3cAnn['meshnotes:groupUuid'] = group ? group.uuid : undefined;
     w3cAnn['annotationType'] = ann.type;
+    // Lock (any annotation type, written only when true) and, for survey
+    // points, the surveyed position with a link to its alignment by uuid
+    // (none when the point is detached or the alignment is gone). The
+    // selector is not touched.
+    Object.assign(w3cAnn, annotationSurveyToJsonLd(ann, state.alignments));
     if (ann.surfaceProjection === false) {
         w3cAnn['surfaceProjection'] = false;
     }
@@ -493,7 +424,15 @@ export function convertToW3CAnnotation(ann, group) {
     return w3cAnn;
 }
 
-export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
+/**
+ * Converts a W3C Web Annotation back to the internal format.
+ * @param {Object} w3cAnn - W3C annotation from an AnnotationPage
+ * @param {Object} groupIdMap - group id and 'uuid:'+uuid -> internal group id
+ * @param {Object|Map} [alignmentIdMap] - alignment uuid -> internal id
+ *        (mergeAlignments().idMap); an unknown alignment reads as detached
+ * @returns {Object} Internal annotation (points still in the file's frame)
+ */
+export function convertFromW3CAnnotation(w3cAnn, groupIdMap, alignmentIdMap = null) {
     // Convert W3C Web Annotation back to internal format
     // Extract persistent UUID from W3C id (urn:meshnotes:annotation:{uuid})
     let importedUuid = null;
@@ -532,6 +471,14 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap) {
     if (w3cAnn['surfaceProjection'] === false || w3cAnn['meshnotes:surfaceProjection'] === false) {
         ann.surfaceProjection = false;
     }
+
+    // Lock and surveyed position. Both fields are set only when present, so
+    // files without them give the same objects as before; an absent lock
+    // means unlocked. The surveyed E/N/H are survey coordinates and never go
+    // through the Z-up conversion of the points.
+    const { locked, survey } = annotationSurveyFromJsonLd(w3cAnn, { alignmentIdMap });
+    if (locked) ann.locked = true;
+    if (survey) ann.survey = survey;
 
     // Parse selector to get points/faceData
     if (w3cAnn.target && w3cAnn.target.selector) {

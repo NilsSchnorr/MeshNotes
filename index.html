@@ -46,7 +46,7 @@
                     <p>
                         Key features include multi-entry annotations with version history, 
                         measurement tools with configurable units, customizable groups with color coding and per-group opacity, 
-                        draggable points for editing, multiple display modes, and <strong>W3C Web Annotation</strong> compliant export/import for interoperability and team collaboration.
+                        draggable points for editing, multiple display modes, import of survey points from CSV files (placed on the model by an alignment made from picked control points), and <strong>W3C Web Annotation</strong> compliant export/import for interoperability and team collaboration.
                     </p>
                     <p>
                         The tool runs entirely in your browser — your 3D models and annotations stay on your computer by default. 
@@ -326,6 +326,9 @@
                         <div class="manual-item-content">
                             <p>Groups help organize annotations by category, phase, or team member. Click <strong>+ Group</strong> in the sidebar to create a new group with a custom name and color. All annotations within a group share that color. Use the eye icon to show/hide all annotations in a group, and the edit icon to modify the group name, color, or opacity, or to delete the entire group. A default group is created automatically when you first annotate.</p>
                             <p style="margin-top: 10px;"><strong>Group Opacity:</strong> Each group has an opacity slider (5–100%) that controls the transparency of all annotations in that group. This is useful when overlapping annotations from different groups need to remain distinguishable, or when you want to de-emphasize one group while focusing on another. Opacity settings are saved in the JSON export and restored on import.</p>
+                            <p style="margin-top: 10px;"><strong>Collapsing groups:</strong> Click the arrow at the left of a group's header to collapse or expand its list of annotations in the sidebar. Collapsing only tidies the sidebar &mdash; the annotations stay visible on the model. While a search term is active, collapsed groups are searched too and their matching annotations are listed. Groups created by a survey import start collapsed.</p>
+                            <p style="margin-top: 10px;"><strong>Show labels:</strong> The <strong>Show labels</strong> checkbox in the group popup switches the name labels of all annotations in the group on or off in the 3D view; the markers stay visible. Survey imports with many points start with their labels off (see <em>Survey Points (CSV Import)</em>). The collapsed state and the label setting are saved in the JSON-LD export.</p>
+                            <p style="margin-top: 10px;"><strong>Deleting a group:</strong> An empty group is deleted at once. If the group holds annotations, a dialog asks what happens to them: <strong>Move and delete group</strong> moves them to the group chosen under <strong>Move to</strong>, and <strong>Delete annotations</strong> deletes them together with the group, which cannot be undone. The last remaining group cannot be deleted.</p>
                         </div>
                     </div>
 
@@ -395,6 +398,8 @@
                         <div class="manual-item-content">
                             <p>Single-click an annotation in the sidebar to focus the camera on it. Double-click to open it for editing. In the edit popup you can: change the annotation name and group, view all entries, edit existing entries (with confirmation to encourage adding new entries), delete individual entries, or delete the entire annotation. Your author name is remembered for convenience.</p>
                             <p style="margin-top: 10px;"><strong>Version history:</strong> When editing an entry, a "Previous versions" section appears below the edit form. Click the toggle to expand it and see all previous versions of that entry, including who made each change and when. This read-only history helps you track how observations evolved over time and ensures accountability in team documentation.</p>
+                            <p style="margin-top: 10px;"><strong>Locked:</strong> Every annotation's edit popup has a <strong>Locked</strong> toggle that protects its position from accidental changes: a locked point or line/polygon vertex cannot be dragged, and a locked box cannot be moved, resized or rotated. Name, group and entries stay editable, and a locked annotation can still be deleted. The change takes effect when you click <strong>Save</strong>. Locked annotations show a padlock in the sidebar. New annotations start unlocked; points imported from a survey CSV start locked (see <em>Survey Points (CSV Import)</em>). The lock is saved in the JSON-LD export.</p>
+                            <p style="margin-top: 10px;"><strong>Survey points:</strong> For a point imported from a survey CSV, the edit popup also shows its <strong>Surveyed position</strong> (Easting, Northing, Height and the alignment that placed it).</p>
                         </div>
                     </div>
 
@@ -406,6 +411,7 @@
                         <div class="manual-item-content">
                             <p>When no tool is active, you can click and drag any annotation point to reposition it. The cursor changes to a hand when hovering over draggable points. While dragging, the point snaps to the model surface so your annotations stay attached to the geometry.</p>
                             <p style="margin-top: 10px;"><strong>Lines and polygons:</strong> When you drag a point that belongs to a line or polygon, the connected edges update in real-time. If surface projection is enabled for that annotation, the adjacent edges are re-projected onto the model surface as you move the point — so the lines continue to follow the surface contour at the new position. This allows you to refine annotation boundaries precisely without recreating them.</p>
+                            <p style="margin-top: 10px;"><strong>Locked annotations:</strong> The points of a locked annotation cannot be dragged: the cursor does not change to a hand, and dragging on them rotates the view instead. Unlock the annotation in its edit popup first (see <em>Editing Annotations</em>). When an unlocked survey point is dragged, it keeps its surveyed coordinates and is marked as moved by hand.</p>
                             <p style="margin-top: 10px;"><strong>Note:</strong> Surface annotations (painted faces) cannot be repositioned after creation. To adjust a surface annotation, delete it and paint a new one.</p>
                         </div>
                     </div>
@@ -417,9 +423,100 @@
                         </div>
                         <div class="manual-item-content">
                             <p><strong>JSON-LD Export:</strong> Click <strong>Export ▾</strong> and choose <strong>JSON-LD (.jsonld)</strong> to download all annotations in <strong>W3C Web Annotation</strong> format. This standard format ensures interoperability with other annotation tools and IIIF-compatible viewers. The export includes all entries, timestamps, metadata, groups, and model information.</p>
+                            <p style="margin-top: 10px;"><strong>Survey data in the export:</strong> When the session has survey alignments, the export also contains them (with their control points, quality figures and earlier fits) and the default alignment, and every imported point carries its surveyed position: Easting, Northing and Height, the original CSV values, the kept attributes, the source file and row, and the distance to the surface. Annotation locks, the collapsed and label settings of groups, and the model's centring offset are exported too. The format of these members is documented in section 10.1 of the <a href="https://meshnotes.org/spec/annotation/v1/" target="_blank">Annotation format specification</a>.</p>
                             <p style="margin-top: 10px;"><strong>Model Files Export:</strong> Click <strong>Export ▾</strong> and choose <strong>Model Files</strong> to download the original model files (including material and texture files for OBJ and PLY models). This is useful when you received a model via a share link and want to save it to your computer.</p>
-                            <p style="margin-top: 10px;"><strong>Import:</strong> Click <strong>Import ▾</strong> and choose <strong>Annotations (.jsonld)</strong> to load annotations from a .json or .jsonld file. MeshNotes supports both the new W3C format and legacy MeshNotes files for backward compatibility. Imported annotations merge with existing ones — groups with the same name are combined.</p>
+                            <p style="margin-top: 10px;"><strong>Import:</strong> Click <strong>Import ▾</strong> and choose <strong>Annotations (.jsonld)</strong> to load annotations from a .json or .jsonld file. MeshNotes supports both the new W3C format and legacy MeshNotes files for backward compatibility. Imported annotations merge with existing ones — groups with the same name are combined. To import survey points from a CSV file, choose <strong>Survey points (CSV)</strong> instead (see <em>Survey Points (CSV Import)</em>).</p>
+                            <p style="margin-top: 10px;"><strong>Older MeshNotes versions:</strong> Versions before 1.6 can open files that contain survey data: all annotations, including imported survey points, load at the right positions. The alignments, surveyed positions, locks and group settings are ignored, though, and are lost if the file is exported again from such a version.</p>
                             <p style="margin-top: 10px; font-size: 12px; color: #888;">The W3C Web Annotation Data Model is a standard for interoperable annotations. Learn more at <a href="https://www.w3.org/TR/annotation-model/" target="_blank">w3.org/TR/annotation-model</a></p>
+                        </div>
+                    </div>
+
+                    <div class="manual-item">
+                        <div class="manual-item-header">
+                            <span>Survey Points (CSV Import)</span>
+                            <span class="toggle-icon">▶</span>
+                        </div>
+                        <div class="manual-item-content">
+                            <p>Click <strong>Import ▾</strong> and choose <strong>Survey points (CSV)</strong> to turn the rows of a survey CSV file (for example the export of a GNSS rover or a total station) into point annotations on the model. Each row becomes a point at its surveyed position. The points are placed by an <strong>alignment</strong>: a fit, made inside MeshNotes from control points you pick on the model, that converts survey coordinates into the model's coordinate frame. <strong>The model never moves</strong> &mdash; the alignment only converts the survey coordinates, so existing annotations keep their positions. The menu item is available once a model is loaded.</p>
+
+                            <p style="margin-top: 10px;"><strong>When to use it:</strong> The CSV must hold <strong>metric, projected coordinates</strong> &mdash; Easting, Northing and Height in metres, for example UTM or a national grid. Latitude and longitude in degrees are not supported (the import refuses files whose coordinates look like degrees), and MeshNotes does not convert between coordinate systems; the coordinate system label you enter is a free-text note. The fit is rigid (rotation plus shift, scale fixed at 1), so the model should be at true scale in metres. It is meant for site-scale work: a warning appears when the control points span more than 2 km.</p>
+
+                            <p style="margin-top: 10px;"><strong>Overview:</strong> The first import in a coordinate system goes through four steps: map the columns (A), pick control points (B), review the fit (C), and select the points that lie on the model (D). The alignment is then saved with the annotations, and later imports in the same coordinate system go straight from step A to step D.</p>
+
+                            <h4 style="margin-top: 14px;">Step A: File and column mapping</h4>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Detected settings:</strong> Encoding, delimiter and decimal separator are detected automatically; each has a dropdown to override it, and <strong>First row is a header</strong> can be switched off for header-less files. When the decimal separator is ambiguous, a warning asks you to check it (the default is a point).</li>
+                                <li><strong>Preview:</strong> The first 10 rows. Cells in the coordinate columns that are not numbers are tinted.</li>
+                                <li><strong>Columns:</strong> Choose a <strong>Preset</strong> (Auto, Emlid Flow, PENZD, PNEZD, Custom) or set the columns yourself: Name, Easting, Northing and Height (required, three different columns), Description and Code. Common column names in English, German and Turkish are recognised; with several height columns, Elevation is preferred. The mapping is remembered for each CSV header and offered again for a file with the same header.</li>
+                                <li><strong>Keep as attributes:</strong> Tick further columns to store them with every point, for example accuracy (RMS) values, the solution status or the time of the measurement. Columns that may hold <strong>personal data</strong>, such as an author, operator or device serial number, are never ticked by default, and a warning appears if you tick one: kept attributes are stored with every point and are included in exports and share links. The Code column is kept as an attribute too.</li>
+                                <li><strong>Import into:</strong> Choose one of the model's alignments (the default alignment is preselected) or <strong>New alignment…</strong> with a name and an optional coordinate system label such as EPSG:32635; an empty label is shown as "unspecified coordinate system". The points go into a new group named after the file (the default) or into an existing group.</li>
+                                <li><strong>Checks:</strong> The import is blocked when the coordinates look like degrees, when Easting and Northing are empty but latitude and longitude are filled, when a required column is missing or used twice, or when a new alignment would have fewer than 3 valid rows. Warnings appear when Easting has 7 digits and Northing 6 (with a Swap button), when the columns are named X and Y, when the coordinates have one decimal or none (the file may have been rounded in a spreadsheet), and for rows that are skipped, with their row numbers. If the Height column differs from the one the alignment was made with, you choose <strong>Create a new alignment</strong> or <strong>Use anyway</strong>. An alignment made on a different model file, or with the model loaded with another up-axis, shows a warning but can still be used.</li>
+                            </ul>
+                            <p style="margin-top: 10px;">Click <strong>Continue</strong> to go on to step D, or <strong>Continue: pick control points</strong> for a new alignment.</p>
+
+                            <h4 style="margin-top: 14px;">Step B: Picking control points (new alignment)</h4>
+                            <p style="margin-top: 10px;">A panel lists the CSV rows. The model stays free to navigate; the annotation tools in the toolbar are disabled while the panel is open. On narrow screens the panel becomes a sheet at the bottom; on a desktop you can drag it by its title bar.</p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Picking:</strong> Select a row (its <strong>Pick</strong> button; search by name or row number), then click or tap the model where that row was surveyed. Dragging still orbits the view, so only a click or tap picks. Another tap while the row is still selected replaces its pick. On a tablet you can pick with the stylus or with a finger tap.</li>
+                                <li><strong>Existing annotation:</strong> With a row selected, <strong>Or take the position of a point annotation</strong> uses the position of an existing point annotation instead of a tap; one with the row's name is listed first.</li>
+                                <li><strong>How many:</strong> At least 3 rows, better 4 or more, spread over the site and not in a line. With only 3 points a bad pick cannot be found.</li>
+                                <li><strong>Live fit:</strong> From 3 picks on, the footer shows the RMS, the largest residual, the estimated scale and the tilt. Cyan dots show where every CSV row lands with the current fit (rows farther from the surface than the distance limit are faint), gold dots are your picks, the lines between them are the residuals, and a ring marks where the fit expects the selected row. These markers are drawn on screen only, never in screenshots or reports.</li>
+                                <li><strong>Warnings:</strong> The panel warns when the picks lie in a line or nearly in a line, too close together or on top of each other; when Easting and Northing appear to be swapped (with a <strong>Swap Easting and Northing</strong> button that swaps the column mapping and refits); when the picks form a mirror image of the survey points; when the fit turns the model upside down or on its side (usually the wrong up-axis was chosen when loading: reload the model with the other one); when the fit tilts the model by more than 5° (check the picks if the model should be level); when the estimated scale is far from 1 (the model may be in millimetres, centimetres or feet); when one pick does not fit the others (with a <strong>Re-pick</strong> button); when a residual is above the warning threshold; and when the control points span more than 2 km.</li>
+                                <li><strong>Model is already level:</strong> Off by default, so the full fit applies (rotation about all axes plus shift), which gives non-RTK data the freedom it needs. When the full fit tilts the model by less than 0.5°, the panel suggests ticking it; the fit then only turns about the vertical axis, and the preview moves at once. It is never ticked automatically, it is saved with the alignment, and it can be changed later through Refine.</li>
+                                <li><strong>Undo and Escape:</strong> <strong>Undo</strong> or <code>Ctrl+Z</code> (<code>Cmd+Z</code> on Mac) undoes the last pick change. <strong>Escape</strong> works in stages: it closes the review, then an open popup, clears the search, deselects the row, and finally asks before discarding the session. <strong>Cancel</strong> and the close button ask too. The picking session is not saved: reloading the page or loading another model ends it, and nothing has been imported yet at that point.</li>
+                            </ul>
+                            <p style="margin-top: 10px;">Click <strong>Review the fit</strong> once the fit can be made.</p>
+
+                            <h4 style="margin-top: 14px;">Step C: Reviewing the fit</h4>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Verdict:</strong> <strong>Good</strong> (RMS up to 3 cm, 4 or more points, no warning), <strong>Check</strong> (RMS over 3 cm and up to 15 cm, only 3 points, or any warning) or <strong>Poor</strong> (RMS over 15 cm, swapped Easting and Northing, a mirror image, a model upside down or on its side, or an estimated scale more than 5% from 1). Accepting a Poor fit asks for confirmation. The RMS limits are fixed; a residual above the <strong>Residual warning</strong> set in Settings counts as a warning and turns Good into Check.</li>
+                                <li><strong>Figures:</strong> Points used, fit type, RMS in 3D, horizontally and vertically, the largest residual, the estimated scale (shown, never applied), the tilt and the heading. The RMS of the full fit and of the level-only fit are shown side by side next to the <strong>Model is already level</strong> checkbox. A model in millimetres reads a scale of about 0.001; on large sites a scale of about 0.9996 is normal, because projected grid distances differ slightly from ground distances.</li>
+                                <li><strong>Control points:</strong> For each point the residual (surveyed minus fitted position) in E, N and H, its total, and the leave-one-out error, i.e. the error of the point when the fit is made without it (from 4 points on). A point that does not fit the others is highlighted. Untick <strong>Use</strong> to leave a point out of the fit, or click <strong>Re-pick</strong> to go back to the panel with that row selected.</li>
+                                <li><strong>Buttons:</strong> <strong>Back</strong> returns to picking, <strong>Cancel</strong> asks before discarding the session, and <strong>Accept and import</strong> saves the alignment and continues with step D. A model's first alignment becomes its default.</li>
+                            </ul>
+
+                            <h4 style="margin-top: 14px;">Step D: Selecting the points and the summary</h4>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Selection:</strong> Every row is placed with the alignment and its distance to the model surface is measured (large files in chunks, with a progress line). The dialog says how many rows lie on the model, for example "20 of 44 rows lie within 0.5 m of the model surface", and lists all rows nearest first. Rows within the <strong>Distance limit</strong> are ticked; tick or untick single rows as you like. The limit (0.5 m by default, see Settings) can be changed for this import only. Distances in orange are beyond the surface-distance warning. The Note column flags rows that were already imported or share a name.</li>
+                                <li><strong>Import:</strong> <strong>Import</strong> creates the ticked rows, <strong>Import all</strong> creates every row regardless of the ticks (rows imported before are still skipped), and <strong>Back</strong> returns to the column mapping.</li>
+                                <li><strong>No row on the model:</strong> If no row lies within the limit, the dialog asks whether the coordinate system or the column mapping is wrong, and offers <strong>Swap Easting and Northing</strong> (only when swapping would land rows on the model), <strong>New alignment</strong> (a file in another coordinate system or height datum needs its own alignment), <strong>Change the column mapping</strong> and <strong>Show the rows</strong>.</li>
+                                <li><strong>Summary:</strong> The number of points imported, the rows not imported because they lie off the model or were unticked, the rows skipped with their reason and row number (a missing or non-numeric coordinate, or already imported), and warnings such as duplicate names or points far from the surface. <strong>Copy summary</strong> copies it as text.</li>
+                            </ul>
+
+                            <h4 style="margin-top: 14px;">What an imported point is</h4>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>Position:</strong> A normal point annotation that sits on the model surface, at the surface point nearest to its fitted position. Its surveyed Easting, Northing and Height and the distance from the fitted position to the surface are stored beside it.</li>
+                                <li><strong>Content:</strong> The name comes from the Name column (empty names become "<em>file</em> row <em>N</em>"), the first entry holds the Description plus a "Code:" line, the author is your Settings identity (or the last author name you used), and the time is the time of the import. Rows imported before into the same alignment (same file and row, or same name and coordinates within 1 mm) are skipped; a name used twice with different coordinates is imported and flagged.</li>
+                                <li><strong>Lock and group:</strong> Imported points start <strong>locked</strong> (see Settings → Survey import), shown by a padlock in the sidebar; unlock a point in its edit popup. A new import group starts collapsed, and with its labels off when it receives more than 50 points (the default; see Settings → Survey import → <strong>Hide labels of large imports</strong>).</li>
+                                <li><strong>Surveyed position:</strong> The edit popup and the read-only panel of a shared annotation show a <strong>Surveyed position</strong> block: E, N and H with the height column, the coordinate system, the alignment, how far the fitted position lies above or below the surface, the source file and row, "moved by hand" when that applies, and a collapsible list of the kept attributes. The selection callout shows one line with E, N and H, and the PDF report one line on the point's page.</li>
+                                <li><strong>Moving by hand:</strong> An unlocked survey point can be dragged like any point. It keeps its surveyed coordinates, is marked as moved by hand, and the status line shows its offset from the surveyed position. A refine never moves it again.</li>
+                            </ul>
+
+                            <h4 style="margin-top: 14px;">Alignment Manager</h4>
+                            <p style="margin-top: 10px;">A status chip next to the face count in the bottom-right corner shows the model's alignments: none, the RMS of a single alignment, or how many there are. Click it to open the <strong>Alignment Manager</strong>, which lists each alignment with its name, a Default badge, its verdict, coordinate system, height column, fit type and control points, RMS and largest residual, the number of survey points (and how many were moved by hand) and the earlier fits kept in its history.</p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li><strong>View control points:</strong> A side panel with the read-only review table, the verdict and the checks. On the model, gold dots are the picks (grey: not used), cyan dots are where the fit places the surveyed coordinates, and the lines between them are the residuals. The tools stay usable while it is open.</li>
+                                <li><strong>Rename:</strong> Changes the name and the coordinate system label. The fit is not changed.</li>
+                                <li><strong>Refine:</strong> Opens the picking panel with the alignment's control points as picks. Add rows (the alignment's imported points can serve as new control points), re-pick or untick points, or switch the level option. Accept saves the new fit and keeps the previous one in the history. If the survey points would move, a preview shows how many, the largest and the median displacement, and lists the points moved by hand, which stay where they are. <strong>Move points</strong> moves the fit-placed points to the new fit and places them on the surface again; <strong>Keep positions</strong> leaves them where they are, and the next refine offers to move them again. A refine that changes nothing saves nothing.</li>
+                                <li><strong>Re-align from scratch:</strong> The same, starting with no picks. The previous fit is kept in the history.</li>
+                                <li><strong>Set as default:</strong> Preselects this alignment in the column mapping step.</li>
+                                <li><strong>Delete:</strong> An alignment without points is deleted after a confirmation. If it places points, you choose <strong>Detach points</strong> (they stay where they are and keep their surveyed coordinates, shown as detached) or <strong>Delete points too</strong>. When the default alignment is deleted, the first remaining one becomes the default.</li>
+                                <li><strong>Binding warnings:</strong> An alignment remembers the model file (by its SHA-256 hash) and the up-axis it was made with. On another file, for example a compressed copy, or with another up-axis, the manager and the mapping step show a warning; the alignment can still be used, and Refine or Re-align binds it to the current model. While the hash of a large model is still being computed, the manager says that it is checking.</li>
+                            </ul>
+
+                            <h4 style="margin-top: 14px;">Saving and merging</h4>
+                            <p style="margin-top: 10px;">Alignments are saved with the annotations: in the JSON-LD export, in the autosave and in share links. Loading another model clears them together with the annotations, after the usual unsaved-work warning. When a JSON-LD file is imported, alignments are matched by their identifier. A different alignment is added. For the same alignment, the more recently modified copy wins and the other fit is kept in its history. Survey points placed by the fit always follow the alignment that won: if they were placed with the other fit, they are moved to the winning fit and placed on the surface again, and the import status line says how many moved and how far. Points moved by hand are never moved this way; for them the newer entries decide, as for any annotation.</p>
+
+                            <div class="limitation-note" style="margin-top: 12px;">
+                                <strong>Limits:</strong> Keep these in mind when importing survey points:
+                                <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                    <li><strong>Site scale:</strong> The fit is rigid, without scale and without map projection maths, so it is meant for a single site. A warning appears when the control points span more than 2 km.</li>
+                                    <li><strong>Thin walls:</strong> A point is placed on the nearest surface, which on a thin wall or slab can be its back face. Check imported points on thin structures.</li>
+                                    <li><strong>Above or below:</strong> Whether the fitted position lies above or below the surface is judged from the mesh's face normals. On a model with inconsistent normals the wording can be wrong; the point's position is not affected.</li>
+                                    <li><strong>PDF report:</strong> The report has one page per visible point, so an import of hundreds of points makes a long report and a large file. Hide the import group to leave it out.</li>
+                                    <li><strong>Very large models:</strong> Without a surface query (BVH) no distances are measured: rows are selected by the model's bounding box, and points stay at their fitted positions instead of on the surface.</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 
@@ -465,6 +562,7 @@
                                 <li><strong>Existing annotations</strong> (matching UUID) are updated — any new entries from collaborators are merged in, and entries that were edited are updated if the imported version has a newer timestamp.</li>
                                 <li><strong>Groups</strong> with the same name are combined. New groups from the imported file are created automatically.</li>
                                 <li><strong>Model Information</strong> entries are merged in the same way as annotation entries.</li>
+                                <li><strong>Survey alignments</strong> are matched by their identifier; the more recently modified copy wins, and survey points placed by the fit follow it (see <em>Survey Points (CSV Import)</em>).</li>
                             </ul>
 
                             <p style="margin-top: 12px;"><strong>Example team workflow:</strong></p>
@@ -509,10 +607,11 @@
                                 <li><strong>Title page</strong> — An overview screenshot of the model with all visible annotations, the model filename, a summary of annotation and group counts, and all Model Information entries.</li>
                                 <li><strong>Axis views</strong> — Six orthogonal views (Top, Bottom, Front, Back, Left, Right) arranged in an unfolded cube layout, giving a complete overview of the model from all standard directions. If you are in orthographic mode, each view includes a scalebar. This page uses the same renderer as the standalone Six-View Plate export, so the two always agree.</li>
                                 <li><strong>Table of contents</strong> — A numbered list of all included annotations for quick reference.</li>
-                                <li><strong>Annotation pages</strong> — One page per annotation with an auto-captured screenshot (the camera automatically focuses on each annotation), the annotation name, type, and group, plus all entry details including author, date, description, and links. If the camera ends up too close to (or inside) your model, increase the <strong>Camera Distance</strong> in Settings; for flatter viewing angles, lower the <strong>Camera Angle</strong>.</li>
+                                <li><strong>Annotation pages</strong> — One page per annotation with an auto-captured screenshot (the camera automatically focuses on each annotation), the annotation name, type, and group, plus all entry details including author, date, description, and links. If the camera ends up too close to (or inside) your model, increase the <strong>Camera Distance</strong> in Settings; for flatter viewing angles, lower the <strong>Camera Angle</strong>. The page of a point imported from a survey CSV has one more line with its surveyed Easting, Northing and Height, the height column and the coordinate system (or "detached", and "moved by hand" when that applies).</li>
+                                <li><strong>Survey alignments</strong> — When the report contains survey points and <strong>Settings → Survey import → Include alignment summary in PDF report</strong> is on (the default), a section after the annotation pages and any metadata pages lists the alignments that place the visible points: coordinate system, height column, fit type, control points, RMS, largest residual, estimated scale, tilt and heading, verdict, number of points, dates, and a warning when the alignment was made on a different model file or up-axis. It is listed at the end of the table of contents.</li>
                             </ul>
 
-                            <p style="margin-top: 10px;"><strong>Controlling report content:</strong> Only <strong>visible</strong> annotations are included in the PDF. Use group visibility (the eye icon) to hide annotations you don't want in the report. For example, you could hide preliminary annotations and only include finalized ones, or generate separate reports per group by toggling visibility before each export.</p>
+                            <p style="margin-top: 10px;"><strong>Controlling report content:</strong> Only <strong>visible</strong> annotations are included in the PDF. Use group visibility (the eye icon) to hide annotations you don't want in the report. For example, you could hide preliminary annotations and only include finalized ones, or generate separate reports per group by toggling visibility before each export. This matters for survey imports: every visible point gets its own page, so an import of hundreds of points makes a long report and a large file.</p>
 
                             <div class="limitation-note" style="margin-top: 12px;">
                                 <strong>Note:</strong> During PDF generation, the camera and lighting are temporarily adjusted for consistent results. All screenshots in the report use camera-linked lighting regardless of your current light source setting, ensuring uniform illumination across all views. Your original camera position and lighting settings are restored after the report is generated.
@@ -691,7 +790,7 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click the <strong>Settings</strong> button in the toolbar to open the settings panel. All settings are saved automatically in your browser and persist between sessions. The panel is organised into four categories, listed down the left-hand side: <strong>Identity</strong>, <strong>Viewport</strong>, <strong>Measure</strong> and <strong>Export</strong>. Click a category to show its settings. You can drag the panel by its title bar to move it clear of the model; it stays where you put it for the rest of the session.</p>
+                            <p>Click the <strong>Settings</strong> button in the toolbar to open the settings panel. All settings are saved automatically in your browser and persist between sessions. The panel is organised into five categories, listed down the left-hand side: <strong>Identity</strong>, <strong>Viewport</strong>, <strong>Measure</strong>, <strong>Export</strong> and <strong>Survey import</strong>. Click a category to show its settings. You can drag the panel by its title bar to move it clear of the model; it stays where you put it for the rest of the session.</p>
 
                             <h4 style="margin-top: 14px;">Identity</h4>
 
@@ -721,7 +820,15 @@
 
                             <p style="margin-top: 10px;"><strong>PDF Report:</strong> Configure your reports with a custom <strong>Report Title</strong>, <strong>Institution</strong>, and <strong>Project Name</strong> that appear on the title page, plus an <strong>Accent Color</strong> for headings and decorative elements. <strong>Screenshot Resolution</strong> (72, 150, or 300 DPI) sets how the per-annotation screenshots are rendered. The <strong>Camera Distance</strong> multiplier (×0.5 to ×5.0) controls how far the camera is placed from each annotation — keep it low for large objects like buildings, and increase it for small objects like coins or sherds to prevent the camera from clipping through the model. The <strong>Camera Angle</strong> (15° to 80°) sets the elevation above the horizontal plane — steep angles give a top-down view, shallow angles show the object more from the side.</p>
 
-                            <p style="margin-top: 10px;"><strong>Reset:</strong> Click <strong>Reset All Settings to Default</strong> at the bottom of the panel to restore every preference above to its original value, including the report title, institution and project name.</p>
+                            <h4 style="margin-top: 14px;">Survey import</h4>
+
+                            <p style="margin-top: 10px;"><strong>Imported Points:</strong> <strong>Lock imported points</strong> (on by default) makes points imported from a survey CSV start locked, so they cannot be dragged by accident; each point's lock can still be switched in its edit popup. <strong>Hide labels of large imports</strong> (above 50 points by default) starts a new import group with its labels off when it receives more points than this; an existing group's labels are never changed. Imported points use the Point Markers size. The column mapping of each CSV header is remembered, for the last 20 headers, and offered again for a file with the same header.</p>
+
+                            <p style="margin-top: 10px;"><strong>Alignment &amp; Placement:</strong> <strong>Residual warning</strong> (5 cm) flags a control point whose residual is larger, while picking, in the review and in the Alignment Manager; the RMS limits of the Good and Poor verdicts are fixed. <strong>Surface-distance warning</strong> (10 cm) marks rows whose fitted position lies farther from the model surface, in the selection list and the import summary. <strong>Distance limit for selecting points on the model</strong> (0.5 m) decides which rows are ticked in the selection step; the selection step can change it for a single import.</p>
+
+                            <p style="margin-top: 10px;"><strong>PDF Report:</strong> <strong>Include alignment summary in PDF report</strong> (on by default) adds a section listing the alignments used by the annotations in the report.</p>
+
+                            <p style="margin-top: 10px;"><strong>Reset:</strong> Click <strong>Reset All Settings to Default</strong> at the bottom of the panel to restore every preference above to its original value, including the report title, institution and project name, and to forget the remembered CSV column mappings.</p>
                         </div>
                     </div>
 
@@ -745,6 +852,7 @@
                     <button type="button" class="settings-rail-item" role="tab" id="settings-tab-viewport" aria-controls="settings-pane-viewport" aria-selected="false" data-pane="viewport">Viewport</button>
                     <button type="button" class="settings-rail-item" role="tab" id="settings-tab-measure" aria-controls="settings-pane-measure" aria-selected="false" data-pane="measure">Measure</button>
                     <button type="button" class="settings-rail-item" role="tab" id="settings-tab-export" aria-controls="settings-pane-export" aria-selected="false" data-pane="export">Export</button>
+                    <button type="button" class="settings-rail-item" role="tab" id="settings-tab-survey" aria-controls="settings-pane-survey" aria-selected="false" data-pane="survey">Survey import</button>
                 </nav>
                 <div id="settings-panes">
                 <div class="settings-pane active" id="settings-pane-identity" role="tabpanel" aria-labelledby="settings-tab-identity">
@@ -999,6 +1107,78 @@
                         <input type="range" id="settings-pdf-camera-angle" min="15" max="80" step="5" value="60">
                         <p class="settings-hint">Elevation angle above the horizontal. Steep angles (70–80°) give a top-down view; shallow angles (15–30°) show the object more from the side. The default (60°) works well for most cases.</p>
                     </div>
+                </section>
+                </div>
+
+                <div class="settings-pane" id="settings-pane-survey" role="tabpanel" aria-labelledby="settings-tab-survey" hidden>
+                <section>
+                    <h3>Imported Points</h3>
+                    <div class="settings-row">
+                        <label class="settings-checkbox-label">
+                            <input type="checkbox" id="settings-survey-lock-imported" checked>
+                            <span>Lock imported points</span>
+                        </label>
+                    </div>
+                    <p class="settings-hint">Locked points cannot be dragged by accident. The lock can still be switched for each point in its edit popup; points imported earlier keep theirs.</p>
+                    <div class="settings-row">
+                        <label for="settings-survey-labels-off-above">Hide labels of large imports</label>
+                        <select id="settings-survey-labels-off-above">
+                            <option value="0">Never</option>
+                            <option value="25">Above 25 points</option>
+                            <option value="50" selected>Above 50 points</option>
+                            <option value="100">Above 100 points</option>
+                            <option value="200">Above 200 points</option>
+                            <option value="500">Above 500 points</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">A new import group with more points than this starts with its labels off; switch them on in the group's settings. An import into an existing group never changes its labels. Marker size follows the Point Markers slider under Viewport → Marker &amp; Label Size.</p>
+                    <p class="settings-hint">The column mapping of each CSV header (up to the last 20) is remembered and offered again for a file with the same header. Reset All Settings clears it.</p>
+                </section>
+
+                <section>
+                    <h3>Alignment &amp; Placement</h3>
+                    <div class="settings-row">
+                        <label for="settings-survey-residual-warn">Residual warning</label>
+                        <select id="settings-survey-residual-warn">
+                            <option value="0.02">2 cm</option>
+                            <option value="0.03">3 cm</option>
+                            <option value="0.05" selected>5 cm</option>
+                            <option value="0.1">10 cm</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">A control point whose residual is larger than this is flagged while picking, in the review and in the Alignment Manager. The RMS limits of the Good and Poor verdicts are fixed; a residual above this turns Good into Check.</p>
+                    <div class="settings-row">
+                        <label for="settings-survey-surface-warn">Surface-distance warning</label>
+                        <select id="settings-survey-surface-warn">
+                            <option value="0.05">5 cm</option>
+                            <option value="0.1" selected>10 cm</option>
+                            <option value="0.2">20 cm</option>
+                            <option value="0.5">50 cm</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">Rows whose fitted position lies farther than this from the model surface are marked in the selection list and listed in the import summary.</p>
+                    <div class="settings-row">
+                        <label for="settings-survey-surface-limit">Distance limit for selecting points on the model</label>
+                        <select id="settings-survey-surface-limit">
+                            <option value="0.1">0.1 m</option>
+                            <option value="0.25">0.25 m</option>
+                            <option value="0.5" selected>0.5 m</option>
+                            <option value="1">1 m</option>
+                            <option value="2">2 m</option>
+                        </select>
+                    </div>
+                    <p class="settings-hint">Rows within this distance of the surface are ticked in the selection step, and preview markers beyond it are dimmed while picking control points. The selection step can change the limit for a single import.</p>
+                </section>
+
+                <section>
+                    <h3>PDF Report</h3>
+                    <div class="settings-row">
+                        <label class="settings-checkbox-label">
+                            <input type="checkbox" id="settings-survey-pdf-summary" checked>
+                            <span>Include alignment summary in PDF report</span>
+                        </label>
+                    </div>
+                    <p class="settings-hint">Adds a section after the metadata pages listing the alignments used by the annotations in the report, with their fit figures.</p>
                 </section>
                 </div>
                 </div>
@@ -1289,6 +1469,7 @@
             <p class="av-note">You're viewing a shared annotation — read only. Open it from the sidebar to edit.</p>
             <div id="annotation-viewer-name"></div>
             <div id="annotation-viewer-meta"></div>
+            <div id="annotation-viewer-survey" class="survey-block" style="display: none;"></div>
             <div id="annotation-viewer-entries"></div>
         </div>
     </div>
@@ -1303,6 +1484,7 @@
             <span class="ac-group"><span class="ac-group-dot"></span><span class="ac-group-name"></span></span>
         </div>
         <div class="ac-desc"></div>
+        <div class="ac-survey"></div>
         <div class="ac-footer">
             <span class="ac-entries"></span>
             <button type="button" class="ac-details">Details</button>
@@ -1312,6 +1494,7 @@
     <div id="toolbar">
         <input type="file" id="file-input" accept=".glb,.gltf,.obj,.ply,.stl">
         <input type="file" id="import-input" accept=".json,.jsonld">
+        <input type="file" id="survey-csv-input" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values">
         <input type="file" id="obj-material-input" accept=".mtl,.jpg,.jpeg,.png,.tif,.tiff" multiple>
         <input type="file" id="ply-texture-input" accept=".jpg,.jpeg,.png,.tif,.tiff">
         
@@ -1320,6 +1503,7 @@
             <div class="export-dropdown-menu" id="import-dropdown-menu">
                 <button class="export-dropdown-item" id="btn-load" data-icon="model3d">3D Model (.glb, .obj, .ply, .stl)</button>
                 <button class="export-dropdown-item" id="btn-import" data-icon="jsonld">Annotations (.jsonld)</button>
+                <button class="export-dropdown-item" id="btn-import-survey" data-icon="point" disabled>Survey points (CSV)</button>
             </div>
         </div>
         <button class="tool-btn" id="btn-texture" disabled data-icon="texture" title="Toggle Texture">Texture</button>
@@ -1434,12 +1618,93 @@
                 <div id="tool-help-content"></div>
             </div>
 
+            <!-- Survey CSV import: picking control points for a new alignment (Step B).
+                 A side panel, not an overlay, so the model stays free to navigate;
+                 above the popup backdrop, below the survey dialogs and confirmations. -->
+            <div class="survey-dialog" id="survey-pick-panel" role="dialog" aria-labelledby="survey-pick-title">
+                <div class="survey-dialog-header" id="survey-pick-header">
+                    <div class="survey-dialog-heading">
+                        <h3 id="survey-pick-title">Pick control points</h3>
+                        <div class="survey-dialog-subtitle" id="survey-pick-subtitle"></div>
+                    </div>
+                    <button class="dialog-close-btn" id="survey-pick-close" title="Cancel the picking">✕</button>
+                </div>
+                <div class="survey-dialog-body" id="survey-pick-body">
+                    <p class="survey-hint" id="survey-pick-instructions"></p>
+                    <input type="search" id="survey-pick-search" placeholder="Search rows by name" aria-label="Search rows by name" autocomplete="off">
+                    <p class="survey-hint" id="survey-pick-counts"></p>
+                    <ul id="survey-pick-rows" aria-label="CSV rows"></ul>
+                    <div id="survey-pick-selected" style="display: none;">
+                        <p id="survey-pick-selected-text"></p>
+                        <label for="survey-pick-annotation">Or take the position of a point annotation</label>
+                        <select id="survey-pick-annotation"></select>
+                    </div>
+                    <ul class="survey-issues" id="survey-pick-issues"></ul>
+                </div>
+                <div class="survey-dialog-footer" id="survey-pick-footer">
+                    <div id="survey-pick-fit" aria-live="polite"></div>
+                    <div class="survey-level-row">
+                        <label class="survey-check-label">
+                            <input type="checkbox" id="survey-pick-level">
+                            <span>Model is already level</span>
+                        </label>
+                        <p class="survey-hint" id="survey-pick-level-hint"></p>
+                    </div>
+                    <div class="survey-pick-buttons">
+                        <button class="btn-cancel" id="survey-pick-undo" title="Undo the last pick change (Ctrl+Z)">Undo</button>
+                        <button class="btn-cancel" id="survey-pick-cancel">Cancel</button>
+                        <button class="btn-save" id="survey-pick-review">Review the fit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alignment Manager: a saved alignment's control points, read-only.
+                 A side panel like the picking panel, so the pick markers on the
+                 model can be inspected while navigating. -->
+            <div class="survey-dialog" id="alignment-view-panel" role="dialog" aria-labelledby="alignment-view-title">
+                <div class="survey-dialog-header">
+                    <div class="survey-dialog-heading">
+                        <h3 id="alignment-view-title">Control points</h3>
+                        <div class="survey-dialog-subtitle" id="alignment-view-subtitle"></div>
+                    </div>
+                    <button class="dialog-close-btn" id="alignment-view-close" title="Close">✕</button>
+                </div>
+                <div class="survey-dialog-body" id="alignment-view-body">
+                    <p class="survey-verdict" id="alignment-view-verdict"></p>
+                    <div class="survey-summary-figures" id="alignment-view-figures"></div>
+                    <ul class="survey-issues" id="alignment-view-issues"></ul>
+                    <p class="survey-hint">On the model: gold dots are the picks (grey: not used in the fit), cyan dots are where the fit places the surveyed coordinates, and the lines between them are the residuals.</p>
+                    <div class="survey-table-wrap survey-select-wrap">
+                        <table class="survey-table survey-review-table">
+                            <thead>
+                                <tr>
+                                    <th>Used</th>
+                                    <th>Row</th>
+                                    <th>Name</th>
+                                    <th>E</th>
+                                    <th>N</th>
+                                    <th>H</th>
+                                    <th>Total</th>
+                                    <th>Leave-one-out</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alignment-view-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="survey-dialog-footer">
+                    <button class="btn-cancel" id="alignment-view-back">Back to the manager</button>
+                </div>
+            </div>
+
             <div id="instructions">
                 <strong>Controls:</strong> Left-drag rotate · Right-drag pan · Scroll zoom
             </div>
 
             <div id="model-stats">
                 <span id="face-count"></span>
+                <!-- Survey alignment status: opens the Alignment Manager (filled by survey/ui-manager.js) -->
+                <button type="button" id="alignment-chip" class="alignment-chip" aria-haspopup="dialog"></button>
             </div>
 
             <div id="viewhelper-container">
@@ -1535,6 +1800,20 @@
                             Project line(s) to surface
                         </label>
                     </div>
+
+                    <!-- Position lock (edit popup only; new annotations start unlocked) -->
+                    <div id="ann-locked-row" style="display: none;">
+                        <label class="projection-checkbox-label lock-checkbox-label">
+                            <input type="checkbox" id="ann-locked">
+                            <span class="lock-state-icon lock-state-closed" data-icon="lock" aria-hidden="true"></span>
+                            <span class="lock-state-icon lock-state-open" data-icon="unlock" aria-hidden="true"></span>
+                            Locked
+                        </label>
+                        <div class="lock-hint" id="ann-locked-hint"></div>
+                    </div>
+
+                    <!-- Surveyed position of an imported survey point (filled by survey-block.js) -->
+                    <div id="ann-survey-block" class="survey-block" style="display: none;"></div>
                 </div>
                 
                 <!-- Entries container (shown when editing) -->
@@ -1585,7 +1864,7 @@
                 <div class="confirm-dialog" style="max-width: 450px;">
                     <button class="confirm-close-btn" id="annotation-clear-dialog-close" title="Close">✕</button>
                     <p id="annotation-clear-message">You have annotations from the current model. What would you like to do?</p>
-                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Clearing will remove all annotations, groups, and measurements from the workspace.</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Clearing will remove all annotations, groups, alignments, and measurements from the workspace.</p>
                     <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
                         <button class="btn-cancel" id="annotation-clear-cancel">Cancel</button>
                         <button class="btn-delete" id="annotation-clear-discard">Clear</button>
@@ -1604,6 +1883,36 @@
                         <button class="btn-cancel" id="refresh-confirm-cancel">Cancel</button>
                         <button class="btn-delete" id="refresh-confirm-refresh">Refresh</button>
                         <button class="btn-save" id="refresh-confirm-export">Export & Refresh</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Group Delete Dialog (shown when deleting a group that holds annotations) -->
+            <div class="confirm-overlay" id="group-delete-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="group-delete-dialog-close" title="Close">✕</button>
+                    <p id="group-delete-message">This group has annotations.</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Move the annotations to another group, or delete them together with the group. Deleted annotations cannot be restored.</p>
+                    <label for="group-delete-target">Move to</label>
+                    <select id="group-delete-target"></select>
+                    <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
+                        <button class="btn-cancel" id="group-delete-cancel">Cancel</button>
+                        <button class="btn-delete" id="group-delete-annotations">Delete annotations</button>
+                        <button class="btn-save" id="group-delete-move">Move and delete group</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alignment Delete Dialog (Alignment Manager: an alignment that places survey points) -->
+            <div class="confirm-overlay" id="alignment-delete-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="alignment-delete-dialog-close" title="Close">✕</button>
+                    <p id="alignment-delete-message">This alignment places survey points.</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">Detached points stay where they are and keep their surveyed coordinates, without an alignment. Deleted points cannot be restored.</p>
+                    <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
+                        <button class="btn-cancel" id="alignment-delete-cancel">Cancel</button>
+                        <button class="btn-delete" id="alignment-delete-points">Delete points too</button>
+                        <button class="btn-save" id="alignment-delete-detach">Detach points</button>
                     </div>
                 </div>
             </div>
@@ -1630,6 +1939,306 @@
                     <div class="btn-row" style="margin-top: 16px;">
                         <button class="btn-cancel" id="scalebar-no-switch">Continue without scalebar</button>
                         <button class="btn-save" id="scalebar-switch">Switch & include scalebar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Survey CSV import: column mapping (Step A). Survey dialogs sit below
+                 the confirm overlay, so a confirmation always shows on top. -->
+            <div class="survey-overlay" id="survey-mapping-overlay">
+                <div class="survey-dialog" role="dialog" aria-modal="true" aria-labelledby="survey-mapping-title">
+                    <div class="survey-dialog-header">
+                        <div class="survey-dialog-heading">
+                            <h3 id="survey-mapping-title">Survey points (CSV)</h3>
+                            <div class="survey-dialog-subtitle" id="survey-mapping-file"></div>
+                        </div>
+                        <button class="dialog-close-btn" id="survey-mapping-close" title="Close">✕</button>
+                    </div>
+                    <div class="survey-dialog-body">
+                        <section class="survey-section">
+                            <h4>File</h4>
+                            <div class="survey-field-grid">
+                                <div class="survey-field">
+                                    <label for="survey-mapping-encoding">Encoding</label>
+                                    <select id="survey-mapping-encoding"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-mapping-delimiter">Delimiter</label>
+                                    <select id="survey-mapping-delimiter"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-mapping-decimal">Decimal separator</label>
+                                    <select id="survey-mapping-decimal"></select>
+                                </div>
+                                <div class="survey-field survey-field-check">
+                                    <label class="survey-check-label">
+                                        <input type="checkbox" id="survey-mapping-header">
+                                        <span>First row is a header</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="survey-section">
+                            <h4>Preview</h4>
+                            <p class="survey-hint" id="survey-mapping-counts"></p>
+                            <div class="survey-table-wrap survey-preview-wrap" id="survey-mapping-preview"></div>
+                        </section>
+
+                        <section class="survey-section">
+                            <h4>Columns</h4>
+                            <div class="survey-field-grid">
+                                <div class="survey-field">
+                                    <label for="survey-mapping-preset">Preset</label>
+                                    <select id="survey-mapping-preset"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-map-name">Name</label>
+                                    <select id="survey-map-name" data-role="name"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-map-easting">Easting (required)</label>
+                                    <select id="survey-map-easting" data-role="easting"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-map-northing">Northing (required)</label>
+                                    <select id="survey-map-northing" data-role="northing"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-map-height">Height (required)</label>
+                                    <select id="survey-map-height" data-role="height"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-map-description">Description</label>
+                                    <select id="survey-map-description" data-role="description"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-map-code">Code</label>
+                                    <select id="survey-map-code" data-role="code"></select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="survey-section">
+                            <h4>Keep as attributes</h4>
+                            <p class="survey-hint" id="survey-mapping-extras-hint"></p>
+                            <div class="survey-check-grid" id="survey-mapping-extras"></div>
+                        </section>
+
+                        <section class="survey-section">
+                            <h4>Import into</h4>
+                            <div class="survey-field-grid">
+                                <div class="survey-field">
+                                    <label for="survey-mapping-target">Alignment</label>
+                                    <select id="survey-mapping-target"></select>
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-mapping-group">Group</label>
+                                    <select id="survey-mapping-group"></select>
+                                </div>
+                            </div>
+                            <p class="survey-hint" id="survey-mapping-target-info"></p>
+                            <div class="survey-field-grid" id="survey-mapping-new-fields">
+                                <div class="survey-field">
+                                    <label for="survey-mapping-new-name">Alignment name</label>
+                                    <input type="text" id="survey-mapping-new-name" autocomplete="off">
+                                </div>
+                                <div class="survey-field">
+                                    <label for="survey-mapping-new-crs">Coordinate system (optional)</label>
+                                    <input type="text" id="survey-mapping-new-crs" placeholder="e.g. EPSG:32635" autocomplete="off">
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="survey-section">
+                            <h4>Checks</h4>
+                            <ul class="survey-issues" id="survey-mapping-issues"></ul>
+                        </section>
+                    </div>
+                    <div class="survey-dialog-footer">
+                        <button class="btn-cancel" id="survey-mapping-cancel">Cancel</button>
+                        <button class="btn-save" id="survey-mapping-continue">Continue</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Survey CSV import: selecting the rows that lie on the model (Step D) -->
+            <div class="survey-overlay" id="survey-select-overlay">
+                <div class="survey-dialog" role="dialog" aria-modal="true" aria-labelledby="survey-select-title">
+                    <div class="survey-dialog-header">
+                        <div class="survey-dialog-heading">
+                            <h3 id="survey-select-title">Select points on the model</h3>
+                            <div class="survey-dialog-subtitle" id="survey-select-subtitle"></div>
+                        </div>
+                        <button class="dialog-close-btn" id="survey-select-close" title="Close">✕</button>
+                    </div>
+                    <div class="survey-dialog-body">
+                        <p class="survey-select-summary" id="survey-select-summary"></p>
+                        <div class="survey-select-limit-row">
+                            <label for="survey-select-limit">Distance limit (m)</label>
+                            <input type="number" id="survey-select-limit" min="0" step="0.05" inputmode="decimal">
+                            <span class="survey-hint">Applies to this import only.</span>
+                        </div>
+                        <p class="survey-progress" id="survey-select-progress" aria-live="polite"></p>
+                        <div class="survey-nomatch" id="survey-select-nomatch">
+                            <p id="survey-select-nomatch-text"></p>
+                            <div class="btn-row">
+                                <button class="btn-save btn-small" id="survey-select-swap">Swap Easting and Northing</button>
+                                <button class="btn-cancel btn-small" id="survey-select-new-alignment">New alignment</button>
+                                <button class="btn-cancel btn-small" id="survey-select-remap">Change the column mapping</button>
+                                <button class="btn-cancel btn-small" id="survey-select-show-rows">Show the rows</button>
+                            </div>
+                        </div>
+                        <div class="survey-table-wrap survey-select-wrap" id="survey-select-table-wrap">
+                            <table class="survey-table survey-select-table">
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" id="survey-select-all" aria-label="Tick all rows" title="Tick all rows"></th>
+                                        <th>Row</th>
+                                        <th>Name</th>
+                                        <th>Distance</th>
+                                        <th>Easting</th>
+                                        <th>Northing</th>
+                                        <th>Height</th>
+                                        <th>Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="survey-select-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="survey-dialog-footer">
+                        <button class="btn-cancel" id="survey-select-back">Back</button>
+                        <button class="btn-cancel" id="survey-select-cancel">Cancel</button>
+                        <button class="btn-cancel" id="survey-select-import-all">Import all</button>
+                        <button class="btn-save" id="survey-select-import">Import</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Survey CSV import: summary (Step D) -->
+            <div class="survey-overlay" id="survey-summary-overlay">
+                <div class="survey-dialog survey-dialog-narrow" role="dialog" aria-modal="true" aria-labelledby="survey-summary-title">
+                    <div class="survey-dialog-header">
+                        <div class="survey-dialog-heading">
+                            <h3 id="survey-summary-title">Survey import finished</h3>
+                            <div class="survey-dialog-subtitle" id="survey-summary-subtitle"></div>
+                        </div>
+                        <button class="dialog-close-btn" id="survey-summary-close" title="Close">✕</button>
+                    </div>
+                    <div class="survey-dialog-body">
+                        <div class="survey-summary-figures" id="survey-summary-figures"></div>
+                        <div class="survey-summary-details" id="survey-summary-details"></div>
+                    </div>
+                    <div class="survey-dialog-footer">
+                        <button class="btn-cancel" id="survey-summary-copy">Copy summary</button>
+                        <button class="btn-save" id="survey-summary-ok">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Survey CSV import: reviewing the fit of a new alignment (Step C) -->
+            <div class="survey-overlay" id="survey-review-overlay">
+                <div class="survey-dialog" role="dialog" aria-modal="true" aria-labelledby="survey-review-title">
+                    <div class="survey-dialog-header">
+                        <div class="survey-dialog-heading">
+                            <h3 id="survey-review-title">Review the alignment</h3>
+                            <div class="survey-dialog-subtitle" id="survey-review-subtitle"></div>
+                        </div>
+                        <button class="dialog-close-btn" id="survey-review-close" title="Back to picking">✕</button>
+                    </div>
+                    <div class="survey-dialog-body">
+                        <p class="survey-verdict" id="survey-review-verdict"></p>
+                        <div class="survey-summary-figures" id="survey-review-figures"></div>
+                        <section class="survey-section">
+                            <h4>Fit type</h4>
+                            <div class="survey-level-row">
+                                <label class="survey-check-label">
+                                    <input type="checkbox" id="survey-review-level">
+                                    <span>Model is already level</span>
+                                </label>
+                                <span class="survey-review-compare" id="survey-review-compare"></span>
+                            </div>
+                            <p class="survey-hint" id="survey-review-level-hint"></p>
+                        </section>
+                        <section class="survey-section">
+                            <h4>Checks</h4>
+                            <ul class="survey-issues" id="survey-review-issues"></ul>
+                        </section>
+                        <section class="survey-section">
+                            <h4>Control points</h4>
+                            <p class="survey-hint">Residual = surveyed minus fitted position, in metres. Leave-one-out = the error of a point when the fit is made without it. Untick a point to leave it out of the fit.</p>
+                            <div class="survey-table-wrap survey-select-wrap">
+                                <table class="survey-table survey-review-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Use</th>
+                                            <th>Row</th>
+                                            <th>Name</th>
+                                            <th>E</th>
+                                            <th>N</th>
+                                            <th>H</th>
+                                            <th>Total</th>
+                                            <th>Leave-one-out</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="survey-review-rows"></tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="survey-dialog-footer">
+                        <button class="btn-cancel" id="survey-review-back">Back</button>
+                        <button class="btn-cancel" id="survey-review-cancel">Cancel</button>
+                        <button class="btn-save" id="survey-review-accept">Accept and import</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Survey alignments: the Alignment Manager (opened from the status chip) -->
+            <div class="survey-overlay" id="alignment-manager-overlay">
+                <div class="survey-dialog survey-dialog-narrow" role="dialog" aria-modal="true" aria-labelledby="alignment-manager-title">
+                    <div class="survey-dialog-header">
+                        <div class="survey-dialog-heading">
+                            <h3 id="alignment-manager-title">Alignment Manager</h3>
+                            <div class="survey-dialog-subtitle" id="alignment-manager-subtitle"></div>
+                        </div>
+                        <button class="dialog-close-btn" id="alignment-manager-close" title="Close">✕</button>
+                    </div>
+                    <div class="survey-dialog-body">
+                        <div class="alignment-manager-empty" id="alignment-manager-empty">
+                            <p>This model has no survey alignment yet. An alignment relates survey coordinates (Easting, Northing and Height, for example from a GNSS rover) to the model, so survey points can be imported onto it.</p>
+                            <p>To create one, choose <strong>Import &gt; Survey points (CSV)</strong>, map the columns, choose <strong>New alignment</strong> and pick at least 3 rows (4 or more recommended) where they were surveyed on the model. The alignment is saved and exported with the annotations; later imports in the same coordinate system go straight to selecting the points.</p>
+                        </div>
+                        <ul class="alignment-list" id="alignment-manager-list" aria-label="Alignments"></ul>
+                    </div>
+                    <div class="survey-dialog-footer">
+                        <button class="btn-save" id="alignment-manager-ok">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Survey alignments: how far the points move after a refine -->
+            <div class="survey-overlay" id="alignment-refine-overlay">
+                <div class="survey-dialog survey-dialog-narrow" role="dialog" aria-modal="true" aria-labelledby="alignment-refine-title">
+                    <div class="survey-dialog-header">
+                        <div class="survey-dialog-heading">
+                            <h3 id="alignment-refine-title">Move the survey points?</h3>
+                            <div class="survey-dialog-subtitle" id="alignment-refine-subtitle"></div>
+                        </div>
+                        <button class="dialog-close-btn" id="alignment-refine-close" title="Keep the positions">✕</button>
+                    </div>
+                    <div class="survey-dialog-body">
+                        <p class="alignment-refine-text" id="alignment-refine-text"></p>
+                        <div class="survey-summary-figures" id="alignment-refine-figures"></div>
+                        <div class="survey-summary-details" id="alignment-refine-manual"></div>
+                        <p class="survey-hint">Move points: they follow the new fit and are placed on the surface again. Keep positions: they stay where they are, and the next refine offers to move them again.</p>
+                        <p class="survey-progress" id="alignment-refine-progress" aria-live="polite"></p>
+                    </div>
+                    <div class="survey-dialog-footer">
+                        <button class="btn-cancel" id="alignment-refine-keep">Keep positions</button>
+                        <button class="btn-save" id="alignment-refine-move">Move points</button>
                     </div>
                 </div>
             </div>
@@ -1716,7 +2325,12 @@
                     </label>
                     <input type="range" id="group-opacity" min="5" max="100" value="100">
                 </div>
-                
+
+                <label class="projection-checkbox-label">
+                    <input type="checkbox" id="group-labels-visible" checked>
+                    Show labels
+                </label>
+
                 <div class="btn-row">
                     <button class="btn-delete" id="btn-group-delete" style="display: none;">Delete</button>
                     <button class="btn-cancel" id="btn-group-cancel">Cancel</button>

@@ -21,6 +21,7 @@
 
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
+import { surveyCompactLine } from '../survey/survey-display.js';
 
 const TYPE_LABELS = { point: 'Point', line: 'Line', polygon: 'Polygon', surface: 'Surface', box: 'Box' };
 
@@ -131,6 +132,14 @@ export function showSelectionCallout(ann) {
     if (descEl) {
         descEl.textContent = description;
         descEl.style.display = description ? '' : 'none';
+    }
+
+    // Imported survey points: one line with the surveyed E, N and H.
+    const surveyEl = panel.querySelector('.ac-survey');
+    if (surveyEl) {
+        const line = surveyCompactLine(ann.survey);
+        surveyEl.textContent = line;
+        surveyEl.style.display = line ? '' : 'none';
     }
 
     const entriesEl = panel.querySelector('.ac-entries');

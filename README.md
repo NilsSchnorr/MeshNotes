@@ -22,10 +22,11 @@ Key features include:
 - **Annotation types** — points, lines, polygons, surface painting, and boxes (lines and polygons can be projected onto the model surface)
 - **Measurement tools** — measure straight-line distances or multi-point paths (Ctrl+click) directly on the model, with configurable display units
 - **Cutting Plane** — extract cross-section profiles by spawning a camera-aligned cutting plane, adjusting its position and angle, and exporting the intersection as SVG (vector) or PNG with scale bar
-- **Groups** — organize annotations with customizable colors, per-group opacity, and visibility toggles
+- **Groups** — organize annotations with customizable colors, per-group opacity, visibility and label toggles; groups can be collapsed in the sidebar
 - **Model Information** — add general notes about the entire model
 - **Metadata Report** — structured form for capturing technical documentation metadata (camera/scanner settings, processing parameters, legal info) with fillable PDF and JSON export/import, supporting photogrammetry, structured light, LiDAR, and TLS workflows
-- **Draggable points** — reposition annotation markers without recreating them
+- **Draggable points** — reposition annotation markers without recreating them; a per-annotation lock protects positions from accidental changes
+- **Survey CSV import** — import survey points (Easting, Northing, Height in a metric projected system such as UTM) from a CSV file as point annotations (locked by default); they are placed on the model by an alignment made from control points you pick, with a review of the fit, a selection of the rows that lie on the model, and an Alignment Manager to refine, re-align or delete alignments
 - **Search** — filter annotations by name using the search box in the sidebar
 - **Flip View** — rotate the model 180° for easy access to the underside (purely visual, does not affect annotation coordinates or exports)
 - **W3C Web Annotation export/import** — interoperable format (.jsonld) compatible with IIIF viewers and other annotation tools, with UUID-based merging for team collaboration
@@ -34,7 +35,7 @@ Key features include:
 - **Display modes** — cycle through Texture, Vertex Colors, Mesh, and Wireframe views with configurable mesh and wireframe colors
 - **Display controls** — adjust brightness, model opacity, point size, text size, and background color (presets or custom)
 - **Light controls** — camera-linked or fixed direction lighting with horizontal/vertical control for raking light analysis
-- **Settings** — configure default author name, measurement units and colors, screenshot quality, PDF export options, display colors, and background color
+- **Settings** — configure default author name, measurement units and colors, screenshot quality, PDF export options, display colors, background color, and survey import options
 - **Sharing** — share annotated models via link (90-day ephemeral links hosted on meshnotes.org, or permanent links via your own CORS-friendly repository with DOI)
 - **Tablet support** — optimized for iPad with Apple Pencil: stylus for annotation, fingers for navigation, collapsible sidebar
 
@@ -50,6 +51,8 @@ The tool runs entirely in your browser — your 3D models and annotations stay o
 2. Click **Import ▾** → **3D Model** to open a 3D model (`.glb`, `.gltf`, `.obj`, `.ply`, or `.stl` format)
 3. Use the toolbar to add annotations
 4. Export your work as JSON-LD, generate a PDF report, or click **Share** to create a shareable link
+
+**Development:** there is no build step and there are no dependencies. `npm test` runs the unit tests with Node's built-in test runner (Node.js 18.19, 20.6 or later).
 
 
 ## Supported File Formats
@@ -91,7 +94,8 @@ Ensure your model is oriented correctly (typically Y-up or Z-up) before exportin
 - **Background color** — Choose from preset backgrounds or a custom color in Settings. White backgrounds are ideal for publication screenshots
 - **Screenshots** — Click the Screenshot button to save the current view as a PNG image. Choose quality (1×, 2×, 4×) in Settings. In orthographic mode, a scalebar is included automatically
 - **Version history** — When you edit an existing annotation entry, the previous version is preserved. View the history by clicking Edit on any entry
-- **Settings** — Click the ⚙️ button to configure default author, measurement units/colors, screenshot quality, PDF export options, display colors, and background
+- **Settings** — Click the ⚙️ button to configure default author, measurement units/colors, screenshot quality, PDF export options, display colors, background, and survey import options
+- **Survey points** — Click **Import ▾** → **Survey points (CSV)** after loading a model. The first import in a coordinate system asks you to pick at least 3 (better 4 or more) rows on the model; later imports into the same alignment go straight to selecting the points. The status chip next to the face count opens the Alignment Manager
 - **Hide groups** before generating a PDF to exclude them from the report
 - Press **Escape** to cancel drawing or clear measurements
 

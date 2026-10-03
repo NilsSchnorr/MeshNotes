@@ -4,10 +4,10 @@ import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helper
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
-import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setVertexSize, setBoxHandleSize, setMeasureMarkerSize, setTextSize, setCalloutOpacity, setCalloutEnabled, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, resetAllSettings } from '../core/lighting.js';
+import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setVertexSize, setBoxHandleSize, setMeasureMarkerSize, setTextSize, setCalloutOpacity, setCalloutEnabled, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, setSurveyLockImported, setSurveyLabelsOffAbove, setSurveyResidualWarn, setSurveySurfaceWarn, setSurveySurfaceLimit, setSurveyPdfSummary, resetAllSettings } from '../core/lighting.js';
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, cancelUnfinishedDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
-import { openGroupPopup, saveGroup, deleteGroup, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm, deselectAnnotation } from '../annotation-tools/groups.js';
+import { openGroupPopup, saveGroup, deleteGroup, hideGroupDeleteDialog, confirmGroupDelete, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm, deselectAnnotation } from '../annotation-tools/groups.js';
 import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
@@ -22,9 +22,20 @@ import { shareModel, generateEphemeralLink, copyShareLink, closeShareDialog, sho
 import { renderAnnotations } from '../annotation-tools/render.js';
 import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js';
 import { toggleCuttingPlane, extractProfile, closeProfilePreview, downloadProfileSVG, downloadProfilePNG, onCuttingPlanePointerDown, onCuttingPlanePointerMove, onCuttingPlanePointerUp, cleanupCuttingPlane } from '../annotation-tools/cutting-plane.js';
+import { openSurveyCsvFile } from '../survey/ui-mapping.js';
+import { closeSurveyDialogs, handleSurveyEscape, isAlignmentViewOpen, closeAlignmentView, refreshSurveyChip } from '../survey/ui-manager.js';
+import { closeSurveyPicking, isSurveyPickingOpen, handleSurveyPickingEscape, canUndoSurveyPick, undoSurveyPick, refreshSurveyOverlays, refreshSurveyPickingSettings } from '../survey/ui-alignment.js';
 
 // Re-export for modules that import from here
 export { hideToolHelp, restoreToolHelp, hideAllToolPanels, showBoxEditHelp, clearBoxEditState } from './tool-help.js';
+
+// The annotation tools and the survey CSV menu item stay disabled while the
+// survey picking panel is open (tool 'survey-pick'); setTool() switches the
+// lock together with the tool. Unlocked, they follow the loaded model.
+function setToolbarLocked(locked) {
+    const buttons = [dom.btnPoint, dom.btnLine, dom.btnPolygon, dom.btnSurface, dom.btnBox, dom.btnMeasure, dom.btnImportSurvey];
+    buttons.forEach(btn => { if (btn) btn.disabled = locked || !state.currentModel; });
+}
 
 export function setTool(tool) {
     // If a box was unlocked, lock it and update visual feedback
@@ -32,6 +43,16 @@ export function setTool(tool) {
     const previousTool = state.currentTool;
 
     state.currentTool = tool;
+
+    // 'survey-pick' is the picking panel's tool (survey/ui-alignment.js): it
+    // stays active while the panel is open and locks the toolbar meanwhile.
+    if ((tool === 'survey-pick') !== (previousTool === 'survey-pick')) {
+        setToolbarLocked(tool === 'survey-pick');
+        // A click on a marker before (onCanvasPointerUp) leaves wasDragging
+        // set, which would swallow the first pick tap. Markers are never
+        // dragged with this tool.
+        state.wasDragging = false;
+    }
 
     // Reset the canvas cursor on every tool change; a leftover 'move'/'grab'/
     // 'resize' cursor from box hover or manipulation would otherwise stick,
@@ -75,12 +96,15 @@ function getSelectedUpAxis(radioName) {
 // ============ Annotation Clearing on Model Load ============
 
 /**
- * Clears all annotations, groups, measurements, and model info,
+ * Clears all annotations, groups, alignments, measurements, and model info,
  * then resets the workspace to a clean state with a default group.
  */
 function clearAnnotationsAndGroups() {
     state.annotations = [];
     state.groups = [];
+    state.alignments = [];
+    state.defaultAlignmentId = null;
+    state.surveySession = null;
     deselectAnnotation();
     state.editingAnnotation = null;
     // New model = fresh metadata (metadata is per-model). The loader resets
@@ -92,6 +116,9 @@ function clearAnnotationsAndGroups() {
     // Close any open popups
     dom.annotationPopup.classList.remove('visible');
     dom.groupPopup.classList.remove('visible');
+    hideGroupDeleteDialog();
+    closeSurveyDialogs();
+    closeSurveyPicking();   // a picking session in progress: panel, overlays and tool
     const metadataPopup = document.getElementById('metadata-popup');
     if (metadataPopup) metadataPopup.classList.remove('visible');
     state.isAddingEntry = false;
@@ -164,11 +191,12 @@ function downloadModelFiles() {
 
 /**
  * Returns true if the current session holds work that loading a new model (or
- * refreshing) would discard: annotations, model-information notes, or filled
- * metadata.
+ * refreshing) would discard: annotations, survey alignments,
+ * model-information notes, or filled metadata.
  */
 function sessionHasContent() {
     if (state.annotations.length > 0) return true;
+    if (state.alignments.length > 0) return true;
     if (state.modelInfo.entries && state.modelInfo.entries.length > 0) return true;
     if (state.modelInfo.metadata && getMetadataStats(state.modelInfo.metadata).filled > 0) return true;
     return false;
@@ -182,6 +210,8 @@ function describeSessionContent() {
     const parts = [];
     const a = state.annotations.length;
     if (a > 0) parts.push(`${a} annotation${a !== 1 ? 's' : ''}`);
+    const al = state.alignments.length;
+    if (al > 0) parts.push(`${al} alignment${al !== 1 ? 's' : ''}`);
     const filled = state.modelInfo.metadata ? getMetadataStats(state.modelInfo.metadata).filled : 0;
     if (filled > 0) parts.push('metadata');
     const e = state.modelInfo.entries ? state.modelInfo.entries.length : 0;
@@ -193,11 +223,14 @@ function describeSessionContent() {
 
 /**
  * Wraps loadModel() with a check for existing session content (annotations,
- * model-info notes, or filled metadata). If any exists, prompts the user to
- * export (JSON-LD), discard, or cancel before the load clears it.
+ * alignments, model-info notes, or filled metadata). If any exists, prompts
+ * the user to export (JSON-LD), discard, or cancel before the load clears it.
  */
 function handleModelLoad(file) {
     if (!sessionHasContent()) {
+        // Nothing to clear. A picking session (never counted as content)
+        // ends once the new model is set up (the model-loader hook in
+        // main.js), so a cancelled OBJ/PLY/STL dialog leaves it running.
         loadModel(file);
         return;
     }
@@ -505,6 +538,24 @@ export function setupEventListeners() {
         if (e.target.files[0]) importAnnotations(e.target.files[0]);
         e.target.value = ''; // Reset so the same file can be re-imported
     });
+    // Survey points (CSV): disabled until a model is loaded (model-loader.js)
+    dom.btnImportSurvey.addEventListener('click', () => {
+        dom.importDropdown.classList.remove('open');
+        if (!state.currentModel) {
+            showStatus('Load a model before importing survey points');
+            return;
+        }
+        dom.surveyCsvInput.click();
+    });
+    dom.surveyCsvInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            // The toolbar stays usable above the survey dialogs: a new file
+            // replaces an import that is still open.
+            closeSurveyDialogs();
+            openSurveyCsvFile(e.target.files[0]);
+        }
+        e.target.value = ''; // Reset so the same file can be picked again
+    });
 
     // Import dropdown
     dom.btnImportMenu.addEventListener('click', (e) => {
@@ -567,7 +618,14 @@ export function setupEventListeners() {
 
     // Search filter
     dom.searchInput.addEventListener('input', (e) => {
-        filterAnnotations(e.target.value);
+        // Collapsed groups render their items only while a term is active, so
+        // the list is rebuilt when one exists (updateGroupsList re-applies the
+        // filter itself). Otherwise filtering the rendered items is enough.
+        if (state.groups.some(g => g.visible && g.collapsed)) {
+            updateGroupsList();
+        } else {
+            filterAnnotations(e.target.value);
+        }
     });
 
     // Group popup
@@ -588,6 +646,15 @@ export function setupEventListeners() {
     document.getElementById('group-popup-close').addEventListener('click', () => {
         dom.groupPopup.classList.remove('visible');
         state.editingGroup = null;
+    });
+
+    // Group delete dialog: move the group's annotations or delete them with it
+    document.getElementById('group-delete-dialog-close').addEventListener('click', hideGroupDeleteDialog);
+    dom.groupDeleteCancel.addEventListener('click', hideGroupDeleteDialog);
+    dom.groupDeleteAnnotations.addEventListener('click', () => confirmGroupDelete('delete'));
+    dom.groupDeleteMove.addEventListener('click', () => confirmGroupDelete('move'));
+    dom.groupDeleteOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.groupDeleteOverlay) hideGroupDeleteDialog();
     });
 
     // Inline group creation in annotation popup
@@ -769,7 +836,8 @@ export function setupEventListeners() {
     // Marker sizes. renderAnnotations() rebuilds measurements too (it calls
     // renderMeasurements() at the end), so the measurement marker slider needs
     // no separate refresh path.
-    dom.pointSizeSlider.addEventListener('input', (e) => { setPointSize(parseInt(e.target.value)); renderAnnotations(); });
+    // The survey picking overlays follow the point marker size.
+    dom.pointSizeSlider.addEventListener('input', (e) => { setPointSize(parseInt(e.target.value)); renderAnnotations(); refreshSurveyOverlays(); });
     dom.vertexSizeSlider.addEventListener('input', (e) => { setVertexSize(parseInt(e.target.value)); renderAnnotations(); });
     dom.boxHandleSizeSlider.addEventListener('input', (e) => { setBoxHandleSize(parseInt(e.target.value)); renderAnnotations(); });
     dom.measureMarkerSizeSlider.addEventListener('input', (e) => { setMeasureMarkerSize(parseInt(e.target.value)); renderAnnotations(); });
@@ -891,6 +959,8 @@ export function setupEventListeners() {
         }
         toggleFlip();
         renderAnnotations();
+        // Survey picks are stored unflipped; their overlays follow the display.
+        refreshSurveyOverlays();
         if (hadMeasurements) {
             showStatus(state.isFlipped
                 ? 'Model flipped — measurements cleared'
@@ -1131,11 +1201,43 @@ export function setupEventListeners() {
     dom.settingsPlateCellShape.addEventListener('change', (e) => {
         setPlateCellShape(e.target.value);
     });
+
+    // Settings: Survey import. The survey modules read these from state when
+    // they use them, so a change applies to the next import, fit or report.
+    // The residual warning and the distance limit also redraw an open picking
+    // panel, Alignment Manager or control-point view; an open selection dialog
+    // keeps the limit it was opened with (it applies to that import only).
+    dom.settingsSurveyLockImported.addEventListener('change', (e) => {
+        setSurveyLockImported(e.target.checked);
+    });
+
+    dom.settingsSurveyLabelsOffAbove.addEventListener('change', (e) => {
+        setSurveyLabelsOffAbove(e.target.value);
+    });
+
+    dom.settingsSurveyResidualWarn.addEventListener('change', (e) => {
+        setSurveyResidualWarn(e.target.value);
+        refreshSurveySettingsViews();
+    });
+
+    dom.settingsSurveySurfaceWarn.addEventListener('change', (e) => {
+        setSurveySurfaceWarn(e.target.value);
+    });
+
+    dom.settingsSurveySurfaceLimit.addEventListener('change', (e) => {
+        setSurveySurfaceLimit(e.target.value);
+        refreshSurveySettingsViews();
+    });
+
+    dom.settingsSurveyPdfSummary.addEventListener('change', (e) => {
+        setSurveyPdfSummary(e.target.checked);
+    });
     
-    // Settings: Reset All
+    // Settings: Reset All (still a browser confirm, not the app's own dialog)
     dom.settingsResetAll.addEventListener('click', () => {
-        if (confirm('Reset all settings to their default values?\n\nThis clears every saved preference: author name, ORCID iD and annotation language; measurement unit and colours; point and text size; background and model display colours; the screenshot and six-view plate settings; and all PDF report settings, including the report title, institution and project name.')) {
+        if (confirm('Reset all settings to their default values?\n\nThis clears every saved preference: author name, ORCID iD and annotation language; measurement unit and colours; point and text size; background and model display colours; the screenshot and six-view plate settings; all PDF report settings, including the report title, institution and project name; and the survey import settings, including the remembered CSV column mappings.')) {
             resetAllSettings();
+            refreshSurveySettingsViews();
             showStatus('Settings reset to defaults');
         }
     });
@@ -1155,6 +1257,16 @@ export function setupEventListeners() {
             // Only trigger if we're in a supported tool and not in a text input
             const activeElement = document.activeElement;
             const isTextInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+            // A ticked checkbox (the review's Use column, the level option) keeps
+            // the focus but has no undo of its own
+            const isCheckbox = isTextInput && activeElement.type === 'checkbox';
+
+            // Survey control-point picking: undo the last pick change
+            if ((!isTextInput || isCheckbox) && state.currentTool === 'survey-pick' && canUndoSurveyPick()) {
+                e.preventDefault();
+                undoSurveyPick();
+                return;
+            }
             
             if (!isTextInput && (state.currentTool === 'line' || state.currentTool === 'polygon') && state.tempPoints.length > 0) {
                 e.preventDefault();
@@ -1213,6 +1325,11 @@ export function setupEventListeners() {
 
             if (dom.confirmOverlay.classList.contains('visible')) {
                 hideConfirm();
+                return;
+            }
+
+            if (dom.groupDeleteOverlay.classList.contains('visible')) {
+                hideGroupDeleteDialog();
                 return;
             }
 
@@ -1277,6 +1394,31 @@ export function setupEventListeners() {
                 return;
             }
 
+            // Survey import dialogs (summary, selection, column mapping) and
+            // the Alignment Manager with its delete question and refine preview
+            if (handleSurveyEscape()) return;
+
+            // Survey control-point picking: the panel keeps the 'survey-pick'
+            // tool and the toolbar lock until it closes, so Escape must never
+            // reach setTool(null) below while it is open. One stage per press:
+            // the review, popups opened from the sidebar and an annotation
+            // selection, the selected row, and finally the session (with a
+            // confirmation).
+            if (isSurveyPickingOpen()) {
+                handleSurveyPickingEscape({ closePopups: closePopupsKeepingTool });
+                return;
+            }
+
+            // The Alignment Manager's control-point view (a side panel; the
+            // model stays free to navigate): an active tool (an unfinished
+            // drawing) is ended by the generic tail below first, then popups
+            // opened from the sidebar and an annotation selection go, then
+            // the view closes.
+            if (isAlignmentViewOpen() && !state.currentTool) {
+                if (!closePopupsKeepingTool()) closeAlignmentView();
+                return;
+            }
+
             dom.annotationPopup.classList.remove('visible');
             dom.groupPopup.classList.remove('visible');
             state.isAddingEntry = false;
@@ -1311,6 +1453,42 @@ export function setupEventListeners() {
 
     // Popup backdrop: auto-show when any viewport popup is visible, click to close
     setupPopupBackdrop();
+}
+
+// Redraws the open survey views that show the residual warning or the
+// distance limit after a Settings change: the picking panel (fit checks,
+// preview dimming), and the Alignment Manager and control-point view (verdicts).
+function refreshSurveySettingsViews() {
+    refreshSurveyPickingSettings();
+    refreshSurveyChip();
+}
+
+/**
+ * Escape while survey control points are picked: closes the annotation or
+ * group popup (as the generic Escape tail does, plus the editing references
+ * the ✕ buttons reset), else ends an annotation selection. The active tool
+ * stays, so the tool help comes back.
+ * @returns {boolean} true when something was closed
+ */
+function closePopupsKeepingTool() {
+    if (dom.annotationPopup.classList.contains('visible') || dom.groupPopup.classList.contains('visible')) {
+        dom.annotationPopup.classList.remove('visible');
+        dom.groupPopup.classList.remove('visible');
+        state.editingAnnotation = null;
+        state.editingGroup = null;
+        state.isAddingEntry = false;
+        state.editingEntryId = null;
+        state.editingModelInfo = false;
+        hideInlineGroupForm();
+        state.controls.enabled = true;
+        restoreToolHelp();
+        return true;
+    }
+    if (state.selectedAnnotation !== null) {
+        deselectAnnotation();
+        return true;
+    }
+    return false;
 }
 
 // ============ Pointer Events with Capture Phase Interception ============
@@ -1550,7 +1728,9 @@ function _handleTouchDown(e) {
     if (_activeTouches.size === 2 && state.boxEditUnlocked !== null) {
         _touchWasDrag = true; // Two fingers = not a tap
         const ann = state.annotations.find(a => a.id === state.boxEditUnlocked);
-        if (ann && ann.type === 'box') {
+        // A box with the persistent position lock is never rotated (it cannot
+        // enter edit mode either; this guards a lock set while it was unlocked).
+        if (ann && ann.type === 'box' && ann.locked !== true) {
             _startBoxRotationGesture(ann);
         }
     }
@@ -1620,6 +1800,7 @@ function _handleTouchUp(e) {
 function _startBoxRotationGesture(ann) {
     const touches = Array.from(_activeTouches.values());
     _isRotatingBoxWithGesture = true;
+    state.isRotatingBoxGesture = true;
     _boxGestureStartAngle = Math.atan2(
         touches[1].y - touches[0].y,
         touches[1].x - touches[0].x
@@ -1654,6 +1835,7 @@ function _updateBoxRotationGesture() {
 
 function _endBoxRotationGesture() {
     _isRotatingBoxWithGesture = false;
+    state.isRotatingBoxGesture = false;
     state.selectedBoxAnnotation = null;
     state.controls.enabled = true;
 }

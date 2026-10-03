@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 // ============ Version ============
-export const APP_VERSION = '1.5.1';
+export const APP_VERSION = '1.6.0';
 
 // ============ Application State ============
 export const state = {
@@ -46,6 +46,8 @@ export const state = {
     bvhAvailable: false,        // Whether BVH acceleration is available for current model
     loadedModelFiles: [],       // Original File objects for model export
     modelHash: null,            // SHA-256 hex of the primary model file (for annotation/model binding)
+    modelHashPending: false,    // true while that hash is being computed (null hash = not known yet)
+    modelFrameOrigin: null,     // Centring offset {x, y, z} in the Z-up export frame (exported + origin = model scene coords)
 
     // UI Multipliers
     // Marker size is split by marker class so each can be tuned on its own —
@@ -90,8 +92,18 @@ export const state = {
     platePdfDpi: 300,           // Render resolution for the PDF plate
     plateCellShape: 'net',      // 'net' = per-face cells (tight), 'uniform' = equal cells
 
+    // Survey import settings (meshnotes_survey* keys). Read from state when
+    // used, never copied at init: the settings are restored after init().
+    // Distances are in metres.
+    surveyLockImported: true,   // imported points start locked
+    surveyLabelsOffAbove: 50,   // hide an import's labels above this many points (0 = never)
+    surveySurfaceWarn: 0.10,    // flag points whose fitted position is farther from the surface
+    surveySurfaceLimit: 0.5,    // default distance limit of the selection step
+    surveyResidualWarn: 0.05,   // residual warning of the fit
+    surveyPdfSummary: true,     // the PDF report prints an alignment summary section
+
     // Tools
-    currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure'
+    currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure', 'survey-pick' (picking panel open)
     tempPoints: [],
     tempProjectedEdges: [],
     tempLine: null,
@@ -112,6 +124,9 @@ export const state = {
     // Data
     groups: [],
     annotations: [],
+    alignments: [],             // Survey alignments of this model (exported and autosaved)
+    defaultAlignmentId: null,   // Internal id of the alignment preselected for imports (exported)
+    surveySession: null,        // Control-point picking in progress (never saved); shape in survey/ui-alignment.js
     selectedAnnotation: null,
     editingAnnotation: null,
 
@@ -148,6 +163,7 @@ export const state = {
     // Box annotation
     selectedBoxAnnotation: null,
     isManipulatingBox: false,
+    isRotatingBoxGesture: false,  // two-finger box rotation in progress (touch)
     boxManipulationMode: null,
     boxDragStartMouse: null,
     boxDragStartData: null,
@@ -162,6 +178,11 @@ export const state = {
 
     // Three.js annotation objects
     annotationObjects: new THREE.Group(),
+
+    // Survey picking overlays (pick and preview markers, residual lines),
+    // drawn by survey/ui-alignment.js. A group of its own, so
+    // renderAnnotations() never clears it; added to the scene in main.js.
+    surveyOverlay: new THREE.Group(),
 
     // Anchor point (display coords) per annotation id, filled by
     // renderAnnotations(). Used to position the selection callout; it is the
@@ -249,6 +270,8 @@ export function initDomReferences() {
     dom.exportDropdown = document.getElementById('export-dropdown');
     dom.exportDropdownMenu = document.getElementById('export-dropdown-menu');
     dom.btnImport = document.getElementById('btn-import');
+    dom.btnImportSurvey = document.getElementById('btn-import-survey');
+    dom.surveyCsvInput = document.getElementById('survey-csv-input');
     dom.btnShare = document.getElementById('btn-share');
     dom.btnAddGroup = document.getElementById('btn-add-group');
 
@@ -272,6 +295,10 @@ export function initDomReferences() {
     dom.btnSaveInlineGroup = document.getElementById('btn-save-inline-group');
     dom.surfaceProjectionToggle = document.getElementById('surface-projection-toggle');
     dom.annSurfaceProjection = document.getElementById('ann-surface-projection');
+    dom.annLockedRow = document.getElementById('ann-locked-row');
+    dom.annLocked = document.getElementById('ann-locked');
+    dom.annLockedHint = document.getElementById('ann-locked-hint');
+    dom.annSurveyBlock = document.getElementById('ann-survey-block');
     dom.annDescription = document.getElementById('ann-description');
     dom.annAuthor = document.getElementById('ann-author');
     dom.annLinks = document.getElementById('ann-links');
@@ -326,6 +353,139 @@ export function initDomReferences() {
     dom.btnGroupSave = document.getElementById('btn-group-save');
     dom.btnGroupCancel = document.getElementById('btn-group-cancel');
     dom.btnGroupDelete = document.getElementById('btn-group-delete');
+    dom.groupLabelsVisible = document.getElementById('group-labels-visible');
+
+    // Group delete dialog (move or delete the group's annotations)
+    dom.groupDeleteOverlay = document.getElementById('group-delete-overlay');
+    dom.groupDeleteMessage = document.getElementById('group-delete-message');
+    dom.groupDeleteTarget = document.getElementById('group-delete-target');
+    dom.groupDeleteCancel = document.getElementById('group-delete-cancel');
+    dom.groupDeleteAnnotations = document.getElementById('group-delete-annotations');
+    dom.groupDeleteMove = document.getElementById('group-delete-move');
+
+    // Survey CSV import: column mapping dialog (Step A)
+    dom.surveyMappingOverlay = document.getElementById('survey-mapping-overlay');
+    dom.surveyMappingFile = document.getElementById('survey-mapping-file');
+    dom.surveyMappingClose = document.getElementById('survey-mapping-close');
+    dom.surveyMappingEncoding = document.getElementById('survey-mapping-encoding');
+    dom.surveyMappingDelimiter = document.getElementById('survey-mapping-delimiter');
+    dom.surveyMappingDecimal = document.getElementById('survey-mapping-decimal');
+    dom.surveyMappingHeader = document.getElementById('survey-mapping-header');
+    dom.surveyMappingCounts = document.getElementById('survey-mapping-counts');
+    dom.surveyMappingPreview = document.getElementById('survey-mapping-preview');
+    dom.surveyMappingPreset = document.getElementById('survey-mapping-preset');
+    dom.surveyMapName = document.getElementById('survey-map-name');
+    dom.surveyMapEasting = document.getElementById('survey-map-easting');
+    dom.surveyMapNorthing = document.getElementById('survey-map-northing');
+    dom.surveyMapHeight = document.getElementById('survey-map-height');
+    dom.surveyMapDescription = document.getElementById('survey-map-description');
+    dom.surveyMapCode = document.getElementById('survey-map-code');
+    dom.surveyMappingExtrasHint = document.getElementById('survey-mapping-extras-hint');
+    dom.surveyMappingExtras = document.getElementById('survey-mapping-extras');
+    dom.surveyMappingTarget = document.getElementById('survey-mapping-target');
+    dom.surveyMappingGroup = document.getElementById('survey-mapping-group');
+    dom.surveyMappingTargetInfo = document.getElementById('survey-mapping-target-info');
+    dom.surveyMappingNewFields = document.getElementById('survey-mapping-new-fields');
+    dom.surveyMappingNewName = document.getElementById('survey-mapping-new-name');
+    dom.surveyMappingNewCrs = document.getElementById('survey-mapping-new-crs');
+    dom.surveyMappingIssues = document.getElementById('survey-mapping-issues');
+    dom.surveyMappingCancel = document.getElementById('survey-mapping-cancel');
+    dom.surveyMappingContinue = document.getElementById('survey-mapping-continue');
+
+    // Survey CSV import: selection step and summary (Step D)
+    dom.surveySelectOverlay = document.getElementById('survey-select-overlay');
+    dom.surveySelectSubtitle = document.getElementById('survey-select-subtitle');
+    dom.surveySelectClose = document.getElementById('survey-select-close');
+    dom.surveySelectSummary = document.getElementById('survey-select-summary');
+    dom.surveySelectLimit = document.getElementById('survey-select-limit');
+    dom.surveySelectProgress = document.getElementById('survey-select-progress');
+    dom.surveySelectNomatch = document.getElementById('survey-select-nomatch');
+    dom.surveySelectNomatchText = document.getElementById('survey-select-nomatch-text');
+    dom.surveySelectSwap = document.getElementById('survey-select-swap');
+    dom.surveySelectNewAlignment = document.getElementById('survey-select-new-alignment');
+    dom.surveySelectRemap = document.getElementById('survey-select-remap');
+    dom.surveySelectShowRows = document.getElementById('survey-select-show-rows');
+    dom.surveySelectTableWrap = document.getElementById('survey-select-table-wrap');
+    dom.surveySelectAll = document.getElementById('survey-select-all');
+    dom.surveySelectRows = document.getElementById('survey-select-rows');
+    dom.surveySelectBack = document.getElementById('survey-select-back');
+    dom.surveySelectCancel = document.getElementById('survey-select-cancel');
+    dom.surveySelectImportAll = document.getElementById('survey-select-import-all');
+    dom.surveySelectImport = document.getElementById('survey-select-import');
+    dom.surveySummaryOverlay = document.getElementById('survey-summary-overlay');
+    dom.surveySummarySubtitle = document.getElementById('survey-summary-subtitle');
+    dom.surveySummaryClose = document.getElementById('survey-summary-close');
+    dom.surveySummaryFigures = document.getElementById('survey-summary-figures');
+    dom.surveySummaryDetails = document.getElementById('survey-summary-details');
+    dom.surveySummaryCopy = document.getElementById('survey-summary-copy');
+    dom.surveySummaryOk = document.getElementById('survey-summary-ok');
+
+    // Survey CSV import: picking panel (Step B) and review (Step C)
+    dom.surveyPickPanel = document.getElementById('survey-pick-panel');
+    dom.surveyPickHeader = document.getElementById('survey-pick-header');
+    dom.surveyPickTitle = document.getElementById('survey-pick-title');
+    dom.surveyPickSubtitle = document.getElementById('survey-pick-subtitle');
+    dom.surveyPickClose = document.getElementById('survey-pick-close');
+    dom.surveyPickInstructions = document.getElementById('survey-pick-instructions');
+    dom.surveyPickSearch = document.getElementById('survey-pick-search');
+    dom.surveyPickCounts = document.getElementById('survey-pick-counts');
+    dom.surveyPickRows = document.getElementById('survey-pick-rows');
+    dom.surveyPickSelected = document.getElementById('survey-pick-selected');
+    dom.surveyPickSelectedText = document.getElementById('survey-pick-selected-text');
+    dom.surveyPickAnnotation = document.getElementById('survey-pick-annotation');
+    dom.surveyPickIssues = document.getElementById('survey-pick-issues');
+    dom.surveyPickFit = document.getElementById('survey-pick-fit');
+    dom.surveyPickLevel = document.getElementById('survey-pick-level');
+    dom.surveyPickLevelHint = document.getElementById('survey-pick-level-hint');
+    dom.surveyPickUndo = document.getElementById('survey-pick-undo');
+    dom.surveyPickCancel = document.getElementById('survey-pick-cancel');
+    dom.surveyPickReview = document.getElementById('survey-pick-review');
+    dom.surveyReviewOverlay = document.getElementById('survey-review-overlay');
+    dom.surveyReviewSubtitle = document.getElementById('survey-review-subtitle');
+    dom.surveyReviewClose = document.getElementById('survey-review-close');
+    dom.surveyReviewVerdict = document.getElementById('survey-review-verdict');
+    dom.surveyReviewFigures = document.getElementById('survey-review-figures');
+    dom.surveyReviewLevel = document.getElementById('survey-review-level');
+    dom.surveyReviewCompare = document.getElementById('survey-review-compare');
+    dom.surveyReviewLevelHint = document.getElementById('survey-review-level-hint');
+    dom.surveyReviewIssues = document.getElementById('survey-review-issues');
+    dom.surveyReviewRows = document.getElementById('survey-review-rows');
+    dom.surveyReviewBack = document.getElementById('survey-review-back');
+    dom.surveyReviewCancel = document.getElementById('survey-review-cancel');
+    dom.surveyReviewAccept = document.getElementById('survey-review-accept');
+
+    // Survey alignments: status chip, Alignment Manager, refine preview,
+    // delete dialog and the read-only control-point view
+    dom.alignmentChip = document.getElementById('alignment-chip');
+    dom.alignmentManagerOverlay = document.getElementById('alignment-manager-overlay');
+    dom.alignmentManagerSubtitle = document.getElementById('alignment-manager-subtitle');
+    dom.alignmentManagerClose = document.getElementById('alignment-manager-close');
+    dom.alignmentManagerEmpty = document.getElementById('alignment-manager-empty');
+    dom.alignmentManagerList = document.getElementById('alignment-manager-list');
+    dom.alignmentManagerOk = document.getElementById('alignment-manager-ok');
+    dom.alignmentRefineOverlay = document.getElementById('alignment-refine-overlay');
+    dom.alignmentRefineSubtitle = document.getElementById('alignment-refine-subtitle');
+    dom.alignmentRefineClose = document.getElementById('alignment-refine-close');
+    dom.alignmentRefineText = document.getElementById('alignment-refine-text');
+    dom.alignmentRefineFigures = document.getElementById('alignment-refine-figures');
+    dom.alignmentRefineManual = document.getElementById('alignment-refine-manual');
+    dom.alignmentRefineProgress = document.getElementById('alignment-refine-progress');
+    dom.alignmentRefineKeep = document.getElementById('alignment-refine-keep');
+    dom.alignmentRefineMove = document.getElementById('alignment-refine-move');
+    dom.alignmentDeleteOverlay = document.getElementById('alignment-delete-overlay');
+    dom.alignmentDeleteMessage = document.getElementById('alignment-delete-message');
+    dom.alignmentDeleteDialogClose = document.getElementById('alignment-delete-dialog-close');
+    dom.alignmentDeleteCancel = document.getElementById('alignment-delete-cancel');
+    dom.alignmentDeletePoints = document.getElementById('alignment-delete-points');
+    dom.alignmentDeleteDetach = document.getElementById('alignment-delete-detach');
+    dom.alignmentViewPanel = document.getElementById('alignment-view-panel');
+    dom.alignmentViewSubtitle = document.getElementById('alignment-view-subtitle');
+    dom.alignmentViewClose = document.getElementById('alignment-view-close');
+    dom.alignmentViewVerdict = document.getElementById('alignment-view-verdict');
+    dom.alignmentViewFigures = document.getElementById('alignment-view-figures');
+    dom.alignmentViewIssues = document.getElementById('alignment-view-issues');
+    dom.alignmentViewRows = document.getElementById('alignment-view-rows');
+    dom.alignmentViewBack = document.getElementById('alignment-view-back');
 
     // Sidebar
     dom.groupsContainer = document.getElementById('groups-container');
@@ -421,6 +581,12 @@ export function initDomReferences() {
     dom.settingsPlatePngWidth = document.getElementById('settings-plate-png-width');
     dom.settingsPlatePdfDpi = document.getElementById('settings-plate-pdf-dpi');
     dom.settingsPlateCellShape = document.getElementById('settings-plate-cell-shape');
+    dom.settingsSurveyLockImported = document.getElementById('settings-survey-lock-imported');
+    dom.settingsSurveyLabelsOffAbove = document.getElementById('settings-survey-labels-off-above');
+    dom.settingsSurveyResidualWarn = document.getElementById('settings-survey-residual-warn');
+    dom.settingsSurveySurfaceWarn = document.getElementById('settings-survey-surface-warn');
+    dom.settingsSurveySurfaceLimit = document.getElementById('settings-survey-surface-limit');
+    dom.settingsSurveyPdfSummary = document.getElementById('settings-survey-pdf-summary');
     
     // Camera toggle and flip toggle (now in sliders panel)
     dom.cameraToggle = document.getElementById('camera-toggle');

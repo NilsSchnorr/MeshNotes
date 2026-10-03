@@ -289,6 +289,161 @@ All geometric coordinates in this format — within selectors and their embedded
 The format is deliberately open. A conforming consumer <span class="rfc">must</span> ignore members it does not recognise rather than reject the document, and <span class="rfc">should</span> preserve them on round-trip where feasible. Within version 1, MeshNotes <span class="rfc">may</span> add further <em>optional</em> members (in the <code>meshnotes:</code> namespace, or as context-aliased plain keys) without a version bump; it will not add new required members, remove members, or change the meaning of an existing member within version 1. The accompanying JSON Schema (§12) is correspondingly lenient: it validates the required core and the shape of known members, and permits additional properties.
 </p>
 
+<h3>10.1 Survey alignments and surveyed positions (added 2026-10-04)</h3>
+<p>
+This subsection was added on 2026-10-04 under the rule of §10. It describes the optional members that MeshNotes 1.6 and later write for survey points imported from a CSV file and placed on the model by a control-point alignment, together with three optional state flags (annotation lock, group label visibility, group collapse) and the model's centring offset. Every member is optional and is omitted when there is nothing to record. None of them is required, none changes the meaning of an existing member, and the selector ([SEL]) is untouched: each annotation's position on the model is still given only by its <code>target.selector</code>. A consumer that does not know these members ignores them (§10) and still places every annotation correctly.
+</p>
+
+<h4>Where the members appear</h4>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>meshnotes:alignments</code></td><td><span class="opt">may</span></td><td>array</td><td>On the collection (§3), after <code>meshnotes:groups</code>: the survey alignments of the model, each a <code>meshnotes:SurveyAlignment</code> node (below).</td></tr>
+  <tr><td><code>meshnotes:defaultAlignment</code></td><td><span class="opt">may</span></td><td>IRI</td><td>On the collection: the <code>id</code> of one of the listed alignments, preselected by the producer for new imports.</td></tr>
+  <tr><td><code>meshnotes:frameOrigin</code></td><td><span class="opt">may</span></td><td>string</td><td>On <code>modelSource</code> (§4): the offset by which the producer centred the loaded model, as WKT <code>POINT Z (x y z)</code> in the exported Z-up frame. An exported coordinate plus <code>frameOrigin</code> gives the position in the model's coordinates as loaded (after any node transforms of the file and the up-axis conversion, expressed Z-up). It is a shift only: when the model file contains node rotations or scales, it does not by itself lead back to the file's raw vertex coordinates. Informative; MeshNotes does not read it on import.</td></tr>
+  <tr><td><code>meshnotes:labelsVisible</code></td><td><span class="opt">may</span></td><td>boolean</td><td>On a group (§7): <code>false</code> when the name labels of the group's annotations are hidden in the 3D view. Written only as <code>false</code>; absence means labels shown.</td></tr>
+  <tr><td><code>meshnotes:collapsed</code></td><td><span class="opt">may</span></td><td>boolean</td><td>On a group (§7): <code>true</code> when the group's list is collapsed in the producer's sidebar. Written only as <code>true</code>; absence means expanded.</td></tr>
+  <tr><td><code>meshnotes:locked</code></td><td><span class="opt">may</span></td><td>boolean</td><td>On an annotation (§5), next to <code>annotationType</code>, for any annotation type: <code>true</code> when the annotation's position is locked against editing in the producer. Written only as <code>true</code>; absence means unlocked. It does not affect the geometry.</td></tr>
+  <tr><td><code>meshnotes:surveyedPosition</code></td><td><span class="opt">may</span></td><td>object</td><td>On a point annotation (§5), next to <code>annotationType</code>: the surveyed coordinate of a point imported from a survey file, a <code>meshnotes:SurveyedPosition</code> node (below).</td></tr>
+</table>
+
+<h4>Frame convention</h4>
+<p>
+An alignment maps a point <code>p = [x, y, z]</code> in the exported coordinate frame — the Z-up frame whose numbers are written as <code>meshnotes:wkt</code> ([SEL] §3), i.e. the model's local frame — to survey coordinates <code>[E, N, H]</code> (Easting, Northing, Height):
+</p>
+<pre><code>survey = R · p + t</code></pre>
+<p>
+<code>R</code> is the rotation given by the unit quaternion <code>meshnotes:rotation</code> in the order <code>[x, y, z, w]</code>, the same component order as the box selector's <code>meshnotes:rotation</code> in [SEL]; it rotates the model axes into the survey axes. <code>t</code> is <code>meshnotes:translation</code>, <code>[E, N, H]</code>. The inverse is <code>p = Rᵀ · (survey − t)</code>; a consumer <span class="rfc">should</span> perform the subtraction first, in double precision, because survey coordinates are large (e.g. seven-digit UTM northings). The fit is rigid: there is no scale, so the alignment assumes that the model is at true scale in the survey's units. Survey coordinates are metric and projected; they are named Easting, Northing and Height rather than written as <code>geo:asWKT</code>, because a GeoSPARQL literal must follow its coordinate system's own axis order. Residuals are <code>[dE, dN, dH]</code> = surveyed minus fitted position, in the survey's units (metres).
+</p>
+<p class="note">The alignment does not georeference the model in the sense of [SEL] §3.3. Its <code>meshnotes:crsLabel</code> is a free-text label entered by the user (e.g. <code>"EPSG:32635"</code>); it is not an IRI, is not validated, and is <strong>not</strong> <code>modelSource</code>'s <code>meshnotes:crs</code> (§4). It never governs the georeferenced selector form, and selectors stay in the model's local frame.</p>
+
+<h4>SurveyAlignment</h4>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">should</span></td><td>IRI</td><td><code>urn:meshnotes:alignment:{uuid}</code>. Persistent; the value referenced by <code>meshnotes:defaultAlignment</code> and <code>meshnotes:alignment</code>, and the merge key.</td></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"meshnotes:SurveyAlignment"</code>.</td></tr>
+  <tr><td><code>schema:name</code></td><td><span class="opt">may</span></td><td>string</td><td>Alignment name.</td></tr>
+  <tr><td><code>meshnotes:crsLabel</code></td><td><span class="opt">may</span></td><td>string</td><td>Free-text label of the survey's coordinate system (see the note above). Absence means unspecified.</td></tr>
+  <tr><td><code>meshnotes:heightColumn</code></td><td><span class="opt">may</span></td><td>string</td><td>Header of the CSV column the heights were taken from (e.g. <code>"Elevation"</code>).</td></tr>
+  <tr><td><code>meshnotes:modelSha256</code></td><td><span class="opt">may</span></td><td>string</td><td>SHA-256 hex digest of the model file the alignment was made on (cf. <code>modelSource.schema:sha256</code>). A consumer <span class="rfc">may</span> warn when it differs from the current model's digest.</td></tr>
+  <tr><td><code>meshnotes:modelUpAxis</code></td><td><span class="opt">may</span></td><td>string</td><td><code>"y-up"</code> or <code>"z-up"</code>: the up-axis the model was loaded with when the alignment was made (glTF files are always <code>"y-up"</code>).</td></tr>
+  <tr><td><code>meshnotes:fitType</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"rigid6"</code> (rotation about all axes plus shift) or <code>"level4"</code> (rotation about the vertical axis only, plus shift). Absence means <code>"rigid6"</code>.</td></tr>
+  <tr><td><code>meshnotes:rotation</code></td><td><span class="rfc">must</span></td><td>array</td><td>Unit quaternion <code>[x, y, z, w]</code>, model to survey (list order significant).</td></tr>
+  <tr><td><code>meshnotes:translation</code></td><td><span class="rfc">must</span></td><td>array</td><td><code>[E, N, H]</code> (list order significant).</td></tr>
+  <tr><td><code>meshnotes:quality</code></td><td><span class="opt">may</span></td><td>object</td><td>Fit figures; see the table below.</td></tr>
+  <tr><td><code>meshnotes:controlPoints</code></td><td><span class="opt">may</span></td><td>array</td><td>The control points the fit was made from, frozen copies of the CSV rows and picks; see the table below.</td></tr>
+  <tr><td><code>created</code>, <code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>Creation, and the latest change (a refit or a rename).</td></tr>
+  <tr><td><code>creator</code></td><td><span class="opt">may</span></td><td>object</td><td>Who made the alignment; same shape as §6.1.</td></tr>
+  <tr><td><code>meshnotes:alignmentVersions</code></td><td><span class="opt">may</span></td><td>array</td><td>Earlier fits of the same alignment, oldest first, kept when it is refined or re-made. Each element has <code>meshnotes:fitType</code>, <code>meshnotes:rotation</code>, <code>meshnotes:translation</code>, <code>meshnotes:quality</code> and <code>meshnotes:controlPoints</code> as above, plus <code>created</code> (when that fit was made) and <code>modified</code> (when it was replaced). Versions record no model binding of their own.</td></tr>
+</table>
+<p>A consumer <span class="rfc">should</span> ignore a <code>meshnotes:SurveyAlignment</code> node without a usable <code>meshnotes:rotation</code> or <code>meshnotes:translation</code>.</p>
+
+<table>
+  <tr><th>Member of <code>meshnotes:quality</code></th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>meshnotes:controlPointCount</code></td><td><span class="opt">may</span></td><td>integer</td><td>Number of enabled control points used in the fit.</td></tr>
+  <tr><td><code>meshnotes:rms</code>, <code>meshnotes:rmsHorizontal</code>, <code>meshnotes:rmsVertical</code></td><td><span class="opt">may</span></td><td>number</td><td>Root mean square of the residuals in 3D, in E/N and in H.</td></tr>
+  <tr><td><code>meshnotes:maxResidual</code></td><td><span class="opt">may</span></td><td>number</td><td>Largest residual length.</td></tr>
+  <tr><td><code>meshnotes:scaleDiagnostic</code></td><td><span class="opt">may</span></td><td>number</td><td>Ratio of the spread of the survey points to that of the model points. A check only; it is never applied (a model in millimetres reads about 0.001).</td></tr>
+  <tr><td><code>meshnotes:tiltDeg</code></td><td><span class="opt">may</span></td><td>number</td><td>Angle in degrees between the +Z axis of the exported frame, rotated by <code>R</code>, and the survey's vertical.</td></tr>
+  <tr><td><code>meshnotes:headingDeg</code></td><td><span class="opt">may</span></td><td>number</td><td>Azimuth in degrees, clockwise from survey north, of the +Y axis of the exported frame, rotated by <code>R</code>; from 0 up to 360.</td></tr>
+</table>
+<p>Warnings and verdicts are not stored; a consumer that needs them recomputes them from the control points.</p>
+
+<table>
+  <tr><th>Member of a control point</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>schema:name</code></td><td><span class="opt">may</span></td><td>string</td><td>Name of the CSV row.</td></tr>
+  <tr><td><code>meshnotes:row</code></td><td><span class="opt">may</span></td><td>integer</td><td>Row number in the CSV file, counted as in a spreadsheet (the header row is 1).</td></tr>
+  <tr><td><code>meshnotes:enabled</code></td><td><span class="opt">may</span></td><td>boolean</td><td><code>false</code> when the point is kept but left out of the fit. Absence means <code>true</code>.</td></tr>
+  <tr><td><code>meshnotes:modelPosition</code></td><td><span class="rfc">must</span></td><td>string</td><td>The picked position on the model, WKT <code>POINT Z (x y z)</code> in the exported Z-up frame.</td></tr>
+  <tr><td><code>meshnotes:easting</code>, <code>meshnotes:northing</code>, <code>meshnotes:height</code></td><td><span class="rfc">must</span></td><td>number</td><td>The surveyed coordinate of the row.</td></tr>
+  <tr><td><code>meshnotes:residual</code></td><td><span class="opt">may</span></td><td>array</td><td><code>[dE, dN, dH]</code>, surveyed minus fitted (list order significant). For a disabled point, its prediction error.</td></tr>
+  <tr><td><code>meshnotes:looError</code></td><td><span class="opt">may</span></td><td>number</td><td>Leave-one-out error: the point's error when the fit is made without it. Absent with fewer than four enabled points and for disabled points.</td></tr>
+  <tr><td><code>dcterms:source</code></td><td><span class="opt">may</span></td><td>object</td><td><code>{ "id": "urn:meshnotes:annotation:{uuid}" }</code> when the pick took the position of an existing annotation. That annotation may have changed or been deleted since; the control point keeps its own copy.</td></tr>
+</table>
+<p>A consumer <span class="rfc">should</span> skip a control point without a usable <code>meshnotes:modelPosition</code> or surveyed coordinate.</p>
+
+<h4>SurveyedPosition</h4>
+<p>
+A point annotation imported from a survey file keeps its surveyed coordinate beside its geometry. Its selector holds its position on the model: the surface point nearest to its fitted position (<code>Rᵀ · (survey − t)</code> of its alignment), the fitted position itself when the producer could not query the surface (<code>meshnotes:surfaceDistance</code> is then absent), or the position it was moved to by hand. The fitted position is not stored separately; it can be recomputed from the surveyed coordinate and the alignment.
+</p>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>type</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"meshnotes:SurveyedPosition"</code>.</td></tr>
+  <tr><td><code>meshnotes:alignment</code></td><td><span class="opt">may</span></td><td>IRI</td><td>The <code>id</code> of the alignment in <code>meshnotes:alignments</code> that placed the point. Absent when the point is detached from any alignment; the surveyed coordinate is kept.</td></tr>
+  <tr><td><code>meshnotes:easting</code>, <code>meshnotes:northing</code>, <code>meshnotes:height</code></td><td><span class="rfc">must</span></td><td>number</td><td>The surveyed coordinate.</td></tr>
+  <tr><td><code>meshnotes:rawValues</code></td><td><span class="opt">may</span></td><td>object</td><td>The three coordinate cells verbatim as strings, keyed by their CSV column headers, written in E, N, H order. A JSON literal; a consumer <span class="rfc">should not</span> rely on key order (JSON processors may reorder keys).</td></tr>
+  <tr><td><code>meshnotes:attributes</code></td><td><span class="opt">may</span></td><td>object</td><td>Further CSV columns the user chose to keep, keyed by header, values as strings (e.g. accuracy values, solution status, a point code). A JSON literal.</td></tr>
+  <tr><td><code>meshnotes:placement</code></td><td><span class="opt">may</span></td><td>string</td><td><code>"fit"</code> (placed by the alignment) or <code>"manual"</code> (moved by hand afterwards; a refit of the alignment does not move it). Absence means <code>"fit"</code>.</td></tr>
+  <tr><td><code>meshnotes:surfaceDistance</code></td><td><span class="opt">may</span></td><td>number</td><td>Signed distance from the fitted position to the nearest surface point: positive on the side the nearest face's normal points to, negative on the other. Absent when it was not measured. Its sign depends on consistent face normals.</td></tr>
+  <tr><td><code>dcterms:source</code></td><td><span class="opt">may</span></td><td>object</td><td>The source file: <code>{ "schema:name": file name, "schema:sha256": SHA-256 hex digest of the file's bytes, "meshnotes:row": row number }</code>, the row counted as for control points.</td></tr>
+</table>
+<p>The time of the import is not stored separately; it is the annotation's <code>created</code>.</p>
+
+<h4>Example</h4>
+<pre><code>"meshnotes:alignments": [{
+  "id": "urn:meshnotes:alignment:b0c2…",
+  "type": "meshnotes:SurveyAlignment",
+  "schema:name": "Trench 3, UTM 35N",
+  "meshnotes:crsLabel": "EPSG:32635",
+  "meshnotes:heightColumn": "Elevation",
+  "meshnotes:modelSha256": "9f2c…",
+  "meshnotes:modelUpAxis": "y-up",
+  "meshnotes:fitType": "rigid6",
+  "meshnotes:rotation": [0.0012, -0.0021, 0.3173, 0.9483],
+  "meshnotes:translation": [512301.418, 4123420.092, 58.221],
+  "meshnotes:quality": {
+    "meshnotes:controlPointCount": 5, "meshnotes:rms": 0.021,
+    "meshnotes:rmsHorizontal": 0.015, "meshnotes:rmsVertical": 0.014,
+    "meshnotes:maxResidual": 0.034, "meshnotes:scaleDiagnostic": 1.0003,
+    "meshnotes:tiltDeg": 0.28, "meshnotes:headingDeg": 323.0 },
+  "meshnotes:controlPoints": [{
+    "schema:name": "GCP1", "meshnotes:row": 2, "meshnotes:enabled": true,
+    "meshnotes:modelPosition": "POINT Z (-8.412 3.115 -1.204)",
+    "meshnotes:easting": 512292.837, "meshnotes:northing": 4123417.511,
+    "meshnotes:height": 56.986,
+    "meshnotes:residual": [0.008, -0.011, 0.006],
+    "meshnotes:looError": 0.019 }, … ],
+  "created": "2026-10-02T09:00:00.000Z", "modified": "2026-10-03T14:20:00.000Z",
+  "creator": { "type": "Person", "name": "…" },
+  "meshnotes:alignmentVersions": [ … ]
+}],
+"meshnotes:defaultAlignment": "urn:meshnotes:alignment:b0c2…"</code></pre>
+<pre><code>{
+  "type": "Annotation",
+  "id": "urn:meshnotes:annotation:5e7d…",
+  "annotationType": "point",
+  "meshnotes:locked": true,
+  "meshnotes:surveyedPosition": {
+    "type": "meshnotes:SurveyedPosition",
+    "meshnotes:alignment": "urn:meshnotes:alignment:b0c2…",
+    "meshnotes:easting": 512345.123,
+    "meshnotes:northing": 4123456.789,
+    "meshnotes:height": 62.345,
+    "meshnotes:rawValues": { "Easting": "512345.123", "Northing": "4123456.789", "Elevation": "62.345" },
+    "meshnotes:attributes": { "Code": "GCP", "Solution status": "FIX" },
+    "meshnotes:placement": "fit",
+    "meshnotes:surfaceDistance": -0.023,
+    "dcterms:source": { "schema:name": "trench3.csv", "schema:sha256": "…", "meshnotes:row": 12 }
+  },
+  "target": { … },
+  "body": [ … ]
+}</code></pre>
+
+<h4>Terms and context</h4>
+<p>
+New terms in the <code>meshnotes:</code> namespace (§11): <code>SurveyAlignment</code>, <code>SurveyedPosition</code>, <code>alignments</code>, <code>defaultAlignment</code>, <code>frameOrigin</code>, <code>crsLabel</code>, <code>heightColumn</code>, <code>modelSha256</code>, <code>modelUpAxis</code>, <code>fitType</code>, <code>translation</code>, <code>quality</code>, <code>controlPointCount</code>, <code>rms</code>, <code>rmsHorizontal</code>, <code>rmsVertical</code>, <code>maxResidual</code>, <code>scaleDiagnostic</code>, <code>tiltDeg</code>, <code>headingDeg</code>, <code>controlPoints</code>, <code>enabled</code>, <code>modelPosition</code>, <code>residual</code>, <code>looError</code>, <code>alignmentVersions</code>, <code>surveyedPosition</code>, <code>alignment</code>, <code>easting</code>, <code>northing</code>, <code>height</code>, <code>rawValues</code>, <code>attributes</code>, <code>placement</code>, <code>surfaceDistance</code>, <code>row</code>, <code>locked</code>, <code>labelsVisible</code>, <code>collapsed</code>. The existing term <code>meshnotes:rotation</code> is reused with the meaning of [SEL]; <code>id</code>, <code>type</code>, <code>created</code>, <code>modified</code>, <code>creator</code>, <code>schema:name</code>, <code>schema:sha256</code> and <code>dcterms:source</code> are existing vocabulary.
+</p>
+<p>
+The JSON-LD context gained additive term definitions only; no existing definition changed: <code>meshnotes:translation</code> and <code>meshnotes:residual</code> are ordered lists (<code>"@container": "@list"</code>, as <code>meshnotes:rotation</code> already was), <code>meshnotes:alignment</code> and <code>meshnotes:defaultAlignment</code> are node references (<code>"@type": "@id"</code>), and <code>meshnotes:rawValues</code> and <code>meshnotes:attributes</code> are JSON literals (<code>"@type": "@json"</code>, which requires JSON-LD 1.1 processing). The other new terms need no definition: they expand through the <code>meshnotes:</code> prefix. The JSON Schema (§12) is unchanged; it already permits these members.
+</p>
+
+<h4>Compatibility</h4>
+<ul>
+  <li>A consumer that ignores these members reads every annotation, including imported survey points, at its correct position, because the selectors are unchanged.</li>
+  <li>MeshNotes versions before 1.6 load such files with all annotations in place. They ignore the alignments, surveyed positions, locks, group flags and frame origin, and drop them when the file is exported again.</li>
+  <li>Files without these members are read by MeshNotes 1.6 as before.</li>
+  <li>When MeshNotes merges two files (informative), alignments are matched by <code>id</code>; the copy with the later <code>modified</code> wins, the other fit is kept in <code>meshnotes:alignmentVersions</code>, and survey points with <code>meshnotes:placement</code> <code>"fit"</code> follow the winning alignment.</li>
+</ul>
+
 <h2>11. Versioning policy</h2>
 <p>
 The term namespace <code>https://meshnotes.org/ns/</code> is unversioned and append-only: identifiers, once published, keep their meaning permanently, and new terms are only ever added. This specification, its JSON Schema, the companion JSON-LD context and the selector specification are versioned and frozen: a breaking change is published at a new version path and the prior version remains resolvable indefinitely, so that files referencing it continue to validate.

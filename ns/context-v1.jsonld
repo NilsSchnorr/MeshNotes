@@ -19,6 +19,13 @@
     "metadata": "meshnotes:metadata",
 
     "meshnotes:rotation": { "@container": "@list" },
-    "meshnotes:faces": { "@container": "@set" }
+    "meshnotes:faces": { "@container": "@set" },
+
+    "meshnotes:translation": { "@container": "@list" },
+    "meshnotes:residual": { "@container": "@list" },
+    "meshnotes:alignment": { "@type": "@id" },
+    "meshnotes:defaultAlignment": { "@type": "@id" },
+    "meshnotes:rawValues": { "@type": "@json" },
+    "meshnotes:attributes": { "@type": "@json" }
   }
 }

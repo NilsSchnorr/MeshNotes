@@ -1,8 +1,8 @@
 // js/core/session-persistence.js
 // Automatic crash / eviction recovery for in-progress annotation work.
 //
-// MeshNotes keeps the working set (annotations, groups, model info, metadata)
-// in memory. On iPadOS in particular, Safari and home-screen web apps are
+// MeshNotes keeps the working set (annotations, groups, survey alignments,
+// model info, metadata) in memory. On iPadOS in particular, Safari and home-screen web apps are
 // discarded from memory when backgrounded under memory pressure and reloaded
 // from scratch on return — silently, giving the user no chance to export. This
 // module writes the working set to IndexedDB at the moment the app is hidden
@@ -23,6 +23,7 @@ import { buildAnnotationJSON } from '../export/export-json.js';
 import { importAnnotations } from '../export/import-json.js';
 import { parseUrlParams } from './url-params.js';
 import { showStatus } from '../utils/helpers.js';
+import { PLACEMENT } from '../survey/alignment.js';
 
 // ---- IndexedDB (single store, single "current session" slot) ----------------
 // localStorage is unsuitable here: surface annotations serialize to large
@@ -87,6 +88,8 @@ function isLocalSession() {
 // Is there in-progress work worth protecting?
 function hasWork() {
     if (state.annotations.length > 0) return true;
+    // An alignment is work too, even when all its imported points are deleted.
+    if (state.alignments.length > 0) return true;
     if (state.modelInfo && state.modelInfo.entries && state.modelInfo.entries.length > 0) return true;
     const md = state.modelInfo && state.modelInfo.metadata;
     if (md && md.sections) {
@@ -101,19 +104,42 @@ function hasWork() {
 // A cheap structural + content fingerprint so the idle interval can skip
 // serializing when nothing has changed since the last save. Catches add/remove
 // of annotations, entries, and groups, plus in-place text edits (via length
-// sums) without building the full JSON. Anything it misses is still captured by
+// sums) without building the full JSON. Also the group sidebar flags (collapse,
+// labels) and the alignments: their count, each one's modified stamp (bumped by
+// a refine, a re-align or a rename) and the default. Lock toggles and moves
+// touch no timestamp, so a fold of the lock and moved-by-hand flags and a
+// weighted sum of every stored coordinate (points, box size and rotation)
+// catch them, including plain drags. Anything it misses is still captured by
 // the on-hide flush.
 function workSignature() {
-    let entries = 0, textLen = 0;
+    let entries = 0, textLen = 0, flags = 0, geometry = 0;
     for (const a of state.annotations) {
         entries += a.entries ? a.entries.length : 0;
         if (a.entries) {
             for (const e of a.entries) textLen += (e.description ? e.description.length : 0);
         }
         textLen += a.name ? a.name.length : 0;
+        const manual = !!(a.survey && a.survey.placement === PLACEMENT.MANUAL);
+        flags = (flags * 31 + (a.locked === true ? 1 : 0) + (manual ? 2 : 0)) | 0;
+        geometry += coordinateSum(a.points);
+        if (a.boxData) geometry += coordinateSum([a.boxData.size, a.boxData.rotation]);
     }
     const mi = (state.modelInfo && state.modelInfo.entries) ? state.modelInfo.entries.length : 0;
-    return [state.annotations.length, state.groups.length, entries, mi, textLen].join(':');
+    const groupFlags = state.groups.map(g => (g.collapsed ? 'c' : '') + (g.labelsVisible === false ? 'l' : '')).join(',');
+    const alignments = state.alignments.map(a => a.modified).join(',');
+    return [state.annotations.length, state.groups.length, entries, mi, textLen,
+        groupFlags, state.alignments.length, alignments, state.defaultAlignmentId,
+        flags, geometry].join(':');
+}
+
+// Weighted per axis, so a move that trades x for y still changes the sum.
+function coordinateSum(points) {
+    let sum = 0;
+    if (!points) return sum;
+    for (const p of points) {
+        if (p) sum += (p.x || 0) + 2 * (p.y || 0) + 3 * (p.z || 0);
+    }
+    return sum;
 }
 
 let _lastSavedSignature = null;
@@ -150,7 +176,8 @@ async function flush() {
 // mid-session. Skips while a tool interaction is in progress (so a large model
 // is never serialized mid-stroke) and when nothing changed since the last save.
 function flushIfIdle() {
-    if (state.isPaintingSurface || state.isDraggingPoint || state.isManipulatingBox || state.isBoxPlacementMode) return;
+    if (state.isPaintingSurface || state.isDraggingPoint || state.isManipulatingBox || state.isBoxPlacementMode ||
+        state.isRotatingBoxGesture) return;
     if (!hasWork()) return;
     if (workSignature() === _lastSavedSignature) return;
     flush();
@@ -160,12 +187,15 @@ function flushIfIdle() {
 
 // Fired (via model-loader's hash-ready hook) once a reopened model's hash is
 // known. Offers to restore an autosaved session bound to this exact model — but
-// only into a fresh workspace. If annotations are already present, nothing was
-// lost, so we stay silent.
+// only into a fresh workspace. If annotations or alignments are already present
+// (e.g. a file imported while a large model was still hashing), nothing was
+// lost, so we stay silent. A saved session that holds only alignments is
+// offered like any other; the restore brings the alignments back through the
+// normal import.
 export async function maybeOfferRestore() {
     if (!isLocalSession()) return;
     if (!state.modelHash) return;
-    if (state.annotations.length > 0) return;
+    if (state.annotations.length > 0 || state.alignments.length > 0) return;
 
     let rec = null;
     try { rec = await idbGet(SLOT); } catch (e) { return; }

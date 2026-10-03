@@ -118,6 +118,27 @@ const toolHelpContent = {
                 <div class="help-row"><span class="help-key">Scroll</span><span class="help-desc">Zoom</span></div>
             </div>
         `
+    },
+    // Survey CSV import: picking control points (the picking panel is open)
+    'survey-pick': {
+        icon: 'point',
+        name: 'Pick Control Points',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">Picking</div>
+                <div class="help-row"><span class="help-key">Pick</span><span class="help-desc">Select a row in the panel</span></div>
+                <div class="help-row"><span class="help-key">Click</span><span class="help-desc">Pick it on the model</span></div>
+                <div class="help-row"><span class="help-key">Click again</span><span class="help-desc">Replace the pick</span></div>
+                <div class="help-row"><span class="help-key">Ctrl</span><span class="help-key">Z</span><span class="help-desc">Undo last pick</span></div>
+                <div class="help-row"><span class="help-key">Esc</span><span class="help-desc">Deselect row, then discard</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation</div>
+                <div class="help-row"><span class="help-key">Left-drag</span><span class="help-desc">Rotate</span></div>
+                <div class="help-row"><span class="help-key">Right-drag</span><span class="help-desc">Pan</span></div>
+                <div class="help-row"><span class="help-key">Scroll</span><span class="help-desc">Zoom</span></div>
+            </div>
+        `
     }
     // Note: surface and measure tools use their own dedicated panels (brush-display, measurement-display)
 };
@@ -233,6 +254,26 @@ const toolHelpContentTouch = {
             </div>
             <div class="help-section" style="font-size: 10px; color: #888; margin-top: 4px;">
                 * Requires Settings → Apple Pencil → "Switch to Eraser"
+            </div>
+        `
+    },
+    // Survey CSV import: picking control points (the picking panel is open)
+    'survey-pick': {
+        icon: 'point',
+        name: 'Pick Control Points',
+        content: `
+            <div class="help-section">
+                <div class="help-section-title">Picking (stylus or finger)</div>
+                <div class="help-row"><span class="help-key">Pick</span><span class="help-desc">Select a row in the panel</span></div>
+                <div class="help-row"><span class="help-key">Tap</span><span class="help-desc">Pick it on the model</span></div>
+                <div class="help-row"><span class="help-key">Tap again</span><span class="help-desc">Replace the pick</span></div>
+                <div class="help-row"><span class="help-key">Undo</span><span class="help-desc">Undo last pick (panel)</span></div>
+            </div>
+            <div class="help-section">
+                <div class="help-section-title">Navigation (finger)</div>
+                <div class="help-row"><span class="help-key">1-finger drag</span><span class="help-desc">Rotate</span></div>
+                <div class="help-row"><span class="help-key">Pinch</span><span class="help-desc">Zoom</span></div>
+                <div class="help-row"><span class="help-key">2-finger drag</span><span class="help-desc">Pan</span></div>
             </div>
         `
     }

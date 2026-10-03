@@ -8,7 +8,7 @@
 // IMPORTANT: bump CACHE on every release — alongside APP_VERSION in
 // js/state.js, CITATION.cff, and CHANGELOG.md — so existing clients pick up
 // newly deployed assets.
-const CACHE = 'meshnotes-v1.5.1';
+const CACHE = 'meshnotes-v1.6.0';
 
 // Precache the full app shell so a SINGLE online visit makes the app
 // offline-ready (no need to exercise every feature first). Paths are RELATIVE
@@ -42,6 +42,7 @@ const PRECACHE = [
   './js/annotation-tools/selection-callout.js',
   './js/annotation-tools/selection-highlight.js',
   './js/annotation-tools/surface-paint.js',
+  './js/annotation-tools/survey-block.js',
   './js/export/export-json.js',
   './js/export/import-json.js',
   './js/export/pdf-layout.js',
@@ -58,9 +59,22 @@ const PRECACHE = [
   './js/metadata/metadata-io.js',
   './js/metadata/metadata-ui.js',
   './js/metadata/templates.js',
+  './js/survey/alignment.js',
+  './js/survey/column-mapping.js',
+  './js/survey/csv-parse.js',
+  './js/survey/linalg.js',
+  './js/survey/manager.js',
+  './js/survey/picking.js',
+  './js/survey/rigid-fit.js',
+  './js/survey/survey-display.js',
+  './js/survey/survey-import.js',
+  './js/survey/ui-alignment.js',
+  './js/survey/ui-manager.js',
+  './js/survey/ui-mapping.js',
   './js/ui/event-listeners.js',
   './js/ui/icons.js',
   './js/ui/tool-help.js',
+  './js/utils/coords.js',
   './js/utils/helpers.js',
   './js/utils/label-occlusion.js',
 
@@ -129,7 +143,10 @@ const PRECACHE = [
   './icons/json-upload.svg',
   './icons/json-ship.svg',
   './icons/json-ship-download.svg',
-  './icons/json-ship-upload.svg'
+  './icons/json-ship-upload.svg',
+  './icons/chevron.svg',
+  './icons/lock.svg',
+  './icons/unlock.svg'
 ];
 
 self.addEventListener('install', (event) => {

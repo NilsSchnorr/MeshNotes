@@ -2,11 +2,11 @@
 import { state, dom, initDomReferences, APP_VERSION } from './state.js';
 import { initScene, initControls, addGrid, onWindowResize } from './core/scene.js';
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
-import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, setCalloutEnabled } from './core/lighting.js';
-import { setUpdateModelInfoDisplay, onceModelSetupComplete, setModelHashReadyCallback, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
+import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, setCalloutEnabled, restoreSurveySettings } from './core/lighting.js';
+import { setUpdateModelInfoDisplay, onceModelSetupComplete, setModelHashReadyCallback, setModelReplacedCallback, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
 import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
-import { setEditingCallbacks, renderMeasurements } from './annotation-tools/editing.js';
+import { setEditingCallbacks, setSurveyPickCallbacks, renderMeasurements } from './annotation-tools/editing.js';
 import { updateMeasurementsDisplay } from './annotation-tools/editing.js';
 import { renderAnnotations, setRenderCallbacks } from './annotation-tools/render.js';
 import { setRenderAnnotations } from './annotation-tools/projection.js';
@@ -26,6 +26,12 @@ import * as THREE from 'three';
 import { loadIcons, initIcons } from './ui/icons.js';
 import { setOnAnnotationsExported } from './export/export-json.js';
 import { initSessionPersistence, maybeOfferRestore, clearSavedSession } from './core/session-persistence.js';
+import { setSurveyMappingCallbacks, refreshSurveyMappingBinding } from './survey/ui-mapping.js';
+import { initSurveyUI, setSurveyManagerCallbacks, startSurveySelection, refreshSurveyChip, closeAlignmentManager } from './survey/ui-manager.js';
+import {
+    initSurveyPicking, setSurveyPickingCallbacks, startAlignmentPicking, closeSurveyPicking,
+    handleSurveyPick, isSurveyPickArmed, SURVEY_OVERLAY_LAYER
+} from './survey/ui-alignment.js';
 
 // Wire up late-bound references to break circular dependencies
 setUpdateModelInfoDisplay(updateModelInfoDisplay);
@@ -37,7 +43,11 @@ setEditingCallbacks({
 setGroupCallbacks({
     openGroupPopup,
     openAnnotationPopupForEdit,
-    openAnnotationShare: openAnnotationShareDialog
+    openAnnotationShare: openAnnotationShareDialog,
+    // Every change to the annotations or alignments (imports, merges, the
+    // autosave restore, clearing, deletions) ends with a sidebar rebuild: the
+    // survey status chip and an open Alignment Manager follow it.
+    onListUpdated: refreshSurveyChip
 });
 setRenderCallbacks({
     renderMeasurements
@@ -46,10 +56,46 @@ setCalloutCallbacks({
     openAnnotationPopupForEdit
 });
 
+// Survey CSV import: the mapping dialog hands an import job to the selection
+// step (existing alignment) or to the picking panel of a new alignment, which
+// the selection dialog's "New alignment" button opens too. Once a new
+// alignment is accepted, the picking panel hands the job on to the selection
+// step. Taps on the model reach the panel through editing.js while its
+// 'survey-pick' tool is active, and a new model ends a picking session and
+// closes the Alignment Manager (with its refine preview and control-point
+// view, whose markers belong to the old model).
+setSurveyMappingCallbacks({
+    importIntoAlignment: startSurveySelection,
+    startNewAlignment: startAlignmentPicking
+});
+setSurveyManagerCallbacks({
+    startNewAlignment: startAlignmentPicking
+});
+setSurveyPickingCallbacks({
+    setTool,
+    importIntoAlignment: startSurveySelection,
+    onAlignmentsChanged: refreshSurveyChip
+});
+setSurveyPickCallbacks({
+    onPick: handleSurveyPick,
+    isArmed: isSurveyPickArmed
+});
+setModelReplacedCallback(() => {
+    closeSurveyPicking({ reason: 'model' });
+    closeAlignmentManager();
+});
+
 // Session persistence (offline + crash recovery). The hash-ready hook offers a
 // restore once a reopened model is identified; a successful export clears the
-// autosave slot so recovered work never prompts twice.
-setModelHashReadyCallback(maybeOfferRestore);
+// autosave slot so recovered work never prompts twice. The hook is a single
+// slot, so it also redraws the binding warnings of the survey mapping dialog
+// and of an open Alignment Manager (the model hash is null until hashing
+// finishes).
+setModelHashReadyCallback(() => {
+    maybeOfferRestore();
+    refreshSurveyMappingBinding();
+    refreshSurveyChip();
+});
 setOnAnnotationsExported(clearSavedSession);
 
 function init() {
@@ -62,6 +108,9 @@ function init() {
 
     // Scene setup
     initScene();
+    // Survey picking overlays: a group of their own beside the annotation
+    // objects, so renderAnnotations() never clears them.
+    state.scene.add(state.surveyOverlay);
     initCameras();
     initControls();
     initLighting();
@@ -83,6 +132,8 @@ function init() {
     setupEventListeners();
     initGroupsEventDelegation(); // Set up delegated click/dblclick for annotation items
     initAnnotationViewer(); // Read-only "Shared Annotation View" panel (drag + close wiring)
+    initSurveyUI(); // Survey CSV import dialogs (mapping, selection, summary)
+    initSurveyPicking(); // Survey control-point picking panel and review
     window.addEventListener('resize', onWindowResize);
 
     // Session persistence: auto-save the working set when the app is hidden and
@@ -91,8 +142,13 @@ function init() {
 
     initSelectionCallout();
 
-    // Load SVG icons and inject into DOM (non-blocking)
-    loadIcons().then(() => initIcons());
+    // Load SVG icons and inject into DOM (non-blocking). The sidebar list was
+    // first built before the icons arrived (getIcon returns '' until then), so
+    // rebuild it to show the group chevrons and buttons.
+    loadIcons().then(() => {
+        initIcons();
+        updateGroupsList();
+    });
 
     // Start render loop
     animate();
@@ -125,8 +181,12 @@ function animate() {
         // first line when nothing is selected, which is the normal case.
         updateSelectionCallout();
 
-        // Render main scene
+        // Render main scene. The survey picking overlays are on a layer of
+        // their own that only this on-screen render enables: screenshots, the
+        // six-view plate and the PDF report render without them.
+        state.camera.layers.enable(SURVEY_OVERLAY_LAYER);
         state.renderer.render(state.scene, state.camera);
+        state.camera.layers.disable(SURVEY_OVERLAY_LAYER);
 
         // Render ViewHelper
         if (state.viewHelper && state.viewHelperRenderer) {
@@ -508,6 +568,10 @@ function loadSavedSettings() {
     if (savedPlatePdfDpi) {
         setPlatePdfDpi(savedPlatePdfDpi);
     }
+
+    // Survey import (the six visible options; the remembered column mappings
+    // are read from storage when a CSV is opened, see getSurveyMappings)
+    restoreSurveySettings();
 }
 
 // Expose key variables for console debugging

@@ -17,6 +17,9 @@ import {
     drawViewportScalebar
 } from './scalebar.js';
 import { getFieldDefinition, getMetadataStats, DATA_MANAGEMENT_GUIDELINE, SUBJECT_KINDS, METADATA_SPEC } from '../metadata/templates.js';
+import { surveyReportLine } from '../survey/survey-display.js';
+import { alignmentSummaryView } from '../survey/manager.js';
+import { RESIDUAL_WARN_DEFAULT } from '../survey/rigid-fit.js';
 
 // Page geometry and accent colour now live in pdf-layout.js, shared with the
 // six-view plate export.
@@ -563,8 +566,18 @@ async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layou
     pdf.text(coordLines, margin, screenshotY + screenshotHeight + 4);
     const coordHeight = coordLines.length * 3;
 
+    // Surveyed coordinate of an imported survey point: one more line in the
+    // same style (ASCII text, see pdfSurveyLine).
+    let surveyHeight = 0;
+    const surveyLine = pdfSurveyLine(ann);
+    if (surveyLine) {
+        const surveyLines = pdf.splitTextToSize(surveyLine, contentWidth);
+        pdf.text(surveyLines, margin, screenshotY + screenshotHeight + 4 + coordHeight);
+        surveyHeight = surveyLines.length * 3;
+    }
+
     // Entries
-    let yPos = screenshotY + screenshotHeight + 6 + coordHeight;
+    let yPos = screenshotY + screenshotHeight + 6 + coordHeight + surveyHeight;
     const entries = ann.entries || [];
 
     if (entries.length === 0) {
@@ -573,6 +586,23 @@ async function pdfRenderAnnotationPage(pdf, ann, group, groupAnns, annIdx, layou
         pdf.text('No entries.', margin, yPos);
     } else {
         pdfRenderEntries(pdf, entries, yPos, layout);
+    }
+}
+
+/**
+ * The surveyed-coordinate line of a survey point's page, or '' for any other
+ * annotation. Never throws: an exception in the middle of the report would
+ * leave the camera, light and markers modified (they are restored at the end).
+ * @param {Object} ann - The annotation object
+ * @returns {string}
+ */
+function pdfSurveyLine(ann) {
+    if (!ann.survey) return '';
+    try {
+        return surveyReportLine(ann.survey, state.alignments);
+    } catch (e) {
+        console.warn('PDF report: surveyed coordinate line skipped', e);
+        return '';
     }
 }
 
@@ -713,6 +743,130 @@ function pdfRenderMetadataPages(pdf, layout) {
     }
 }
 
+// ============ Survey Alignment Summary ============
+
+/**
+ * What the alignment summary prints, read at report time: null when the
+ * setting (Settings > Survey import) is off or no visible annotation uses an
+ * alignment. Hidden groups are not in visibleAnnotations, so their points do
+ * not count. Never throws (see pdfSurveyLine).
+ * @param {Array} visibleAnnotations - Annotations in visible groups
+ * @returns {Object|null} alignmentSummaryView() result
+ */
+function pdfAlignmentSummaryData(visibleAnnotations) {
+    if (!state.surveyPdfSummary) return null;
+    // Same fallback as the manager list, so both print the same verdict
+    const warn = state.surveyResidualWarn;
+    const residualWarn = typeof warn === 'number' && warn > 0 ? warn : RESIDUAL_WARN_DEFAULT;
+    try {
+        return alignmentSummaryView(visibleAnnotations, state.alignments, {
+            modelHash: state.modelHash,
+            modelUpAxis: state.modelUpAxis,
+            residualWarn
+        });
+    } catch (e) {
+        console.warn('PDF report: alignment summary skipped', e);
+        return null;
+    }
+}
+
+/**
+ * Renders the survey alignment summary on its own page(s), after the
+ * metadata pages, in the metadata pages' layout: one section per alignment
+ * with label: value rows.
+ * @param {jsPDF} pdf - The jsPDF instance
+ * @param {Object} layout - Page layout constants
+ * @param {Object} summary - pdfAlignmentSummaryData() result
+ */
+function pdfRenderAlignmentSummary(pdf, layout, summary) {
+    const accent = getAccentColor();
+    const labelWidth = 55;
+    const valueX = layout.margin + labelWidth + 3;
+    const valueWidth = layout.contentWidth - labelWidth - 3;
+
+    pdf.addPage();
+    let y = layout.margin;
+
+    // Page title
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(accent.r, accent.g, accent.b);
+    pdf.text(summary.title, layout.margin, y);
+    y += 4;
+    pdf.setDrawColor(accent.r, accent.g, accent.b);
+    pdf.setLineWidth(0.5);
+    pdf.line(layout.margin, y, layout.margin + layout.contentWidth, y);
+    y += 8;
+
+    // Introduction (fine print)
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(120, 120, 120);
+    const introLines = pdf.splitTextToSize(summary.intro, layout.contentWidth);
+    pdf.text(introLines, layout.margin, y);
+    y += introLines.length * 3.4 + 5;
+
+    for (const section of summary.alignments) {
+        // Page break check: section header + at least one row
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        const nameLines = pdf.splitTextToSize(section.name, layout.contentWidth);
+        if (y + 13 + nameLines.length * 5 > layout.pageHeight - layout.margin) {
+            pdf.addPage();
+            y = layout.margin;
+        }
+
+        // Section header: the alignment's name
+        pdf.setTextColor(accent.r, accent.g, accent.b);
+        pdf.text(nameLines, layout.margin, y);
+        y += (nameLines.length - 1) * 5 + 2;
+        pdf.setDrawColor(200, 200, 200);
+        pdf.setLineWidth(0.2);
+        pdf.line(layout.margin, y, layout.margin + layout.contentWidth, y);
+        y += 5;
+
+        for (const row of section.rows) {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            const valueLines = pdf.splitTextToSize(row.value, valueWidth);
+            const rowHeight = Math.max(6, valueLines.length * 4 + 2);
+
+            if (y + rowHeight > layout.pageHeight - layout.margin) {
+                pdf.addPage();
+                y = layout.margin;
+            }
+
+            // Label
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(60, 60, 60);
+            pdf.text(row.label, layout.margin, y + 3.5);
+
+            // Value
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(valueLines, valueX, y + 3.5);
+
+            y += rowHeight;
+        }
+
+        y += 4; // Gap between sections
+    }
+
+    // Survey points without an alignment
+    if (summary.note) {
+        pdf.setFont('helvetica', 'italic');
+        pdf.setFontSize(7.5);
+        pdf.setTextColor(120, 120, 120);
+        const noteLines = pdf.splitTextToSize(summary.note, layout.contentWidth);
+        if (y + noteLines.length * 3.4 > layout.pageHeight - layout.margin) {
+            pdf.addPage();
+            y = layout.margin;
+        }
+        pdf.text(noteLines, layout.margin, y + 3);
+    }
+    pdf.setFont('helvetica', 'normal');
+}
+
 // ============ Main Export Flow ============
 
 async function doExportPdfReport(includeScalebar) {
@@ -765,6 +919,13 @@ async function doExportPdfReport(includeScalebar) {
         }
     });
 
+    // The survey alignment summary, when printed, closes the TOC
+    const alignmentSummary = pdfAlignmentSummaryData(visibleAnnotations);
+    const tocIndexOfSummary = alignmentSummary ? tocData.length : -1;
+    if (alignmentSummary) {
+        tocData.push({ type: 'group', name: alignmentSummary.title, page: 0 });
+    }
+
     // Render each section
     await pdfRenderTitlePage(pdf, layout, includeScalebar, visibleGroups, visibleAnnotations);
 
@@ -792,11 +953,24 @@ async function doExportPdfReport(includeScalebar) {
         }
     }
 
-    // Fill the reserved TOC with the recorded page numbers
-    pdfRenderTOC(pdf, tocData, layout, tocFirstPage);
-
     // Render metadata pages at end (only filled fields)
     pdfRenderMetadataPages(pdf, layout);
+
+    // Survey alignment summary after the metadata pages (its own section)
+    if (alignmentSummary) {
+        tocData[tocIndexOfSummary].page = pdf.getNumberOfPages() + 1; // starts with addPage()
+        try {
+            pdfRenderAlignmentSummary(pdf, layout, alignmentSummary);
+        } catch (e) {
+            console.warn('PDF report: alignment summary incomplete', e);
+        }
+    }
+
+    // Fill the reserved TOC with the recorded page numbers. It is filled
+    // last, once the summary's page is known; the metadata pages leave the
+    // font changed, so reset it to the default the TOC was always drawn in.
+    pdf.setFont('helvetica', 'normal');
+    pdfRenderTOC(pdf, tocData, layout, tocFirstPage);
 
     // Restore everything
     restoreCameraPose(savedCamera);

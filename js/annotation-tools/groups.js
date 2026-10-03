@@ -2,20 +2,34 @@
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
 import { getIcon } from '../ui/icons.js';
-import { generateUUID, generateInternalId, escapeHtml, showStatus, toDisplayCoords } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, escapeHtml, showStatus, toDisplayCoords, filterAnnotations } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
 import { applySelectionHighlight } from './selection-highlight.js';
 import { showSelectionCallout, hideSelectionCallout } from './selection-callout.js';
+import { clearBoxEditState, restoreToolHelp } from '../ui/tool-help.js';
+
+// Group flags are optional and read tolerantly, so groups from older files and
+// from every existing constructor need no migration:
+//   group.collapsed      absent = expanded       -> read as !!group.collapsed
+//   group.labelsVisible  absent = labels shown   -> read as group.labelsVisible !== false
 
 // Late-bound references
 let _openGroupPopup = null;
 let _openAnnotationPopupForEdit = null;
 let _openAnnotationShare = null;
+// Runs after every sidebar rebuild (main.js: the survey status chip and an
+// open Alignment Manager follow the annotations and alignments from here,
+// since every change to them ends with updateGroupsList()).
+let _onListUpdated = null;
 
-export function setGroupCallbacks({ openGroupPopup, openAnnotationPopupForEdit, openAnnotationShare }) {
+// Group waiting for a choice in the move-or-delete dialog
+let _pendingDeleteGroup = null;
+
+export function setGroupCallbacks({ openGroupPopup, openAnnotationPopupForEdit, openAnnotationShare, onListUpdated = null }) {
     _openGroupPopup = openGroupPopup;
     _openAnnotationPopupForEdit = openAnnotationPopupForEdit;
     _openAnnotationShare = openAnnotationShare;
+    _onListUpdated = onListUpdated;
 }
 
 export function createDefaultGroup() {
@@ -42,6 +56,7 @@ export function openGroupPopup(group = null) {
         const opacityPercent = Math.round((group.opacity !== undefined ? group.opacity : 1.0) * 100);
         dom.groupOpacity.value = opacityPercent;
         dom.groupOpacityValue.textContent = opacityPercent + '%';
+        dom.groupLabelsVisible.checked = group.labelsVisible !== false;
         dom.btnGroupDelete.style.display = state.groups.length > 1 ? 'block' : 'none';
     } else {
         dom.groupPopupTitle.textContent = 'New Group';
@@ -49,6 +64,7 @@ export function openGroupPopup(group = null) {
         dom.groupColor.value = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
         dom.groupOpacity.value = 100;
         dom.groupOpacityValue.textContent = '100%';
+        dom.groupLabelsVisible.checked = true;
         dom.btnGroupDelete.style.display = 'none';
     }
 
@@ -60,11 +76,13 @@ export function saveGroup() {
     const name = dom.groupName.value.trim() || 'Unnamed Group';
     const color = dom.groupColor.value;
     const opacity = parseInt(dom.groupOpacity.value) / 100;
+    const labelsVisible = dom.groupLabelsVisible.checked;
 
     if (state.editingGroup) {
         state.editingGroup.name = name;
         state.editingGroup.color = color;
         state.editingGroup.opacity = opacity;
+        state.editingGroup.labelsVisible = labelsVisible;
     } else {
         state.groups.push({
             id: generateInternalId(),
@@ -72,36 +90,146 @@ export function saveGroup() {
             name,
             color,
             visible: true,
-            opacity
+            opacity,
+            labelsVisible
         });
     }
 
     dom.groupPopup.classList.remove('visible');
     state.editingGroup = null;
     updateGroupsList();
-    updateGroupSelect();
+    refreshGroupSelectKeepingChoice();
     renderAnnotations();
 }
 
+function annotationCountText(count) {
+    return count === 1 ? '1 annotation' : `${count} annotations`;
+}
+
+/**
+ * Deletes a group. An empty group goes at once; a group that holds annotations
+ * opens the move-or-delete dialog, which finishes through confirmGroupDelete().
+ * The last remaining group can never be deleted.
+ */
 export function deleteGroup(group) {
     if (state.groups.length <= 1) {
         showStatus('Cannot delete the last group');
         return;
     }
 
-    const targetGroup = state.groups.find(g => g.id !== group.id);
-    state.annotations.forEach(ann => {
-        if (ann.groupId === group.id) {
-            ann.groupId = targetGroup.id;
-        }
-    });
+    const count = state.annotations.filter(a => a.groupId === group.id).length;
+    if (count === 0) {
+        removeGroup(group);
+        showStatus(`Group "${group.name}" deleted`);
+        return;
+    }
 
+    openGroupDeleteDialog(group, count);
+}
+
+function openGroupDeleteDialog(group, count) {
+    _pendingDeleteGroup = group;
+    dom.groupDeleteMessage.textContent = `Group "${group.name}" has ${annotationCountText(count)}.`;
+    // The first other group is preselected: the target the old silent move used.
+    dom.groupDeleteTarget.innerHTML = state.groups
+        .filter(g => g.id !== group.id)
+        .map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`)
+        .join('');
+    dom.groupDeleteOverlay.classList.add('visible');
+}
+
+export function hideGroupDeleteDialog() {
+    _pendingDeleteGroup = null;
+    dom.groupDeleteOverlay.classList.remove('visible');
+}
+
+/**
+ * Finishes the move-or-delete dialog.
+ * @param {'move'|'delete'} mode 'move' reassigns the group's annotations to the
+ *   group chosen in the dialog; 'delete' removes them with the group.
+ */
+export function confirmGroupDelete(mode) {
+    const group = _pendingDeleteGroup;
+    hideGroupDeleteDialog();
+    // The session may have been replaced while the dialog was open.
+    if (!group || !state.groups.includes(group) || state.groups.length <= 1) return;
+
+    const members = state.annotations.filter(a => a.groupId === group.id);
+
+    if (mode === 'move') {
+        const targetId = parseInt(dom.groupDeleteTarget.value);
+        const target = state.groups.find(g => g.id === targetId && g.id !== group.id)
+            || state.groups.find(g => g.id !== group.id);
+        members.forEach(ann => { ann.groupId = target.id; });
+        removeGroup(group, target.id);
+        showStatus(`Group "${group.name}" deleted, ${annotationCountText(members.length)} moved to "${target.name}"`);
+    } else if (mode === 'delete') {
+        removeAnnotations(members);
+        removeGroup(group);
+        showStatus(`Group "${group.name}" and ${annotationCountText(members.length)} deleted`);
+    }
+}
+
+/**
+ * Removes annotations and every reference the session holds to them: the
+ * selection and its callout, box edit state, and an annotation popup that is
+ * showing one of them. The caller re-renders. Used by the group delete and
+ * by the Alignment Manager (Delete > Delete points too).
+ */
+export function removeAnnotations(annotations) {
+    const ids = new Set(annotations.map(a => a.id));
+    state.annotations = state.annotations.filter(a => !ids.has(a.id));
+
+    // Clears the sidebar highlight, the model emphasis and the callout.
+    if (ids.has(state.selectedAnnotation)) deselectAnnotation();
+
+    if (ids.has(state.boxEditUnlocked)) clearBoxEditState();
+    if (state.selectedBoxAnnotation && ids.has(state.selectedBoxAnnotation.id)) {
+        state.selectedBoxAnnotation = null;
+    }
+
+    // The sidebar stays clickable while the annotation popup is open, so it may
+    // be showing one of the deleted annotations. A later Save would write into
+    // an orphan object.
+    if (state.editingAnnotation && ids.has(state.editingAnnotation.id)) {
+        dom.annotationPopup.classList.remove('visible');
+        state.editingAnnotation = null;
+        state.editingModelInfo = false;
+        state.isAddingEntry = false;
+        state.editingEntryId = null;
+        hideInlineGroupForm();
+        restoreToolHelp();
+        state.controls.enabled = true;
+    }
+}
+
+function removeGroup(group, fallbackGroupId = null) {
     state.groups = state.groups.filter(g => g.id !== group.id);
     dom.groupPopup.classList.remove('visible');
     state.editingGroup = null;
     updateGroupsList();
-    updateGroupSelect();
+    refreshGroupSelectKeepingChoice(fallbackGroupId);
     renderAnnotations();
+}
+
+/**
+ * Rebuilds the annotation popup's group select but keeps its current choice,
+ * so a popup left open across a group change still saves into the group it
+ * shows. A choice that pointed at a removed group falls back to
+ * fallbackGroupId (the move target), else to the first group.
+ */
+function refreshGroupSelectKeepingChoice(fallbackGroupId = null) {
+    const previousId = parseInt(dom.annGroup.value);
+    updateGroupSelect();
+    const keepId = state.groups.some(g => g.id === previousId) ? previousId : fallbackGroupId;
+    if (keepId !== null && state.groups.some(g => g.id === keepId)) {
+        dom.annGroup.value = keepId;
+    }
+}
+
+export function toggleGroupCollapsed(group) {
+    group.collapsed = !group.collapsed;
+    updateGroupsList();
 }
 
 export function toggleGroupVisibility(group) {
@@ -177,16 +305,27 @@ export function updateGroupsList() {
     if (state.groups.length === 0) {
         dom.noGroups.style.display = 'block';
         dom.groupsContainer.innerHTML = '';
+        if (_onListUpdated) _onListUpdated();
         return;
     }
 
     dom.noGroups.style.display = 'none';
 
+    // While a search term is active, collapsed groups render their items too,
+    // so the filter below can reveal matches inside them. Hidden groups never
+    // render items.
+    const searching = !!(dom.searchInput && dom.searchInput.value.trim());
+
     dom.groupsContainer.innerHTML = state.groups.map(group => {
         const groupAnnotations = state.annotations.filter(a => a.groupId === group.id);
+        const collapsed = !!group.collapsed;
+        const showItems = group.visible && (!collapsed || searching);
         return `
-            <div class="group-item" data-id="${group.id}">
+            <div class="group-item ${collapsed ? 'collapsed' : ''}" data-id="${group.id}">
                 <div class="group-header">
+                    <button class="group-collapse ${collapsed ? 'collapsed' : ''}" data-action="collapse" aria-expanded="${!collapsed}" aria-label="${collapsed ? 'Expand' : 'Collapse'}" title="${collapsed ? 'Expand' : 'Collapse'}">
+                        ${getIcon('chevron') || '▾'}
+                    </button>
                     <div class="group-color" style="background: ${group.color}" data-action="edit"></div>
                     <span class="group-name" data-action="edit">${escapeHtml(group.name)} (${groupAnnotations.length})</span>
                     <button class="group-visibility ${group.visible ? '' : 'hidden'}" data-action="visibility">
@@ -196,7 +335,7 @@ export function updateGroupsList() {
                         <button data-action="edit">${getIcon('edit')}</button>
                     </div>
                 </div>
-                ${group.visible ? `
+                ${showItems ? `
                     <div class="annotation-list">
                         ${groupAnnotations.map(ann => renderAnnotationItem(ann)).join('')}
                     </div>
@@ -211,13 +350,20 @@ export function updateGroupsList() {
             const group = state.groups.find(g => g.id === groupId);
             const action = e.target.dataset.action || e.target.closest('[data-action]')?.dataset.action;
 
-            if (action === 'visibility') {
+            if (action === 'collapse') {
+                toggleGroupCollapsed(group);
+            } else if (action === 'visibility') {
                 toggleGroupVisibility(group);
             } else if (action === 'edit') {
                 openGroupPopup(group);
             }
         });
     });
+
+    // A rebuild starts from unfiltered markup; keep the current search applied.
+    filterAnnotations(dom.searchInput ? dom.searchInput.value : '');
+
+    if (_onListUpdated) _onListUpdated();
 
     // Use event delegation for click/dblclick to avoid issues with DOM rebuilding
     // Remove old listeners by replacing container content (innerHTML already does this)
@@ -317,11 +463,18 @@ function renderAnnotationItem(ann) {
         }
     }
 
+    // Persistent position lock. Like the other sidebar icons it is empty until
+    // the icons have loaded; main.js rebuilds the list then.
+    const lockHtml = ann.locked === true
+        ? `<span class="annotation-lock" title="Position locked" aria-label="Position locked">${getIcon('lock')}</span>`
+        : '';
+
     return `
         <div class="annotation-item ${state.selectedAnnotation === ann.id ? 'selected' : ''}" data-id="${ann.id}">
             <div class="header">
                 <span class="type-icon">${icons[ann.type] || getIcon('point')}</span>
                 <span class="name">${escapeHtml(ann.name)}</span>
+                ${lockHtml}
                 <button class="annotation-edit-btn" data-action="edit-annotation" title="Edit annotation">${getIcon('edit')}</button>
                 <button class="annotation-share-btn" data-action="share-annotation" title="Share this annotation">${getIcon('share')}</button>
             </div>

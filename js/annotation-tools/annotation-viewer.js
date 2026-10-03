@@ -11,11 +11,15 @@
 
 import { state } from '../state.js';
 import { escapeHtml, safeUrl } from '../utils/helpers.js';
+import { renderSurveyBlock } from './survey-block.js';
 
 // Drag state (module-local; mirrors the settings-modal drag pattern)
 let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
+
+// Id of the annotation the panel shows, so a hand-move can refresh its block.
+let viewerAnnId = null;
 
 const TYPE_LABELS = { point: 'Point', line: 'Line', polygon: 'Polygon', surface: 'Surface', box: 'Box' };
 
@@ -76,6 +80,7 @@ export function initAnnotationViewer() {
 export function openAnnotationViewer(ann) {
     const panel = document.getElementById('annotation-viewer');
     if (!panel || !ann) return;
+    viewerAnnId = ann.id;
 
     const group = state.groups.find(g => g.id === ann.groupId);
     const typeLabel = TYPE_LABELS[ann.type] || 'Annotation';
@@ -102,9 +107,21 @@ export function openAnnotationViewer(ann) {
         }
     }
 
+    // Surveyed position of an imported point, read-only (hidden otherwise).
+    renderSurveyBlock(document.getElementById('annotation-viewer-survey'), ann, state.alignments);
+
     renderViewerEntries(ann);
 
     panel.classList.add('visible');
+}
+
+/**
+ * Re-render the Surveyed position block when the open panel shows ann
+ * (after a survey point was moved by hand).
+ */
+export function refreshViewerSurveyBlock(ann) {
+    if (!ann || ann.id !== viewerAnnId || !isViewerOpen()) return;
+    renderSurveyBlock(document.getElementById('annotation-viewer-survey'), ann, state.alignments);
 }
 
 function renderViewerEntries(ann) {
@@ -151,4 +168,5 @@ function renderViewerEntries(ann) {
 export function closeAnnotationViewer() {
     const panel = document.getElementById('annotation-viewer');
     if (panel) panel.classList.remove('visible');
+    viewerAnnId = null;
 }

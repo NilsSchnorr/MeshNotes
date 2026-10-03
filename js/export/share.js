@@ -296,12 +296,14 @@ export async function generateEphemeralLink() {
         }
 
         // Add annotations JSON-LD when there is anything worth preserving.
-        // The .jsonld also carries the Metadata Report and Model Information,
-        // so a model with metadata (or model-info notes) but no annotations
-        // must still ship the file — otherwise that data is lost on reopen.
+        // The .jsonld also carries the Metadata Report, Model Information and
+        // survey alignments, so a model with metadata, model-info notes or an
+        // alignment but no annotations must still ship the file — otherwise
+        // that data is lost on reopen.
         const hasMetadata = !!(state.modelInfo.metadata && getMetadataStats(state.modelInfo.metadata).filled > 0);
         const hasModelInfo = !!(state.modelInfo.entries && state.modelInfo.entries.length > 0);
-        if (state.annotations.length > 0 || hasMetadata || hasModelInfo) {
+        const hasAlignments = state.alignments.length > 0;
+        if (state.annotations.length > 0 || hasMetadata || hasModelInfo || hasAlignments) {
             progressText.textContent = 'Preparing annotations & metadata...';
             const annotationBlob = buildAnnotationBlob();
             const annotationFilename = `${state.modelFileName || 'annotations'}.jsonld`;

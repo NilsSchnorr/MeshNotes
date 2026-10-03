@@ -9,6 +9,12 @@ import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
 import { showBoxEditHelp, hideToolHelp } from '../ui/tool-help.js';
 
+// The persistent position lock (ann.locked, switched in the edit popup) sits
+// above the session-only edit mode below (state.boxEditUnlocked, double-click):
+// a locked box never enters edit mode and cannot be moved, resized or rotated.
+// Its wording stays apart from the edit mode's "Box locked" / "Box unlocked".
+const POSITION_LOCKED_STATUS = 'Position locked — unlock it in the edit popup';
+
 // Late-bound callbacks (forwarded from editing.js setEditingCallbacks)
 let _openAnnotationPopup = null;
 let _setTool = null;
@@ -476,7 +482,8 @@ export function beginBoxPlacement(event, point) {
 
 /**
  * onCanvasDoubleTap: when no tool is active, double-clicking an existing box
- * toggles its unlocked-for-editing state.
+ * toggles its unlocked-for-editing state. A box with the persistent position
+ * lock only gets a status hint.
  * @param {PointerEvent|MouseEvent} event
  */
 export function toggleExistingBoxLock(event) {
@@ -501,6 +508,17 @@ export function toggleExistingBoxLock(event) {
         const ann = state.annotations.find(a => a.id === annId);
 
         if (ann && ann.type === 'box') {
+            if (ann.locked === true) {
+                // Never unlocked for editing; drop a stale edit state if any.
+                if (state.boxEditUnlocked === annId) {
+                    state.boxEditUnlocked = null;
+                    hideToolHelp();
+                    renderAnnotations();
+                }
+                showStatus(POSITION_LOCKED_STATUS);
+                return;
+            }
+
             // Toggle unlock state
             if (state.boxEditUnlocked === annId) {
                 // Already unlocked, lock it again
@@ -585,8 +603,8 @@ export function handlePendingBoxPointerDown(event) {
 /**
  * onCanvasPointerDown: if the hit marker is a handle of an unlocked box, begin a
  * resize manipulation. Returns true if the event was consumed (resize started, or
- * a "locked" hint shown); false if the marker is not a box handle the router
- * should keep treating as a normal draggable point.
+ * a "locked" / "position locked" hint shown); false if the marker is not a box
+ * handle the router should keep treating as a normal draggable point.
  * @param {PointerEvent|MouseEvent} event
  * @param {THREE.Object3D} marker - the intersected annotation marker.
  * @returns {boolean}
@@ -595,6 +613,12 @@ export function beginBoxHandleDrag(event, marker) {
     const annId = marker.userData.annotationId;
     const ann = state.annotations.find(a => a.id === annId);
     if (ann && ann.type === 'box') {
+        // The persistent lock wins over the edit mode; the camera orbits.
+        if (ann.locked === true) {
+            showStatus(POSITION_LOCKED_STATUS);
+            return true;
+        }
+
         // Only allow manipulation if box is unlocked
         if (state.boxEditUnlocked !== annId) {
             showStatus('Double-click box to unlock for editing');
@@ -634,6 +658,12 @@ export function beginBoxBodyDrag(event, raycaster) {
         const ann = state.annotations.find(a => a.id === annId);
 
         if (ann && ann.type === 'box') {
+            // The persistent lock wins over the edit mode; the camera orbits.
+            if (ann.locked === true) {
+                showStatus(POSITION_LOCKED_STATUS);
+                return;
+            }
+
             // Only allow manipulation if box is unlocked
             if (state.boxEditUnlocked !== annId) {
                 // Box is locked, show hint

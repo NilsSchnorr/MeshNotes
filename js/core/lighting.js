@@ -349,6 +349,14 @@ export function resetAllSettings() {
     state.platePngWidth = 4000;
     state.platePdfDpi = 300;
     state.plateCellShape = 'net';
+    state.surveyLockImported = SURVEY_SETTING_DEFAULTS.lockImported;
+    state.surveyLabelsOffAbove = SURVEY_SETTING_DEFAULTS.labelsOffAbove;
+    state.surveyResidualWarn = SURVEY_SETTING_DEFAULTS.residualWarn;
+    state.surveySurfaceWarn = SURVEY_SETTING_DEFAULTS.surfaceWarn;
+    state.surveySurfaceLimit = SURVEY_SETTING_DEFAULTS.surfaceLimit;
+    state.surveyPdfSummary = SURVEY_SETTING_DEFAULTS.pdfSummary;
+    // The remembered survey column mappings have no state copy: the key sweep
+    // above clears them.
     
     // Reset UI elements
     dom.pointSizeSlider.value = 100;
@@ -392,6 +400,12 @@ export function resetAllSettings() {
     dom.settingsPlatePngWidth.value = '4000';
     dom.settingsPlatePdfDpi.value = '300';
     dom.settingsPlateCellShape.value = 'net';
+    dom.settingsSurveyLockImported.checked = SURVEY_SETTING_DEFAULTS.lockImported;
+    dom.settingsSurveyLabelsOffAbove.value = String(SURVEY_SETTING_DEFAULTS.labelsOffAbove);
+    dom.settingsSurveyResidualWarn.value = String(SURVEY_SETTING_DEFAULTS.residualWarn);
+    dom.settingsSurveySurfaceWarn.value = String(SURVEY_SETTING_DEFAULTS.surfaceWarn);
+    dom.settingsSurveySurfaceLimit.value = String(SURVEY_SETTING_DEFAULTS.surfaceLimit);
+    dom.settingsSurveyPdfSummary.checked = SURVEY_SETTING_DEFAULTS.pdfSummary;
     
     // Reset background color
     setBackgroundColor('#041D31');
@@ -514,6 +528,204 @@ export function setPlateCellShape(value) {
     state.plateCellShape = shape;
     localStorage.setItem('meshnotes_plateCellShape', shape);
     dom.settingsPlateCellShape.value = shape;
+}
+
+// ============ Survey Import Settings ============
+// Six visible options (Settings → Survey import). The survey modules read
+// state.survey* when they use a value, never a copy taken at init, so a change
+// applies to the next import, fit or report without a reload. Distances are
+// stored in metres (state and localStorage) and shown in cm or m. The three
+// thresholds and the label limit are selects with fixed options; a stored
+// value that is not one of them falls back to the default, so the select never
+// shows blank. The defaults mirror state.js and the constants in
+// js/survey/rigid-fit.js and survey-import.js, which this module cannot import
+// (tests/lighting.test.js checks that they agree).
+
+export const SURVEY_SETTING_DEFAULTS = Object.freeze({
+    lockImported: true,     // meshnotes_surveyLockImported
+    labelsOffAbove: 50,     // meshnotes_surveyLabelsOffAbove (rows; 0 = never)
+    residualWarn: 0.05,     // meshnotes_surveyResidualWarn (m)
+    surfaceWarn: 0.10,      // meshnotes_surveySurfaceWarn (m)
+    surfaceLimit: 0.5,      // meshnotes_surveySurfaceLimit (m)
+    pdfSummary: true        // meshnotes_surveyPdfSummary
+});
+
+export const SURVEY_SETTING_OPTIONS = Object.freeze({
+    labelsOffAbove: Object.freeze([0, 25, 50, 100, 200, 500]),
+    residualWarn: Object.freeze([0.02, 0.03, 0.05, 0.1]),
+    surfaceWarn: Object.freeze([0.05, 0.1, 0.2, 0.5]),
+    surfaceLimit: Object.freeze([0.1, 0.25, 0.5, 1, 2])
+});
+
+/**
+ * One of a select's fixed options for a stored or chosen value.
+ * @param {string|number} value - the select value or the stored string
+ * @param {number[]} options
+ * @param {number} fallback - returned when value is not a number or not an option
+ * @returns {number}
+ */
+export function surveySettingChoice(value, options, fallback) {
+    const n = typeof value === 'number' ? value : parseFloat(value);
+    if (!Number.isFinite(n)) return fallback;
+    const match = options.find(o => Math.abs(o - n) < 1e-9);
+    return match === undefined ? fallback : match;
+}
+
+// Writes a numeric survey setting to state, localStorage and its select. The
+// option values in index.html are String(number), e.g. "0.1".
+function setSurveyChoice(stateKey, storageKey, domKey, optionsKey, value) {
+    const n = surveySettingChoice(value, SURVEY_SETTING_OPTIONS[optionsKey], SURVEY_SETTING_DEFAULTS[optionsKey]);
+    state[stateKey] = n;
+    localStorage.setItem(storageKey, String(n));
+    dom[domKey].value = String(n);
+}
+
+/**
+ * Whether imported survey points start locked.
+ * @param {boolean} enabled
+ */
+export function setSurveyLockImported(enabled) {
+    state.surveyLockImported = enabled;
+    dom.settingsSurveyLockImported.checked = enabled;
+    localStorage.setItem('meshnotes_surveyLockImported', enabled ? 'true' : 'false');
+}
+
+/**
+ * A new import group gets its labels switched off when more points than this
+ * are created (0 = never).
+ * @param {string|number} value - one of SURVEY_SETTING_OPTIONS.labelsOffAbove
+ */
+export function setSurveyLabelsOffAbove(value) {
+    setSurveyChoice('surveyLabelsOffAbove', 'meshnotes_surveyLabelsOffAbove',
+        'settingsSurveyLabelsOffAbove', 'labelsOffAbove', value);
+}
+
+/**
+ * Residual of a control point (m) above which the fit raises RESIDUAL_WARN.
+ * @param {string|number} value - one of SURVEY_SETTING_OPTIONS.residualWarn
+ */
+export function setSurveyResidualWarn(value) {
+    setSurveyChoice('surveyResidualWarn', 'meshnotes_surveyResidualWarn',
+        'settingsSurveyResidualWarn', 'residualWarn', value);
+}
+
+/**
+ * Distance (m) from the fitted position to the surface above which the
+ * selection list and the import summary flag a point.
+ * @param {string|number} value - one of SURVEY_SETTING_OPTIONS.surfaceWarn
+ */
+export function setSurveySurfaceWarn(value) {
+    setSurveyChoice('surveySurfaceWarn', 'meshnotes_surveySurfaceWarn',
+        'settingsSurveySurfaceWarn', 'surfaceWarn', value);
+}
+
+/**
+ * Default distance limit (m) of the selection step and of the picking
+ * preview. A limit changed in the selection dialog applies to that import only.
+ * @param {string|number} value - one of SURVEY_SETTING_OPTIONS.surfaceLimit
+ */
+export function setSurveySurfaceLimit(value) {
+    setSurveyChoice('surveySurfaceLimit', 'meshnotes_surveySurfaceLimit',
+        'settingsSurveySurfaceLimit', 'surfaceLimit', value);
+}
+
+/**
+ * Whether the PDF report prints the alignment summary section.
+ * @param {boolean} enabled
+ */
+export function setSurveyPdfSummary(enabled) {
+    state.surveyPdfSummary = enabled;
+    dom.settingsSurveyPdfSummary.checked = enabled;
+    localStorage.setItem('meshnotes_surveyPdfSummary', enabled ? 'true' : 'false');
+}
+
+/**
+ * Restores the six survey settings from localStorage (loadSavedSettings in
+ * main.js). Booleans follow the calloutEnabled pattern (any stored value other
+ * than 'true' reads as off); numbers are restored only when they parse, and a
+ * number that is not an option falls back to the default. A missing key
+ * leaves the default from state.js.
+ */
+export function restoreSurveySettings() {
+    const savedLock = localStorage.getItem('meshnotes_surveyLockImported');
+    if (savedLock !== null) {
+        setSurveyLockImported(savedLock === 'true');
+    }
+    const savedPdfSummary = localStorage.getItem('meshnotes_surveyPdfSummary');
+    if (savedPdfSummary !== null) {
+        setSurveyPdfSummary(savedPdfSummary === 'true');
+    }
+    const numeric = [
+        ['meshnotes_surveyLabelsOffAbove', setSurveyLabelsOffAbove],
+        ['meshnotes_surveyResidualWarn', setSurveyResidualWarn],
+        ['meshnotes_surveySurfaceWarn', setSurveySurfaceWarn],
+        ['meshnotes_surveySurfaceLimit', setSurveySurfaceLimit]
+    ];
+    for (const [key, setter] of numeric) {
+        const saved = localStorage.getItem(key);
+        if (saved !== null && Number.isFinite(parseFloat(saved))) {
+            setter(saved);
+        }
+    }
+}
+
+// Remembered column mappings (not shown in Settings): the mapping used for a
+// CSV header, keyed by headerSignature() from js/survey/column-mapping.js,
+// newest first and at most SURVEY_MAPPINGS_MAX headers. Stored as JSON under
+// a meshnotes_ key, so "Reset all settings" clears it with the other keys.
+// This module must not import js/survey/* (see makeSizeSetter), so the
+// mapping is copied here without validation; the mapping dialog checks it
+// against the file (sanitizeMapping in survey-import.js).
+
+const SURVEY_MAPPINGS_KEY = 'meshnotes_surveyMappings';
+export const SURVEY_MAPPINGS_MAX = 20;
+
+/**
+ * All remembered column mappings, newest first.
+ * @returns {Array<{signature: string, mapping: object, saved: string}>} an
+ *   empty list when nothing is stored, the value is corrupt or storage is blocked
+ */
+export function getSurveyMappings() {
+    try {
+        const list = JSON.parse(localStorage.getItem(SURVEY_MAPPINGS_KEY) || '[]');
+        if (!Array.isArray(list)) return [];
+        return list.filter(e => e && typeof e.signature === 'string' && e.signature &&
+            e.mapping && typeof e.mapping === 'object');
+    } catch (e) {
+        return [];
+    }
+}
+
+/**
+ * The remembered mapping for a header signature.
+ * @param {string|null} signature - headerSignature(parsed.rawHeaders)
+ * @returns {object|null} the stored mapping (column indices), or null
+ */
+export function getSurveyMapping(signature) {
+    if (!signature) return null;
+    const entry = getSurveyMappings().find(e => e.signature === signature);
+    return entry ? entry.mapping : null;
+}
+
+/**
+ * Remembers the mapping used for a header (called after an import). The
+ * entry moves to the front; the oldest beyond SURVEY_MAPPINGS_MAX are dropped.
+ * @param {string|null} signature - null (a file without a header) is not remembered
+ * @param {object} mapping - { name, easting, northing, height, description, code, extras }
+ */
+export function saveSurveyMapping(signature, mapping) {
+    if (!signature || !mapping) return;
+    const entry = {
+        signature,
+        mapping: { ...mapping, extras: Array.isArray(mapping.extras) ? [...mapping.extras] : [] },
+        saved: new Date().toISOString()
+    };
+    const list = [entry, ...getSurveyMappings().filter(e => e.signature !== signature)].slice(0, SURVEY_MAPPINGS_MAX);
+    try {
+        localStorage.setItem(SURVEY_MAPPINGS_KEY, JSON.stringify(list));
+    } catch (e) {
+        console.warn('Could not remember the survey column mapping:', e);
+    }
 }
 
 /**

@@ -2,6 +2,8 @@
 import { state, APP_VERSION } from '../state.js';
 import { generateUUID, getModelMimeType, showStatus } from '../utils/helpers.js';
 import { convertToW3CAnnotation, authorToCreator } from './w3c-format.js';
+import { wktPointZ } from '../utils/coords.js';
+import { alignmentsToJsonLd } from '../survey/alignment.js';
 
 // Optional hook invoked after a successful manual JSON-LD export. Used by
 // session persistence (wired in main.js) to clear the autosave slot: once the
@@ -73,7 +75,15 @@ export function buildAnnotationJSON(options = {}) {
             'unit': (state.measurementUnit && state.measurementUnit !== 'units') ? state.measurementUnit : undefined,
             // SHA-256 of the primary model file, binding annotations to this exact
             // mesh (omitted if not yet computed).
-            'schema:sha256': state.modelHash || undefined
+            'schema:sha256': state.modelHash || undefined,
+            // Centring offset of the loaded model, in the Z-up export frame:
+            // exported coordinate + frameOrigin = the model's scene coordinate
+            // (Z-up). A shift only: glTF node rotations and scales are part of
+            // the scene coordinate but not captured here, so for a rotated node
+            // the origin alone does not lead back to the raw vertex coordinates.
+            // Written as WKT like the selectors (6 decimals); omitted while no
+            // model is loaded. Import ignores it: the loaded model sets it.
+            'meshnotes:frameOrigin': state.modelFrameOrigin ? wktPointZ(state.modelFrameOrigin) : undefined
         },
 
         // Stylesheet for group colors
@@ -83,15 +93,24 @@ export function buildAnnotationJSON(options = {}) {
         // per-annotation share links; omitted from normal export/share.
         'meshnotes:viewState': options.viewState || undefined,
 
-        // Groups metadata (custom extension)
+        // Groups metadata (custom extension). The sidebar flags are written
+        // only when they differ from the default (labels shown, expanded), so
+        // groups that never changed them export as before.
         'meshnotes:groups': state.groups.map(g => ({
             id: g.id,
             'meshnotes:uuid': g.uuid,
             'schema:name': g.name,
             'schema:color': g.color,
             'meshnotes:visible': g.visible,
-            'meshnotes:opacity': g.opacity !== undefined ? g.opacity : 1.0
+            'meshnotes:opacity': g.opacity !== undefined ? g.opacity : 1.0,
+            'meshnotes:labelsVisible': g.labelsVisible === false ? false : undefined,
+            'meshnotes:collapsed': g.collapsed ? true : undefined
         })),
+
+        // Survey alignments and the default alignment (custom extension):
+        // 'meshnotes:alignments' and 'meshnotes:defaultAlignment', both left
+        // out when the session has no alignment, so such files export as before.
+        ...alignmentsToJsonLd(state.alignments, state.defaultAlignmentId),
 
         // Model information entries
         'modelInfo': state.modelInfo.entries.length > 0 ? {
@@ -146,11 +165,12 @@ export function buildAnnotationJSON(options = {}) {
         return value;
     }, 2);
 
-    // Collapse the meshnotes:faces (often very long) and meshnotes:rotation
-    // (4-number quaternion) arrays onto a single line for readability. Both
-    // hold only simple tokens with no ']' inside, so matching up to the first
-    // ']' is safe and won't catch nested arrays.
-    json = json.replace(/("meshnotes:(?:faces|rotation)": \[)([^\]]*)(\])/g, (m, open, body, close) => {
+    // Collapse the meshnotes:faces (often very long), meshnotes:rotation
+    // (4-number quaternion), meshnotes:translation and meshnotes:residual
+    // (3-number) arrays onto a single line for readability. All hold only
+    // simple tokens with no ']' inside, so matching up to the first ']' is
+    // safe and won't catch nested arrays.
+    json = json.replace(/("meshnotes:(?:faces|rotation|translation|residual)": \[)([^\]]*)(\])/g, (m, open, body, close) => {
         return open + body.replace(/\s+/g, ' ').trim() + close;
     });
 

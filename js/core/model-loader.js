@@ -11,6 +11,7 @@ import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-
 import { state, dom } from '../state.js';
 import { getIcon } from '../ui/icons.js';
 import { showStatus, updateFaceCountDisplay } from '../utils/helpers.js';
+import { pointToZUp } from '../utils/coords.js';
 import { updateViewHelperLabels } from './camera.js';
 import { setModelOpacity } from './lighting.js';
 
@@ -75,6 +76,20 @@ export function onceModelSetupComplete(callback) {
 let _onModelHashReady = null;
 export function setModelHashReadyCallback(fn) {
     _onModelHashReady = fn;
+}
+
+// Counts model setups, so a hash that resolves after the next model was set
+// up is dropped instead of being taken for that model's.
+let _hashGeneration = 0;
+
+// Late-bound hook fired when a new model is being set up, before it replaces
+// the current one. Runs on every load path (file, share and direct links,
+// which bypass the unsaved-work check), so work that belongs to the old model
+// ends here: main.js closes the survey picking panel. A single slot: main.js
+// composes everything that needs it.
+let _onModelReplaced = null;
+export function setModelReplacedCallback(fn) {
+    _onModelReplaced = fn;
 }
 
 // Computes a SHA-256 hex digest of a File's bytes, used to bind exported
@@ -188,6 +203,9 @@ export function setupLoadedModel(model, fileName, upAxis) {
 function setupLoadedModelInternal(model, fileName, upAxis) {
     console.log(`setupLoadedModel: starting for "${fileName}" (upAxis: ${upAxis})`);
     console.time('setupLoadedModel');
+
+    // The old model's picking session and the like end before it is replaced
+    if (_onModelReplaced) _onModelReplaced();
     
     // Store the model's original up-axis for coordinate transforms in export/import
     state.modelUpAxis = upAxis || 'y-up';
@@ -196,10 +214,19 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     // Async: state.modelHash is populated when ready and read at export time.
     // (Skipped in viewer mode, where loadedModelFiles is not populated.)
     state.modelHash = null;
+    // Cleared up front so a load that fails below never keeps the previous
+    // model's centring offset (set again after the model is re-centred).
+    state.modelFrameOrigin = null;
     const primaryModelFile = state.loadedModelFiles && state.loadedModelFiles[0];
+    // While true, a null hash means "still hashing" (the Alignment Manager
+    // says it is checking the model file); false with a null hash = unknown.
+    state.modelHashPending = !!primaryModelFile;
+    const hashGeneration = ++_hashGeneration;
     if (primaryModelFile) {
         computeModelHash(primaryModelFile).then(h => {
+            if (hashGeneration !== _hashGeneration) return;     // another model was set up meanwhile
             state.modelHash = h;
+            state.modelHashPending = false;
             if (_onModelHashReady) _onModelHashReady(h);
         });
     }
@@ -364,6 +391,14 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     }
 
     state.currentModel.position.sub(center);
+
+    // Keep the centring offset in the Z-up export frame (full precision):
+    // exported coordinate + modelFrameOrigin = the model's scene coordinate
+    // in Z-up. Box3.setFromObject() uses matrixWorld, so glTF node transforms
+    // are included. Kept for the export (meshnotes:frameOrigin), so a survey
+    // fit can later be related to the model file's own coordinates.
+    const frameOrigin = pointToZUp(center);
+    state.modelFrameOrigin = { x: frameOrigin.x, y: frameOrigin.y, z: frameOrigin.z };
     
     // Update camera clipping planes based on model size
     // Near: small fraction of model size (but not too small to avoid z-fighting)
@@ -397,6 +432,7 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     dom.btnMeasure.disabled = false;
     dom.btnScreenshot.disabled = false;
     dom.btnExport.disabled = false;
+    if (dom.btnImportSurvey) dom.btnImportSurvey.disabled = false;   // Import > Survey points (CSV)
     // Enable share generate buttons (Share dialog itself is always accessible)
     const shareGenBtn = document.getElementById('share-generate-btn');
     const longtermGenBtn = document.getElementById('longterm-generate-btn');

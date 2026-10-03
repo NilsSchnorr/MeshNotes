@@ -569,3 +569,149 @@ export function reprojectAllAnnotations() {
         showStatus(`Re-projected ${count} annotations onto surface`);
     }
 }
+
+// ============ Nearest Surface Point ============
+// Survey points sit on the surface point nearest to their fitted position
+// (js/survey/survey-import.js). The query reuses the BVH mesh contexts and the
+// shared closestPointToPoint target above, so it must never run interleaved
+// with an edge projection: every call is synchronous, builds the contexts once
+// per batch, and copies each hit out of the shared target at once.
+
+const _nearestQuery = new THREE.Vector3();
+const _nearestLocal = new THREE.Vector3();
+const _nearestCandidate = new THREE.Vector3();
+const _nearestBest = new THREE.Vector3();
+const _nearestOffset = new THREE.Vector3();
+
+/**
+ * True when nearest-surface queries can run: a model with meshes is loaded and
+ * every mesh got its BVH. state.bvhAvailable turns false as soon as one mesh's
+ * build fails, while other meshes may still hold a tree; a query over part of
+ * the model would give wrong distances, so callers use their no-BVH fallback.
+ */
+export function isSurfaceQueryAvailable() {
+    return !!state.currentModel && state.modelMeshes.length > 0 && state.bvhAvailable === true;
+}
+
+/**
+ * Upper bound on the mesh-local length of one world unit: the spectral norm of
+ * the 3x3 part A of the inverse world matrix, from a Gershgorin bound on AᵀA.
+ * Exact for rotation plus uniform scale, larger (still safe) otherwise. Turns
+ * a world search radius into a local one for closestPointToPoint.
+ */
+function localLengthPerWorldUnit(invMatrix) {
+    const e = invMatrix.elements; // column-major: columns (0,1,2), (4,5,6), (8,9,10)
+    const b00 = e[0] * e[0] + e[1] * e[1] + e[2] * e[2];
+    const b11 = e[4] * e[4] + e[5] * e[5] + e[6] * e[6];
+    const b22 = e[8] * e[8] + e[9] * e[9] + e[10] * e[10];
+    const b01 = Math.abs(e[0] * e[4] + e[1] * e[5] + e[2] * e[6]);
+    const b02 = Math.abs(e[0] * e[8] + e[1] * e[9] + e[2] * e[10]);
+    const b12 = Math.abs(e[4] * e[8] + e[5] * e[9] + e[6] * e[10]);
+    return Math.sqrt(Math.max(b00 + b01 + b02, b01 + b11 + b12, b02 + b12 + b22));
+}
+
+/**
+ * Nearest surface point to one world-space position over the current mesh
+ * contexts (buildMeshContexts() must have run). Distances are compared in
+ * WORLD space: closestPointToPoint works in mesh-local space, and a node with
+ * scale makes local distances incomparable across meshes. Each mesh is
+ * searched within the best world distance so far (or maxDistance), so a
+ * close hit prunes the meshes after it.
+ * Known limit: under a non-uniform node scale the local nearest point is not
+ * always the world nearest one, so the hit can lie on another face a little
+ * farther away, and a surface just inside maxDistance can read as null.
+ * glTF exports rarely carry such a scale.
+ */
+function nearestInContexts(worldPoint, maxDistance, localScales) {
+    let bestDistance = Infinity;
+    let bestCtx = null;
+    let bestFaceIndex = -1;
+
+    for (let m = 0; m < _meshContextCount; m++) {
+        const ctx = _meshContexts[m];
+        _nearestLocal.copy(worldPoint).applyMatrix4(ctx.invMatrix);
+        // Safe bound: a world distance d is at most d * localScales[m] locally.
+        const limit = Math.min(maxDistance, bestDistance);
+        const maxLocal = limit === Infinity ? Infinity : limit * localScales[m];
+
+        const result = ctx.mesh.geometry.boundsTree.closestPointToPoint(_nearestLocal, _hitTarget, 0, maxLocal);
+        if (!result) continue;
+
+        // Copy out of the shared target before the next query.
+        _nearestCandidate.copy(result.point).applyMatrix4(ctx.mesh.matrixWorld);
+        const distance = _nearestCandidate.distanceTo(worldPoint);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestCtx = ctx;
+            bestFaceIndex = result.faceIndex;
+            _nearestBest.copy(_nearestCandidate);
+        }
+    }
+
+    // The BVH prunes by bounds only, so a hit can still lie beyond the radius.
+    if (!bestCtx || bestDistance > maxDistance) return null;
+
+    const normal = getFaceWorldNormal(bestCtx.mesh, bestFaceIndex, bestCtx.normalMatrix, new THREE.Vector3());
+    const side = _nearestOffset.subVectors(worldPoint, _nearestBest).dot(normal) < 0 ? -1 : 1;
+    return { point: _nearestBest.clone(), distance: bestDistance, normal, side };
+}
+
+/**
+ * Nearest surface point to each of several world-space (display) positions.
+ * The mesh contexts are built once for the batch, so a long run calls this
+ * once per chunk, never once per point.
+ *
+ * @param {Array<{x,y,z}>} worldPoints - display (world) space
+ * @param {number} [maxDistance=Infinity] - search radius in world units (metres)
+ * @returns {Array<{point: THREE.Vector3, distance: number, normal: THREE.Vector3, side: number}|null>|null}
+ *   null when no query can run (see isSurfaceQueryAvailable). Otherwise one
+ *   entry per position: point = the nearest surface point (world, a new
+ *   vector), distance = world distance to it, normal = unit face normal
+ *   (world), side = +1 when the position lies on the side the normal points
+ *   to (above, also exactly on the surface), -1 below; or null when no surface
+ *   lies within maxDistance.
+ */
+export function nearestSurfacePoints(worldPoints, maxDistance = Infinity) {
+    if (!isSurfaceQueryAvailable()) return null;
+    // The flip toggle moves the model after its last matrix update; query
+    // against the matrices the next frame will draw.
+    state.currentModel.updateMatrixWorld(true);
+    if (buildMeshContexts() === 0) return null;
+
+    const radius = (typeof maxDistance === 'number' && maxDistance >= 0) ? maxDistance : Infinity;
+    const localScales = [];
+    for (let m = 0; m < _meshContextCount; m++) localScales.push(localLengthPerWorldUnit(_meshContexts[m].invMatrix));
+    return worldPoints.map(p => nearestInContexts(_nearestQuery.set(p.x, p.y, p.z), radius, localScales));
+}
+
+/**
+ * Nearest surface point to one world-space (display) position.
+ * Returns null both when no query can run and when nothing lies within
+ * maxDistance; check isSurfaceQueryAvailable() to tell them apart.
+ */
+export function nearestSurfacePoint(worldPoint, maxDistance = Infinity) {
+    const results = nearestSurfacePoints([worldPoint], maxDistance);
+    return results ? results[0] : null;
+}
+
+/**
+ * Flip-aware wrapper for nearestSurfacePoints: takes storage positions (like
+ * annotation points), queries in display space and returns storage
+ * coordinates. The flip is rigid, so distance and side do not change.
+ * @param {Array<{x,y,z}>} storagePoints
+ * @param {number} [maxDistance=Infinity]
+ * @returns {Array<{point: {x,y,z}, distance: number, normal: {x,y,z}, side: number}|null>|null}
+ *   point and normal as plain storage-frame objects; null as for nearestSurfacePoints.
+ */
+export function nearestSurfacePointsFlipAware(storagePoints, maxDistance = Infinity) {
+    const flipped = state.isFlipped;
+    const results = nearestSurfacePoints(flipped ? storagePoints.map(p => flipTransform(p)) : storagePoints, maxDistance);
+    if (!results) return null;
+    const toStorage = (v) => (flipped ? flipTransform(v) : { x: v.x, y: v.y, z: v.z });
+    return results.map(r => r && {
+        point: toStorage(r.point),
+        distance: r.distance,
+        normal: toStorage(r.normal),
+        side: r.side
+    });
+}

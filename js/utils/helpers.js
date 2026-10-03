@@ -113,8 +113,11 @@ export function filterAnnotations(searchTerm) {
             }
         });
 
-        // Hide group if no annotations match (unless search is empty)
-        if (term === '') {
+        // Hide group if no annotations match (unless search is empty). A hidden
+        // group renders no items to search, so its header stays on screen and
+        // its eye button can still show it again.
+        const groupHidden = !!groupItem.querySelector('.group-visibility.hidden');
+        if (term === '' || groupHidden) {
             groupItem.classList.remove('search-hidden');
         } else if (hasVisibleAnnotation) {
             groupItem.classList.remove('search-hidden');
