@@ -3,8 +3,9 @@
 // row in a side panel and taps where it was surveyed on the model. The model
 // stays free to navigate (a drag orbits, a tap picks). From three picks on,
 // the rigid fit is solved live: the footer shows its figures, every CSV row
-// appears as a faint preview marker at its fitted position (dimmed when it
-// falls off the model) and inline warnings name what looks wrong. The review
+// that is not a pick of the fit appears as a faint preview marker at its
+// fitted position (dimmed when it falls off the model) and inline warnings
+// name what looks wrong. The review
 // (Step C) shows the verdict, the figures and a table per control point;
 // Accept creates the alignment and hands the import job on to the selection
 // step (ui-manager.js, late-bound from main.js).
@@ -49,7 +50,8 @@ import { state, dom } from '../state.js';
 import { showStatus, toStorageCoords, toDisplayCoords, getLastAuthor, generateInternalId, generateUUID } from '../utils/helpers.js';
 import { pointToZUp, pointFromZUp } from '../utils/coords.js';
 import { showConfirm } from '../annotation-tools/data.js';
-import { cancelUnfinishedDrawing } from '../annotation-tools/editing.js';
+import { cancelUnfinishedDrawing, renderMeasurements, updateMeasurementsDisplay } from '../annotation-tools/editing.js';
+import { setMeasurementUnit, setSurveyDotSize } from '../core/lighting.js';
 import { createAlignment, surveyToStorage } from './alignment.js';
 import { swapMappingEN } from './column-mapping.js';
 import { SELECTION_LIMIT_DEFAULT, RESIDUAL_WARN_DEFAULT } from './rigid-fit.js';
@@ -76,11 +78,11 @@ const LIST_LIMIT = 300;
 // burst of changes (undo, swap) starts one run.
 const MEASURE_DELAY = 120;  // ms
 
-// Overlay colours. The markers are screen-sized dots (THREE.Points without
-// size attenuation), so picks and preview markers stay visible at any zoom:
-// the point annotation markers of render.js are a few millimetres wide and
-// vanish in an overview. They are drawn over the model (no depth test), so
-// rows behind a wall show too.
+// Overlay colours. The markers are screen-sized sprites (THREE.Points
+// without size attenuation), so picks and preview markers stay visible at any
+// zoom: the point annotation markers of render.js are a few millimetres wide
+// and vanish in an overview. They are drawn over the model (no depth test),
+// so rows behind a wall show too.
 const COLORS = {
     preview: new THREE.Color(0x4FC3F7),         // faint preview markers
     pick: new THREE.Color(0xEDC040),            // picks
@@ -91,10 +93,12 @@ const COLORS = {
 };
 const PREVIEW_OPACITY = 0.6;
 const PREVIEW_OFF_OPACITY = 0.2;     // rows that fall off the model
-// Dot diameters in CSS pixels at the default Point Markers size
+// Marker diameters in CSS pixels at Dot size ×1.0 (state.surveyDotSize: the
+// slider in the panel and in the Alignment Manager's control-point view)
 const PREVIEW_SIZE = 7;
-const PICK_SIZE = 11;
-const TARGET_SIZE = 24;
+const FITTED_SIZE = 5;      // control-point view: small enough to sit inside a pick's ring
+const PICK_SIZE = 17;       // an open ring with a centre dot
+const TARGET_SIZE = 28;
 
 const VERDICT_LABELS = { good: 'Good', check: 'Check', poor: 'Poor' };
 
@@ -106,10 +110,11 @@ const NARROW_VIEWPORT = 720;    // px
 // The import summary's note while the job's Easting and Northing are swapped
 const SWAP_NOTE = 'Easting and Northing were swapped while picking control points.';
 
-// Dot and ring sprites for the markers, drawn once and never disposed (the
-// overlay materials and geometries are per session).
+// Dot, ring and pick sprites for the markers, drawn once and never disposed
+// (the overlay materials and geometries are per session).
 let _dotTexture = null;
 let _ringTexture = null;
+let _pickTexture = null;
 
 // ============ Module state ============
 
@@ -188,31 +193,48 @@ function surfaceLimit() {
     return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : SELECTION_LIMIT_DEFAULT;
 }
 
-// The Point Markers slider scales the dots too, within a readable range.
+// The Dot size slider scales every marker (lighting.js keeps the multiplier
+// within its range).
 function dotSize(base) {
-    const m = state.pointSizeMultiplier;
-    return base * Math.min(3, Math.max(0.5, Number.isFinite(m) ? m : 1));
+    const m = state.surveyDotSize;
+    return base * (Number.isFinite(m) && m > 0 ? m : 1);
 }
 
-// A white disc with a dark rim (tinted by the material or vertex colour),
-// or a ring.
-function spriteTexture(ring) {
+// The marker sprites, white so that the material or vertex colour tints
+// them. 'dot': a disc with a dark rim. 'ring': a plain ring. 'pick': a ring
+// with a small centre dot, both outlined dark so they read on light and dark
+// surfaces; the open ring leaves the surface around the picked spot visible.
+function spriteTexture(kind) {
     const size = 64;
+    const c = size / 2;
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = size;
     const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
-    if (ring) {
-        ctx.lineWidth = 7;
-        ctx.strokeStyle = '#ffffff';
+    const circle = (radius) => {
+        ctx.beginPath();
+        ctx.arc(c, c, radius, 0, Math.PI * 2);
+    };
+    const stroke = (radius, width, colour) => {
+        circle(radius);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = colour;
         ctx.stroke();
-    } else {
-        ctx.fillStyle = '#ffffff';
+    };
+    const fill = (radius, colour) => {
+        circle(radius);
+        ctx.fillStyle = colour;
         ctx.fill();
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = '#202020';
-        ctx.stroke();
+    };
+    if (kind === 'ring') {
+        stroke(c - 4, 7, '#ffffff');
+    } else if (kind === 'pick') {
+        stroke(c - 6, 11, '#202020');
+        stroke(c - 6, 6, '#ffffff');
+        fill(6.5, '#202020');
+        fill(4, '#ffffff');
+    } else {
+        fill(c - 4, '#ffffff');
+        stroke(c - 4, 6, '#202020');
     }
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -220,13 +242,18 @@ function spriteTexture(ring) {
 }
 
 function dotTexture() {
-    if (!_dotTexture) _dotTexture = spriteTexture(false);
+    if (!_dotTexture) _dotTexture = spriteTexture('dot');
     return _dotTexture;
 }
 
 function ringTexture() {
-    if (!_ringTexture) _ringTexture = spriteTexture(true);
+    if (!_ringTexture) _ringTexture = spriteTexture('ring');
     return _ringTexture;
+}
+
+function pickTexture() {
+    if (!_pickTexture) _pickTexture = spriteTexture('pick');
+    return _pickTexture;
 }
 
 // Replaces an overlay object's geometry with new positions (and colours).
@@ -265,7 +292,7 @@ export function isSurveyPickArmed() {
 
 // ============ Overlays ============
 
-// Screen-sized dots drawn over the model.
+// Screen-sized sprites drawn over the model.
 function dotsMaterial(size, color, opacity, map = dotTexture(), vertexColors = false) {
     return new THREE.PointsMaterial({
         size, color, map, vertexColors, sizeAttenuation: false,
@@ -292,7 +319,7 @@ function createOverlays() {
     const materials = {
         previewOn: dotsMaterial(PREVIEW_SIZE, COLORS.preview, PREVIEW_OPACITY),
         previewOff: dotsMaterial(PREVIEW_SIZE, COLORS.preview, PREVIEW_OFF_OPACITY),
-        picks: dotsMaterial(PICK_SIZE, 0xffffff, 1, dotTexture(), true),
+        picks: dotsMaterial(PICK_SIZE, 0xffffff, 1, pickTexture(), true),
         target: dotsMaterial(TARGET_SIZE, COLORS.target, 0.95, ringTexture()),
         residual: residualMaterial()
     };
@@ -321,9 +348,9 @@ function disposeOverlays() {
 /**
  * Redraws the picking overlays from the session: preview markers, picks,
  * residual lines and the selected row's fitted position. Called on every
- * change, and from event-listeners.js after the flip toggle and the Point
- * Markers slider. Also redraws the Alignment Manager's control-point view
- * (showAlignmentOverlay). Does nothing without either.
+ * change, after the Dot size slider, and from event-listeners.js after the
+ * flip toggle and a settings reset. Also redraws the Alignment Manager's
+ * control-point view (showAlignmentOverlay). Does nothing without either.
  */
 export function refreshSurveyOverlays() {
     refreshAlignmentOverlay();
@@ -335,10 +362,14 @@ export function refreshSurveyOverlays() {
     m.target.size = dotSize(TARGET_SIZE);
     const v = new THREE.Vector3();
 
-    // Preview markers: every row at its fitted position, dimmed off the model
+    // Preview markers: every row at its fitted position, dimmed off the model.
+    // A row whose pick is part of the fit has none: its residual line ends at
+    // the fitted position, and a dot there would fill the pick's open centre.
+    const fitted = new Set(s.picks.filter(pick => pick.enabled).map(pick => pick.key));
     const on = [], off = [];
     if (_view.positions) {
         _view.positions.forEach((p, i) => {
+            if (fitted.has(s.rows[i].key)) return;
             displayVector(p, v);
             (_view.onModel && _view.onModel[i] === false ? off : on).push(v.x, v.y, v.z);
         });
@@ -377,7 +408,7 @@ export function refreshSurveyOverlays() {
 // session: each pick (gold, disabled ones grey), where the fit puts its
 // surveyed coordinate (cyan), and the residual line between them. The manager
 // clears it when its view closes and on a model change; the flip toggle and
-// the Point Markers slider redraw it through refreshSurveyOverlays().
+// the Dot size slider redraw it through refreshSurveyOverlays().
 
 /**
  * Shows a saved alignment's control points on the model, replacing any shown before.
@@ -387,8 +418,8 @@ export function showAlignmentOverlay(alignment) {
     clearAlignmentOverlay();
     if (!alignment) return;
     const materials = {
-        picks: dotsMaterial(PICK_SIZE, 0xffffff, 1, dotTexture(), true),
-        fitted: dotsMaterial(PREVIEW_SIZE, COLORS.target, 0.9),
+        picks: dotsMaterial(PICK_SIZE, 0xffffff, 1, pickTexture(), true),
+        fitted: dotsMaterial(FITTED_SIZE, COLORS.target, 0.9),
         residual: residualMaterial()
     };
     const make = (Type, material, renderOrder) => {
@@ -422,7 +453,7 @@ function refreshAlignmentOverlay() {
     const view = _alignmentView;
     if (!view) return;
     view.materials.picks.size = dotSize(PICK_SIZE);
-    view.materials.fitted.size = dotSize(PREVIEW_SIZE);
+    view.materials.fitted.size = dotSize(FITTED_SIZE);
     const picks = [], colors = [], fitted = [], lines = [];
     const a = new THREE.Vector3();
     const b = new THREE.Vector3();
@@ -579,6 +610,7 @@ export function startAlignmentPicking(job) {
 export function closeSurveyPicking({ reason = null } = {}) {
     const s = state.surveySession;
     cancelPreviewMeasurement();
+    hideUnitPrompt();
     closeReviewDialog();
     disposeOverlays();
     endPanelDrag();
@@ -1080,7 +1112,8 @@ function onReviewTableChange(e) {
     setEnabled(e.target.dataset.key, e.target.checked);
 }
 
-// Accept: a Poor verdict needs an extra confirmation.
+// Accept: a Poor verdict needs an extra confirmation; a Good or Check one
+// may first ask about the display unit.
 function acceptReview() {
     const ev = _view.evaluation;
     if (!session() || !canReview(ev)) return;
@@ -1088,7 +1121,80 @@ function acceptReview() {
         showConfirm(`${verdictText(ev)} Accept this alignment anyway?`, finishAccept);
         return;
     }
+    if (shouldOfferMetres()) {
+        showUnitPrompt(finishAccept);
+        return;
+    }
     finishAccept();
+}
+
+// ============ Display unit (on Accept) ============
+// A Good or Check fit has an estimated scale within 5 % of 1 against survey
+// coordinates in metres, so the model is in metres. The display unit
+// (Settings → Measurements) is a label the survey import neither reads nor
+// needs; when it says something else, Accept first asks whether to set it to
+// m. The answer does not change the alignment. Keeping the unit is remembered
+// for the loaded model, so further alignments on it do not ask again.
+
+// Custom units that already say metres
+const METRE_UNITS = ['m', 'meter', 'meters', 'metre', 'metres'];
+// Longest unit quoted in the question and on its button
+const UNIT_QUOTE_MAX = 16;
+
+// Models whose display unit was kept (held weakly: a replaced model is freed)
+const _unitKept = new WeakSet();
+
+// What Accept goes on with once the question is answered, or null
+let _unitPromptProceed = null;
+
+function shouldOfferMetres() {
+    const unit = String(state.measurementUnit || 'units').trim().toLowerCase();
+    return !METRE_UNITS.includes(unit) && !!state.currentModel && !_unitKept.has(state.currentModel);
+}
+
+function showUnitPrompt(proceed) {
+    const unit = String(state.measurementUnit || 'units').trim();
+    const quoted = unit.length > UNIT_QUOTE_MAX ? `${unit.slice(0, UNIT_QUOTE_MAX)}…` : unit;
+    const unset = unit === 'units';
+    dom.surveyUnitMessage.textContent = unset
+        ? 'This fit confirms that the model is in metres, but no display unit is set. Set the display unit to m?'
+        : `This fit confirms that the model is in metres, but the display unit is "${quoted}". Set the display unit to m?`;
+    dom.surveyUnitKeep.textContent = unset ? 'Leave unset' : `Keep "${quoted}"`;
+    _unitPromptProceed = proceed;
+    dom.surveyUnitOverlay.classList.add('visible');
+    dom.surveyUnitSet.focus({ preventScroll: true });
+}
+
+// Closes the question without an answer: the review stays open, nothing is accepted.
+function hideUnitPrompt() {
+    dom.surveyUnitOverlay.classList.remove('visible');
+    _unitPromptProceed = null;
+}
+
+function answerUnitPrompt(setToMetres) {
+    const proceed = _unitPromptProceed;
+    hideUnitPrompt();
+    if (!proceed) return;
+    if (setToMetres) {
+        setMeasurementUnit('m');
+        // Measurements already on the model carry the unit in their labels and list
+        renderMeasurements();
+        updateMeasurementsDisplay();
+    } else if (state.currentModel) {
+        _unitKept.add(state.currentModel);
+    }
+    proceed();
+}
+
+/**
+ * Escape while the display-unit question is open (event-listeners.js): it
+ * closes without an answer.
+ * @returns {boolean} true when the question was open
+ */
+export function handleSurveyUnitPromptEscape() {
+    if (!dom.surveyUnitOverlay.classList.contains('visible')) return false;
+    hideUnitPrompt();
+    return true;
 }
 
 function finishAccept() {
@@ -1241,6 +1347,22 @@ export function initSurveyPicking() {
     dom.surveyReviewIssues.addEventListener('click', onMessageAction);
     dom.surveyReviewRows.addEventListener('change', onReviewTableChange);
     dom.surveyReviewRows.addEventListener('click', onMessageAction);
+
+    // Dot size: one setting, shown by the slider in the panel and by the one
+    // in the Alignment Manager's control-point view
+    for (const slider of [dom.surveyPickDotSize, dom.alignmentViewDotSize]) {
+        slider.addEventListener('input', () => {
+            setSurveyDotSize(parseInt(slider.value, 10) / 100);
+            refreshSurveyOverlays();
+        });
+    }
+
+    dom.surveyUnitSet.addEventListener('click', () => answerUnitPrompt(true));
+    dom.surveyUnitKeep.addEventListener('click', () => answerUnitPrompt(false));
+    dom.surveyUnitDialogClose.addEventListener('click', hideUnitPrompt);
+    dom.surveyUnitOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.surveyUnitOverlay) hideUnitPrompt();
+    });
 
     initPanelDrag();
 }

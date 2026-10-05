@@ -355,6 +355,7 @@ export function resetAllSettings() {
     state.surveySurfaceWarn = SURVEY_SETTING_DEFAULTS.surfaceWarn;
     state.surveySurfaceLimit = SURVEY_SETTING_DEFAULTS.surfaceLimit;
     state.surveyPdfSummary = SURVEY_SETTING_DEFAULTS.pdfSummary;
+    state.surveyDotSize = SURVEY_DOT_SIZE.default;
     // The remembered survey column mappings have no state copy: the key sweep
     // above clears them.
     
@@ -406,6 +407,7 @@ export function resetAllSettings() {
     dom.settingsSurveySurfaceWarn.value = String(SURVEY_SETTING_DEFAULTS.surfaceWarn);
     dom.settingsSurveySurfaceLimit.value = String(SURVEY_SETTING_DEFAULTS.surfaceLimit);
     dom.settingsSurveyPdfSummary.checked = SURVEY_SETTING_DEFAULTS.pdfSummary;
+    showSurveyDotSize(SURVEY_DOT_SIZE.default);
     
     // Reset background color
     setBackgroundColor('#041D31');
@@ -639,9 +641,49 @@ export function setSurveyPdfSummary(enabled) {
     localStorage.setItem('meshnotes_surveyPdfSummary', enabled ? 'true' : 'false');
 }
 
+// The Dot size slider of the picking panel and of the Alignment Manager's
+// control-point view (not in the Settings pane): a multiplier on the
+// screen-sized picking markers of js/survey/ui-alignment.js. It is separate
+// from the Point Markers size, which scales annotation markers in model units
+// over a far wider range. Both sliders show the one value, in percent.
+
+export const SURVEY_DOT_SIZE = Object.freeze({ min: 0.4, max: 3, default: 1 });    // meshnotes_surveyDotSize
+
 /**
- * Restores the six survey settings from localStorage (loadSavedSettings in
- * main.js). Booleans follow the calloutEnabled pattern (any stored value other
+ * The dot size multiplier for a slider or stored value, within the range.
+ * @param {string|number} value - the multiplier (a slider value divided by 100)
+ * @returns {number} the default when value is not a number
+ */
+export function surveyDotSizeChoice(value) {
+    const n = typeof value === 'number' ? value : parseFloat(value);
+    if (!Number.isFinite(n)) return SURVEY_DOT_SIZE.default;
+    return Math.min(SURVEY_DOT_SIZE.max, Math.max(SURVEY_DOT_SIZE.min, Math.round(n * 100) / 100));
+}
+
+// Both sliders and their readouts
+function showSurveyDotSize(multiplier) {
+    const percent = String(Math.round(multiplier * 100));
+    dom.surveyPickDotSize.value = percent;
+    dom.surveyPickDotSizeValue.textContent = formatMultiplier(multiplier);
+    dom.alignmentViewDotSize.value = percent;
+    dom.alignmentViewDotSizeValue.textContent = formatMultiplier(multiplier);
+}
+
+/**
+ * Size of the picking markers. Does not redraw them: the caller refreshes the
+ * overlays (refreshSurveyOverlays in ui-alignment.js).
+ * @param {string|number} value - the multiplier
+ */
+export function setSurveyDotSize(value) {
+    const multiplier = surveyDotSizeChoice(value);
+    state.surveyDotSize = multiplier;
+    localStorage.setItem('meshnotes_surveyDotSize', String(multiplier));
+    showSurveyDotSize(multiplier);
+}
+
+/**
+ * Restores the six survey settings and the dot size from localStorage
+ * (loadSavedSettings in main.js). Booleans follow the calloutEnabled pattern (any stored value other
  * than 'true' reads as off); numbers are restored only when they parse, and a
  * number that is not an option falls back to the default. A missing key
  * leaves the default from state.js.
@@ -666,6 +708,10 @@ export function restoreSurveySettings() {
         if (saved !== null && Number.isFinite(parseFloat(saved))) {
             setter(saved);
         }
+    }
+    const savedDotSize = localStorage.getItem('meshnotes_surveyDotSize');
+    if (savedDotSize !== null && Number.isFinite(parseFloat(savedDotSize))) {
+        setSurveyDotSize(savedDotSize);
     }
 }
 

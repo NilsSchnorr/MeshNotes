@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.2] — 2026-10-05
+
+Two refinements of the survey CSV import: the markers shown while picking control points can be sized and no longer hide the picked spot, and accepting an alignment offers to set the display unit to metres.
+
+### Added
+
+- **Dot size slider for control-point picking** — the picking panel has a **Dot size** slider (×0.4 to ×3.0) for the markers drawn on the model while picking: the preview dots, the picks and the ring of the selected row. The Alignment Manager's control-point view has the same slider for its markers. Both show one setting, which is remembered in the browser (`meshnotes_surveyDotSize`) and set back to ×1.0 by **Reset All Settings**. Ctrl+Z still undoes the last pick while the slider has the focus.
+- **Display unit question when an alignment is accepted** — a fit with the verdict Good or Check has an estimated scale within 5% of 1 against survey coordinates in metres, which confirms that the model is in metres. If the **Display unit** (Settings → Measurements) says something else, or is not set, accepting the alignment now first asks whether to set it to m. **Set to m** changes the unit and relabels the measurements already on the model; the other button keeps the unit, and the question is not asked again for that model until it is loaded again; closing the question or pressing Escape returns to the review without accepting. A custom unit that already says metres (meter, metre and their plurals) is not questioned, and a Poor fit never asks. The alignment is the same whatever the answer: the fit still has a fixed scale of 1, and the estimated scale is still only shown.
+
+### Changed
+
+- **Picks are drawn as a ring with a centre dot** — a pick used to be a filled disc drawn over the model, which hid the very spot it marks. It is now an open ring with a small centre dot, outlined dark, so the surface around the picked position stays visible. For the same reason a row whose pick is part of the fit no longer gets a cyan preview dot underneath: its residual line ends at the fitted position. In the control-point view the cyan dots of the fitted positions are smaller, so they sit inside the ring.
+- **Picking markers no longer follow the Point Markers size** — they took the Point Markers multiplier, limited to ×0.5 to ×3.0. With a multiplier outside that range (the slider goes up to ×50) the markers stayed at the limit, and moving the slider changed nothing. Point Markers now sizes annotation markers only.
+
+### Internal
+
+- `js/core/lighting.js` gains `SURVEY_DOT_SIZE`, `surveyDotSizeChoice()` and `setSurveyDotSize()`; `restoreSurveySettings()` and `resetAllSettings()` handle the new key. The value lives in `state.surveyDotSize`.
+- `js/survey/ui-alignment.js`: `spriteTexture()` takes the sprite kind (`dot`, `ring`, `pick`); the display-unit question (`shouldOfferMetres()`, `showUnitPrompt()`, `answerUnitPrompt()`) sits between the review's Accept button and `finishAccept()`, so the existing checks of the session and the loaded model still run after the answer. Models whose unit was kept are held in a `WeakSet`.
+- `tests/lighting.test.js` gains four tests for the dot size (range, setter, restore and reset, and agreement with both sliders in `index.html`).
+- No file format, specification or vendored library changed, and no new module was added, so the precache list is unchanged.
+
+
 ## [1.6.1] — 2026-10-05
 
 A bug-fix release. Models with more than 10 million faces in a single mesh are now drawn in Firefox, where they loaded without any error but left the viewport empty.
@@ -286,6 +308,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.6.2]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.2
 [1.6.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.1
 [1.6.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.0
 [1.5.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.5.1

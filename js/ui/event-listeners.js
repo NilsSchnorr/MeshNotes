@@ -24,7 +24,7 @@ import { showToolHelp, restoreToolHelp, clearBoxEditState } from './tool-help.js
 import { toggleCuttingPlane, extractProfile, closeProfilePreview, downloadProfileSVG, downloadProfilePNG, onCuttingPlanePointerDown, onCuttingPlanePointerMove, onCuttingPlanePointerUp, cleanupCuttingPlane } from '../annotation-tools/cutting-plane.js';
 import { openSurveyCsvFile } from '../survey/ui-mapping.js';
 import { closeSurveyDialogs, handleSurveyEscape, isAlignmentViewOpen, closeAlignmentView, refreshSurveyChip } from '../survey/ui-manager.js';
-import { closeSurveyPicking, isSurveyPickingOpen, handleSurveyPickingEscape, canUndoSurveyPick, undoSurveyPick, refreshSurveyOverlays, refreshSurveyPickingSettings } from '../survey/ui-alignment.js';
+import { closeSurveyPicking, isSurveyPickingOpen, handleSurveyPickingEscape, handleSurveyUnitPromptEscape, canUndoSurveyPick, undoSurveyPick, refreshSurveyOverlays, refreshSurveyPickingSettings } from '../survey/ui-alignment.js';
 
 // Re-export for modules that import from here
 export { hideToolHelp, restoreToolHelp, hideAllToolPanels, showBoxEditHelp, clearBoxEditState } from './tool-help.js';
@@ -836,8 +836,9 @@ export function setupEventListeners() {
     // Marker sizes. renderAnnotations() rebuilds measurements too (it calls
     // renderMeasurements() at the end), so the measurement marker slider needs
     // no separate refresh path.
-    // The survey picking overlays follow the point marker size.
-    dom.pointSizeSlider.addEventListener('input', (e) => { setPointSize(parseInt(e.target.value)); renderAnnotations(); refreshSurveyOverlays(); });
+    // The survey picking markers have a Dot size slider of their own
+    // (ui-alignment.js) and do not follow the point marker size.
+    dom.pointSizeSlider.addEventListener('input', (e) => { setPointSize(parseInt(e.target.value)); renderAnnotations(); });
     dom.vertexSizeSlider.addEventListener('input', (e) => { setVertexSize(parseInt(e.target.value)); renderAnnotations(); });
     dom.boxHandleSizeSlider.addEventListener('input', (e) => { setBoxHandleSize(parseInt(e.target.value)); renderAnnotations(); });
     dom.measureMarkerSizeSlider.addEventListener('input', (e) => { setMeasureMarkerSize(parseInt(e.target.value)); renderAnnotations(); });
@@ -1238,6 +1239,8 @@ export function setupEventListeners() {
         if (confirm('Reset all settings to their default values?\n\nThis clears every saved preference: author name, ORCID iD and annotation language; measurement unit and colours; point and text size; background and model display colours; the screenshot and six-view plate settings; all PDF report settings, including the report title, institution and project name; and the survey import settings, including the remembered CSV column mappings.')) {
             resetAllSettings();
             refreshSurveySettingsViews();
+            // The Dot size of the picking markers, also without a picking session
+            refreshSurveyOverlays();
             showStatus('Settings reset to defaults');
         }
     });
@@ -1257,9 +1260,10 @@ export function setupEventListeners() {
             // Only trigger if we're in a supported tool and not in a text input
             const activeElement = document.activeElement;
             const isTextInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-            // A ticked checkbox (the review's Use column, the level option) keeps
-            // the focus but has no undo of its own
-            const isCheckbox = isTextInput && activeElement.type === 'checkbox';
+            // A ticked checkbox (the review's Use column, the level option) or a
+            // moved slider (the panel's Dot size) keeps the focus but has no
+            // undo of its own
+            const isCheckbox = isTextInput && (activeElement.type === 'checkbox' || activeElement.type === 'range');
 
             // Survey control-point picking: undo the last pick change
             if ((!isTextInput || isCheckbox) && state.currentTool === 'survey-pick' && canUndoSurveyPick()) {
@@ -1387,6 +1391,10 @@ export function setupEventListeners() {
                 hideScalebarConfirm();
                 return;
             }
+
+            // The display-unit question of the survey review: back to the
+            // review, nothing accepted
+            if (handleSurveyUnitPromptEscape()) return;
 
             const metadataPopupEl = document.getElementById('metadata-popup');
             if (metadataPopupEl && metadataPopupEl.classList.contains('visible')) {

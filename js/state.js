@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 // ============ Version ============
-export const APP_VERSION = '1.6.1';
+export const APP_VERSION = '1.6.2';
 
 // ============ Application State ============
 export const state = {
@@ -101,6 +101,7 @@ export const state = {
     surveySurfaceLimit: 0.5,    // default distance limit of the selection step
     surveyResidualWarn: 0.05,   // residual warning of the fit
     surveyPdfSummary: true,     // the PDF report prints an alignment summary section
+    surveyDotSize: 1,           // size of the picking markers (Dot size slider, picking panel and control-point view)
 
     // Tools
     currentTool: null, // 'point', 'line', 'polygon', 'surface', 'box', 'measure', 'survey-pick' (picking panel open)
@@ -437,6 +438,8 @@ export function initDomReferences() {
     dom.surveyPickFit = document.getElementById('survey-pick-fit');
     dom.surveyPickLevel = document.getElementById('survey-pick-level');
     dom.surveyPickLevelHint = document.getElementById('survey-pick-level-hint');
+    dom.surveyPickDotSize = document.getElementById('survey-pick-dot-size');
+    dom.surveyPickDotSizeValue = document.getElementById('survey-pick-dot-size-value');
     dom.surveyPickUndo = document.getElementById('survey-pick-undo');
     dom.surveyPickCancel = document.getElementById('survey-pick-cancel');
     dom.surveyPickReview = document.getElementById('survey-pick-review');
@@ -453,6 +456,11 @@ export function initDomReferences() {
     dom.surveyReviewBack = document.getElementById('survey-review-back');
     dom.surveyReviewCancel = document.getElementById('survey-review-cancel');
     dom.surveyReviewAccept = document.getElementById('survey-review-accept');
+    dom.surveyUnitOverlay = document.getElementById('survey-unit-overlay');
+    dom.surveyUnitMessage = document.getElementById('survey-unit-message');
+    dom.surveyUnitDialogClose = document.getElementById('survey-unit-dialog-close');
+    dom.surveyUnitKeep = document.getElementById('survey-unit-keep');
+    dom.surveyUnitSet = document.getElementById('survey-unit-set');
 
     // Survey alignments: status chip, Alignment Manager, refine preview,
     // delete dialog and the read-only control-point view
@@ -484,6 +492,8 @@ export function initDomReferences() {
     dom.alignmentViewVerdict = document.getElementById('alignment-view-verdict');
     dom.alignmentViewFigures = document.getElementById('alignment-view-figures');
     dom.alignmentViewIssues = document.getElementById('alignment-view-issues');
+    dom.alignmentViewDotSize = document.getElementById('alignment-view-dot-size');
+    dom.alignmentViewDotSizeValue = document.getElementById('alignment-view-dot-size-value');
     dom.alignmentViewRows = document.getElementById('alignment-view-rows');
     dom.alignmentViewBack = document.getElementById('alignment-view-back');
 

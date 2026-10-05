@@ -2567,6 +2567,88 @@
             margin-right: auto;
         }
 
+        /* Dot size of the picking markers: one row with label, slider and
+           readout, in the picking panel's footer and in the control-point
+           view of the Alignment Manager */
+        .survey-dot-size-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--color-text-medium);
+            font-size: 12px;
+        }
+
+        .survey-dot-size-row label {
+            flex-shrink: 0;
+            margin: 0;
+        }
+
+        .survey-dot-size-row span {
+            flex-shrink: 0;
+            min-width: 30px;
+            text-align: right;
+            color: var(--color-gold);
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .survey-dot-size-row input[type="range"] {
+            flex: 1 1 auto;
+            min-width: 0;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: var(--color-blue-darkest);
+            border-radius: 2px;
+            outline: none;
+            margin: 0;
+        }
+
+        .survey-dot-size-row input[type="range"]:focus-visible {
+            outline: 2px solid var(--color-gold);
+            outline-offset: 4px;
+        }
+
+        .survey-dot-size-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--color-gold);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .survey-dot-size-row input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: var(--color-gold);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        #alignment-view-body .survey-dot-size-row {
+            margin-bottom: 10px;
+        }
+
+        /* Touch: a thumb large enough for a finger, on the same thin track */
+        @media (pointer: coarse) {
+            .survey-dot-size-row {
+                min-height: 32px;
+            }
+
+            .survey-dot-size-row input[type="range"]::-webkit-slider-thumb {
+                width: 24px;
+                height: 24px;
+            }
+
+            .survey-dot-size-row input[type="range"]::-moz-range-thumb {
+                width: 24px;
+                height: 24px;
+            }
+        }
+
         /* Review (Step C) */
         .survey-verdict {
             padding: 10px 12px;

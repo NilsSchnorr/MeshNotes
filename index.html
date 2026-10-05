@@ -460,7 +460,8 @@
                                 <li><strong>Picking:</strong> Select a row (its <strong>Pick</strong> button; search by name or row number), then click or tap the model where that row was surveyed. Dragging still orbits the view, so only a click or tap picks. Another tap while the row is still selected replaces its pick. On a tablet you can pick with the stylus or with a finger tap.</li>
                                 <li><strong>Existing annotation:</strong> With a row selected, <strong>Or take the position of a point annotation</strong> uses the position of an existing point annotation instead of a tap; one with the row's name is listed first.</li>
                                 <li><strong>How many:</strong> At least 3 rows, better 4 or more, spread over the site and not in a line. With only 3 points a bad pick cannot be found.</li>
-                                <li><strong>Live fit:</strong> From 3 picks on, the footer shows the RMS, the largest residual, the estimated scale and the tilt. Cyan dots show where every CSV row lands with the current fit (rows farther from the surface than the distance limit are faint), gold dots are your picks, the lines between them are the residuals, and a ring marks where the fit expects the selected row. These markers are drawn on screen only, never in screenshots or reports.</li>
+                                <li><strong>Live fit:</strong> From 3 picks on, the footer shows the RMS, the largest residual, the estimated scale and the tilt. Gold rings with a centre dot are your picks; the surface stays visible inside the ring. A line from a pick leads to where the fit places that row, so its length is the residual. Cyan dots show where the other CSV rows land with the current fit (rows farther from the surface than the distance limit are faint), and a larger cyan ring marks where the fit expects the selected row. These markers are drawn on screen only, never in screenshots or reports.</li>
+                                <li><strong>Dot size:</strong> The <strong>Dot size</strong> slider in the panel's footer (×0.4 to ×3.0) makes all of these markers smaller or larger, for example smaller for an exact pick on a detailed surface. It is remembered in your browser and is separate from the Point Markers size in Settings, which sizes annotation markers.</li>
                                 <li><strong>Warnings:</strong> The panel warns when the picks lie in a line or nearly in a line, too close together or on top of each other; when Easting and Northing appear to be swapped (with a <strong>Swap Easting and Northing</strong> button that swaps the column mapping and refits); when the picks form a mirror image of the survey points; when the fit turns the model upside down or on its side (usually the wrong up-axis was chosen when loading: reload the model with the other one); when the fit tilts the model by more than 5° (check the picks if the model should be level); when the estimated scale is far from 1 (the model may be in millimetres, centimetres or feet); when one pick does not fit the others (with a <strong>Re-pick</strong> button); when a residual is above the warning threshold; and when the control points span more than 2 km.</li>
                                 <li><strong>Model is already level:</strong> Off by default, so the full fit applies (rotation about all axes plus shift), which gives non-RTK data the freedom it needs. When the full fit tilts the model by less than 0.5°, the panel suggests ticking it; the fit then only turns about the vertical axis, and the preview moves at once. It is never ticked automatically, it is saved with the alignment, and it can be changed later through Refine.</li>
                                 <li><strong>Undo and Escape:</strong> <strong>Undo</strong> or <code>Ctrl+Z</code> (<code>Cmd+Z</code> on Mac) undoes the last pick change. <strong>Escape</strong> works in stages: it closes the review, then an open popup, clears the search, deselects the row, and finally asks before discarding the session. <strong>Cancel</strong> and the close button ask too. The picking session is not saved: reloading the page or loading another model ends it, and nothing has been imported yet at that point.</li>
@@ -473,6 +474,7 @@
                                 <li><strong>Figures:</strong> Points used, fit type, RMS in 3D, horizontally and vertically, the largest residual, the estimated scale (shown, never applied), the tilt and the heading. The RMS of the full fit and of the level-only fit are shown side by side next to the <strong>Model is already level</strong> checkbox. A model in millimetres reads a scale of about 0.001; on large sites a scale of about 0.9996 is normal, because projected grid distances differ slightly from ground distances.</li>
                                 <li><strong>Control points:</strong> For each point the residual (surveyed minus fitted position) in E, N and H, its total, and the leave-one-out error, i.e. the error of the point when the fit is made without it (from 4 points on). A point that does not fit the others is highlighted. Untick <strong>Use</strong> to leave a point out of the fit, or click <strong>Re-pick</strong> to go back to the panel with that row selected.</li>
                                 <li><strong>Buttons:</strong> <strong>Back</strong> returns to picking, <strong>Cancel</strong> asks before discarding the session, and <strong>Accept and import</strong> saves the alignment and continues with step D. A model's first alignment becomes its default.</li>
+                                <li><strong>Display unit:</strong> A Good or Check fit confirms that the model is in metres, because its estimated scale is close to 1 against survey coordinates in metres. If the <strong>Display unit</strong> under Settings → Measurements says something else, or is not set, accepting first asks whether to set it to m. <strong>Set to m</strong> changes the unit that labels measurements and scale bars, for every model you open; the other button keeps it, and the question is not asked again for this model until it is loaded again. Closing the question returns to the review. The answer does not change the alignment: referencing never rescales the model and never sets a unit on its own. A Poor fit does not ask.</li>
                             </ul>
 
                             <h4 style="margin-top: 14px;">Step D: Selecting the points and the summary</h4>
@@ -495,7 +497,7 @@
                             <h4 style="margin-top: 14px;">Alignment Manager</h4>
                             <p style="margin-top: 10px;">A status chip next to the face count in the bottom-right corner shows the model's alignments: none, the RMS of a single alignment, or how many there are. Click it to open the <strong>Alignment Manager</strong>, which lists each alignment with its name, a Default badge, its verdict, coordinate system, height column, fit type and control points, RMS and largest residual, the number of survey points (and how many were moved by hand) and the earlier fits kept in its history.</p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                <li><strong>View control points:</strong> A side panel with the read-only review table, the verdict and the checks. On the model, gold dots are the picks (grey: not used), cyan dots are where the fit places the surveyed coordinates, and the lines between them are the residuals. The tools stay usable while it is open.</li>
+                                <li><strong>View control points:</strong> A side panel with the read-only review table, the verdict and the checks. On the model, gold rings with a centre dot are the picks (grey: not used), cyan dots are where the fit places the surveyed coordinates, and the lines between them are the residuals; the panel's <strong>Dot size</strong> slider sizes them. The tools stay usable while it is open.</li>
                                 <li><strong>Rename:</strong> Changes the name and the coordinate system label. The fit is not changed.</li>
                                 <li><strong>Refine:</strong> Opens the picking panel with the alignment's control points as picks. Add rows (the alignment's imported points can serve as new control points), re-pick or untick points, or switch the level option. Accept saves the new fit and keeps the previous one in the history. If the survey points would move, a preview shows how many, the largest and the median displacement, and lists the points moved by hand, which stay where they are. <strong>Move points</strong> moves the fit-placed points to the new fit and places them on the surface again; <strong>Keep positions</strong> leaves them where they are, and the next refine offers to move them again. A refine that changes nothing saves nothing.</li>
                                 <li><strong>Re-align from scratch:</strong> The same, starting with no picks. The previous fit is kept in the history.</li>
@@ -808,7 +810,7 @@
 
                             <h4 style="margin-top: 14px;">Measure</h4>
 
-                            <p style="margin-top: 10px;"><strong>Measurements:</strong> Choose a <strong>Display unit</strong> (units, mm, cm, m, or custom). This unit labels measurement distances and every scale bar MeshNotes draws — on profile exports, orthographic screenshots, six-view plates and PDF reports. MeshNotes does not convert between units; the actual scale depends on how your model was created or exported. You can also customize the <strong>Line &amp; Label Color</strong> and <strong>Point Color</strong> of measurements to stand out against your model. <strong>Marker Size</strong> scales the measurement point markers, independently of the annotation markers — those have their own sliders under <strong>Viewport → Marker &amp; Label Size</strong>.</p>
+                            <p style="margin-top: 10px;"><strong>Measurements:</strong> Choose a <strong>Display unit</strong> (units, mm, cm, m, or custom). This unit labels measurement distances and every scale bar MeshNotes draws — on profile exports, orthographic screenshots, six-view plates and PDF reports. MeshNotes does not convert between units; the actual scale depends on how your model was created or exported. When a survey alignment with a Good or Check fit shows that the model is in metres, MeshNotes offers to set the unit to m (see <em>Survey Points (CSV Import)</em>). You can also customize the <strong>Line &amp; Label Color</strong> and <strong>Point Color</strong> of measurements to stand out against your model. <strong>Marker Size</strong> scales the measurement point markers, independently of the annotation markers — those have their own sliders under <strong>Viewport → Marker &amp; Label Size</strong>.</p>
 
                             <h4 style="margin-top: 14px;">Export</h4>
 
@@ -822,7 +824,7 @@
 
                             <h4 style="margin-top: 14px;">Survey import</h4>
 
-                            <p style="margin-top: 10px;"><strong>Imported Points:</strong> <strong>Lock imported points</strong> (on by default) makes points imported from a survey CSV start locked, so they cannot be dragged by accident; each point's lock can still be switched in its edit popup. <strong>Hide labels of large imports</strong> (above 50 points by default) starts a new import group with its labels off when it receives more points than this; an existing group's labels are never changed. Imported points use the Point Markers size. The column mapping of each CSV header is remembered, for the last 20 headers, and offered again for a file with the same header.</p>
+                            <p style="margin-top: 10px;"><strong>Imported Points:</strong> <strong>Lock imported points</strong> (on by default) makes points imported from a survey CSV start locked, so they cannot be dragged by accident; each point's lock can still be switched in its edit popup. <strong>Hide labels of large imports</strong> (above 50 points by default) starts a new import group with its labels off when it receives more points than this; an existing group's labels are never changed. Imported points use the Point Markers size; the markers shown while picking control points have their own <strong>Dot size</strong> slider in the picking panel. The column mapping of each CSV header is remembered, for the last 20 headers, and offered again for a file with the same header.</p>
 
                             <p style="margin-top: 10px;"><strong>Alignment &amp; Placement:</strong> <strong>Residual warning</strong> (5 cm) flags a control point whose residual is larger, while picking, in the review and in the Alignment Manager; the RMS limits of the Good and Poor verdicts are fixed. <strong>Surface-distance warning</strong> (10 cm) marks rows whose fitted position lies farther from the model surface, in the selection list and the import summary. <strong>Distance limit for selecting points on the model</strong> (0.5 m) decides which rows are ticked in the selection step; the selection step can change it for a single import.</p>
 
@@ -1650,6 +1652,11 @@
                         </label>
                         <p class="survey-hint" id="survey-pick-level-hint"></p>
                     </div>
+                    <div class="survey-dot-size-row">
+                        <label for="survey-pick-dot-size">Dot size</label>
+                        <input type="range" id="survey-pick-dot-size" min="40" max="300" step="10" value="100" title="Size of the picking markers on the model">
+                        <span id="survey-pick-dot-size-value">×1.0</span>
+                    </div>
                     <div class="survey-pick-buttons">
                         <button class="btn-cancel" id="survey-pick-undo" title="Undo the last pick change (Ctrl+Z)">Undo</button>
                         <button class="btn-cancel" id="survey-pick-cancel">Cancel</button>
@@ -1673,7 +1680,12 @@
                     <p class="survey-verdict" id="alignment-view-verdict"></p>
                     <div class="survey-summary-figures" id="alignment-view-figures"></div>
                     <ul class="survey-issues" id="alignment-view-issues"></ul>
-                    <p class="survey-hint">On the model: gold dots are the picks (grey: not used in the fit), cyan dots are where the fit places the surveyed coordinates, and the lines between them are the residuals.</p>
+                    <p class="survey-hint">On the model: gold rings with a centre dot are the picks (grey: not used in the fit), cyan dots are where the fit places the surveyed coordinates, and the lines between them are the residuals.</p>
+                    <div class="survey-dot-size-row">
+                        <label for="alignment-view-dot-size">Dot size</label>
+                        <input type="range" id="alignment-view-dot-size" min="40" max="300" step="10" value="100" title="Size of the control-point markers on the model">
+                        <span id="alignment-view-dot-size-value">×1.0</span>
+                    </div>
                     <div class="survey-table-wrap survey-select-wrap">
                         <table class="survey-table survey-review-table">
                             <thead>
@@ -1913,6 +1925,19 @@
                         <button class="btn-cancel" id="alignment-delete-cancel">Cancel</button>
                         <button class="btn-delete" id="alignment-delete-points">Delete points too</button>
                         <button class="btn-save" id="alignment-delete-detach">Detach points</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Display Unit Dialog (survey review: a Good or Check fit confirms a model in metres) -->
+            <div class="confirm-overlay" id="survey-unit-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="survey-unit-dialog-close" title="Back to the review">✕</button>
+                    <p id="survey-unit-message" style="padding: 0 16px;">This fit confirms that the model is in metres.</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">The display unit labels measurement distances and every scale bar. It applies to every model you open, until you change it under Settings → Measurements. The alignment is the same either way.</p>
+                    <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
+                        <button class="btn-cancel" id="survey-unit-keep">Leave unset</button>
+                        <button class="btn-save" id="survey-unit-set">Set to m</button>
                     </div>
                 </div>
             </div>

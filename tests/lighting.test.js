@@ -1,4 +1,4 @@
-// tests/lighting.test.js - Survey import settings: the six visible options and the remembered column mappings
+// tests/lighting.test.js - Survey import settings: the six visible options, the dot size and the remembered column mappings
 // The settings module touches localStorage only when a function is called, so
 // a small in-memory stand-in is enough. Loads the browser module through
 // tests/support/app-env.js (lighting.js imports Three.js and state.js). The
@@ -23,7 +23,8 @@ const {
     getSurveyMappings, getSurveyMapping, saveSurveyMapping, SURVEY_MAPPINGS_MAX,
     SURVEY_SETTING_DEFAULTS, SURVEY_SETTING_OPTIONS, surveySettingChoice,
     setSurveyLockImported, setSurveyLabelsOffAbove, setSurveyResidualWarn, setSurveySurfaceWarn,
-    setSurveySurfaceLimit, setSurveyPdfSummary, restoreSurveySettings, resetAllSettings
+    setSurveySurfaceLimit, setSurveyPdfSummary, restoreSurveySettings, resetAllSettings,
+    SURVEY_DOT_SIZE, surveyDotSizeChoice, setSurveyDotSize
 } = await import('../js/core/lighting.js');
 const { state, dom } = await import('../js/state.js');
 const { RESIDUAL_WARN_DEFAULT, SURFACE_WARN_DEFAULT, SELECTION_LIMIT_DEFAULT } = await import('../js/survey/rigid-fit.js');
@@ -38,6 +39,7 @@ const STATE_DEFAULTS = {
     surfaceLimit: state.surveySurfaceLimit,
     pdfSummary: state.surveyPdfSummary
 };
+const DOT_SIZE_STATE_DEFAULT = state.surveyDotSize;
 
 // Every dom reference lighting.js uses gets a stand-in element, so the
 // setters and resetAllSettings() can run; setBackgroundColor() (called by the
@@ -291,4 +293,75 @@ test('resetAllSettings restores the six survey defaults and forgets the mappings
     for (const key of Object.values(SURVEY_KEYS)) assert.equal(localStorage.getItem(key), null, key);
     assert.deepEqual(getSurveyMappings(), []);
     assert.equal(localStorage.getItem('other_app_key'), 'kept');
+});
+
+// ============ Dot size of the picking markers ============
+
+const DOT_SIZE_KEY = 'meshnotes_surveyDotSize';
+const DOT_SIZE_SLIDERS = { surveyPickDotSize: 'survey-pick-dot-size', alignmentViewDotSize: 'alignment-view-dot-size' };
+
+function dotSizeControls() {
+    return Object.keys(DOT_SIZE_SLIDERS).map(key => [dom[key].value, dom[`${key}Value`].textContent]);
+}
+
+test('the dot size default agrees with state.js and both sliders in index.html', () => {
+    assert.equal(DOT_SIZE_STATE_DEFAULT, SURVEY_DOT_SIZE.default);
+    assert.ok(SURVEY_DOT_SIZE.min < SURVEY_DOT_SIZE.default && SURVEY_DOT_SIZE.default < SURVEY_DOT_SIZE.max);
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    for (const id of Object.values(DOT_SIZE_SLIDERS)) {
+        const m = html.match(new RegExp(`<input type="range" id="${id}" min="(\\d+)" max="(\\d+)" step="(\\d+)" value="(\\d+)"`));
+        assert.ok(m, id);
+        assert.deepEqual(m.slice(1, 5).map(Number),
+            [SURVEY_DOT_SIZE.min * 100, SURVEY_DOT_SIZE.max * 100, 10, SURVEY_DOT_SIZE.default * 100], id);
+        assert.match(html, new RegExp(`<span id="${id}-value">×1\\.0</span>`), id);
+    }
+});
+
+test('surveyDotSizeChoice keeps the multiplier within the range', () => {
+    assert.equal(surveyDotSizeChoice(0.7), 0.7);
+    assert.equal(surveyDotSizeChoice('1.3'), 1.3);
+    assert.equal(surveyDotSizeChoice(1.234), 1.23);
+    assert.equal(surveyDotSizeChoice(50), SURVEY_DOT_SIZE.max);
+    assert.equal(surveyDotSizeChoice(0.01), SURVEY_DOT_SIZE.min);
+    assert.equal(surveyDotSizeChoice(-2), SURVEY_DOT_SIZE.min);
+    for (const bad of ['abc', '', null, undefined, NaN]) assert.equal(surveyDotSizeChoice(bad), SURVEY_DOT_SIZE.default);
+});
+
+test('setSurveyDotSize writes state, localStorage and both sliders', () => {
+    setSurveyDotSize(0.7);
+    assert.equal(state.surveyDotSize, 0.7);
+    assert.equal(localStorage.getItem(DOT_SIZE_KEY), '0.7');
+    assert.deepEqual(dotSizeControls(), [['70', '×0.7'], ['70', '×0.7']]);
+
+    setSurveyDotSize(300 / 100);                // the slider's upper end
+    assert.equal(state.surveyDotSize, 3);
+    assert.deepEqual(dotSizeControls(), [['300', '×3.0'], ['300', '×3.0']]);
+
+    setSurveyDotSize(12);                       // out of range: the limit
+    assert.equal(state.surveyDotSize, SURVEY_DOT_SIZE.max);
+    assert.equal(localStorage.getItem(DOT_SIZE_KEY), '3');
+});
+
+test('restoreSurveySettings and resetAllSettings handle the dot size', () => {
+    state.surveyDotSize = SURVEY_DOT_SIZE.default;
+    restoreSurveySettings();
+    assert.equal(state.surveyDotSize, SURVEY_DOT_SIZE.default);
+    assert.equal(localStorage.getItem(DOT_SIZE_KEY), null);     // nothing written for a missing key
+
+    localStorage.setItem(DOT_SIZE_KEY, '0.5');
+    restoreSurveySettings();
+    assert.equal(state.surveyDotSize, 0.5);
+    assert.deepEqual(dotSizeControls(), [['50', '×0.5'], ['50', '×0.5']]);
+
+    localStorage.setItem(DOT_SIZE_KEY, 'huge');                 // not a number: skipped
+    restoreSurveySettings();
+    assert.equal(state.surveyDotSize, 0.5);
+    localStorage.setItem(DOT_SIZE_KEY, '9');                    // out of range: the limit
+    restoreSurveySettings();
+    assert.equal(state.surveyDotSize, SURVEY_DOT_SIZE.max);
+
+    resetAllSettings();
+    assert.equal(state.surveyDotSize, SURVEY_DOT_SIZE.default);
+    assert.equal(localStorage.getItem(DOT_SIZE_KEY), null);
+    assert.deepEqual(dotSizeControls(), [['100', '×1.0'], ['100', '×1.0']]);
 });
