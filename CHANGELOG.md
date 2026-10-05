@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.1] — 2026-10-05
+
+A bug-fix release. Models with more than 10 million faces in a single mesh are now drawn in Firefox, where they loaded without any error but left the viewport empty.
+
+### Fixed
+
+- **Very large models stayed invisible in Firefox** — Firefox refuses any single WebGL draw call that addresses more than 30 million vertex ids (its `webgl.max-vert-ids-per-draw` setting, which a web page can neither read nor raise). A mesh is drawn with three ids per face in one call, so a mesh above 10 million faces went over that limit. The model loaded, reached the GPU and built its acceleration structure as usual, but Firefox dropped the draw on every frame and only wrote a warning to the console; for a 40-million-face model it read "Context's max indexCount is 30000000, but 120000000 requested". MeshNotes now draws every mesh above 4 million faces in several calls of at most 4 million faces each. The same split keeps wireframe mode, which addresses six ids per face, within the limit. Models up to 4 million faces are drawn exactly as before, and browsers without this limit only issue a few more draw calls; in Chromium the rendered image is pixel-identical to the previous version. Annotation files are unaffected: the faces of a model keep their numbering, so saved surface annotations stay on the same triangles.
+
+### Internal
+
+- `js/core/model-loader.js` gains `DRAW_CHUNK_FACES` (4,000,000), `chunkLargeDraws()` and `setMeshMaterial()`. A mesh above the chunk size gets geometry groups that all use material 0, and its material is wrapped in a one-element array, because Three.js issues one draw call per group only for an array material and falls back to a single call as soon as a single material is assigned. `applyDisplayMode()` therefore assigns materials through `setMeshMaterial()`; any new code that gives a model mesh a material has to do the same, otherwise the split is lost and only Firefox shows it.
+- The split runs after the BVH build, on purpose. `three-mesh-bvh` builds one root per geometry group and sorts the index buffer inside each root, and surface annotations store their faces as positions in that sorted buffer (`meshnotes:faces`). Groups present during the build would renumber the faces of every large model and detach existing surface annotations from their triangles; added afterwards, they only cut the sorted buffer into ranges. A geometry that already has groups (a multi-material OBJ) is not split, because its BVH roots follow those groups.
+- New `tests/draw-chunks.test.js` (eight tests) covers the group layout, non-indexed geometry, the material helper, the unchanged index buffer and raycast results after the split, with and without a BVH, and the renumbering that splitting before the build would cause.
+- No vendored library changed.
+
+
 ## [1.6.0] — 2026-10-04
 
 This release adds survey CSV import: the rows of a survey file, such as the export of a GNSS rover or a total station, become point annotations on the model, placed by a control-point alignment that is made, reviewed and saved inside MeshNotes. The model itself never moves, so existing annotations keep their positions. Alongside it come a position lock for every annotation, collapsible groups with a per-group label switch, and a choice between moving and deleting a group's annotations when the group is deleted. Files saved by this version carry new optional members; read the **Compatibility** notes below before passing files back and forth with MeshNotes 1.5.x or earlier.
@@ -270,6 +286,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.6.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.1
 [1.6.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.0
 [1.5.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.5.1
 [1.5.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.5.0

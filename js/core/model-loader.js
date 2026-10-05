@@ -53,6 +53,84 @@ export function isWireframeSupported() {
     return state.modelFaceCount <= WIREFRAME_FACE_LIMIT;
 }
 
+// Largest number of faces MeshNotes puts into a single draw call.
+//
+// Firefox rejects any WebGL draw call that addresses more than 30,000,000
+// vertex ids (its webgl.max-vert-ids-per-draw preference, which a web page can
+// neither read nor raise). Drawing triangles takes 3 ids per face, so a mesh
+// above 10M faces exceeds that in one call: Firefox then drops the draw on
+// every frame and the viewport stays empty, although loading, the GPU upload
+// and the BVH build all succeeded -- observed with a 40M-face GLB (120,000,000
+// ids requested). Wireframe takes 6 ids per face (see WIREFRAME_FACE_LIMIT), so
+// in that mode the same wall stands at 5M faces.
+//
+// 4M faces per call is 12M ids for triangles and 24M for wireframe, both under
+// the limit with room to spare. Chrome and Safari have no such limit; there
+// the only effect is a handful of extra draw calls per frame.
+//
+// This is a single tunable number. Changing it does NOT change face numbering
+// (see chunkLargeDraws), so it never affects stored surface annotations.
+export const DRAW_CHUNK_FACES = 4000000;
+
+// Meshes whose draw was split by chunkLargeDraws(). Their material has to stay
+// an array: Three.js issues one draw call per geometry group only for an array
+// material, and falls back to a single draw call over the whole geometry as
+// soon as a single material is assigned. applyDisplayMode() assigns materials
+// through setMeshMaterial() for that reason.
+const _drawChunkedMeshes = new WeakSet();
+
+/**
+ * Splits the draw of a large mesh into several draw calls of at most
+ * `chunkFaces` faces each, by adding geometry groups that all use material 0
+ * and wrapping the mesh's material in a one-element array. The geometry, its
+ * buffers and the order of its faces are untouched; only the number of draw
+ * calls changes.
+ *
+ * MUST run after the BVH build, never before. three-mesh-bvh builds one BVH
+ * root per geometry group and sorts the index buffer inside each root, and
+ * surface annotations store their faces as positions in that sorted buffer
+ * ("meshnotes:faces"). Groups present during the build would therefore
+ * renumber the faces of every large model and detach existing surface
+ * annotations from their triangles. Added afterwards, the groups only cut the
+ * already sorted buffer into ranges.
+ *
+ * A geometry that already has groups (a multi-material OBJ) is left alone:
+ * its BVH roots follow those groups, and regrouping it would break that pairing.
+ *
+ * @param {THREE.Mesh} mesh
+ * @param {number} [chunkFaces=DRAW_CHUNK_FACES] - faces per draw call
+ * @returns {boolean} true if the draw was split
+ */
+export function chunkLargeDraws(mesh, chunkFaces = DRAW_CHUNK_FACES) {
+    const geometry = mesh.geometry;
+    if (!geometry || !geometry.attributes.position) return false;
+    if (geometry.groups.length > 0) return false;
+
+    // Vertex ids one draw call would address: index entries for indexed
+    // geometry, vertices otherwise.
+    const idCount = geometry.index ? geometry.index.count : geometry.attributes.position.count;
+    const chunkIds = chunkFaces * 3;
+    if (idCount <= chunkIds) return false;
+
+    for (let start = 0; start < idCount; start += chunkIds) {
+        geometry.addGroup(start, Math.min(chunkIds, idCount - start), 0);
+    }
+    if (!Array.isArray(mesh.material)) mesh.material = [mesh.material];
+    _drawChunkedMeshes.add(mesh);
+    return true;
+}
+
+/**
+ * Assigns a material to a model mesh, keeping the array form a mesh split by
+ * chunkLargeDraws() needs. Use this instead of writing mesh.material directly
+ * wherever a model mesh gets a new material.
+ * @param {THREE.Mesh} mesh
+ * @param {THREE.Material|THREE.Material[]} material
+ */
+export function setMeshMaterial(mesh, material) {
+    mesh.material = (_drawChunkedMeshes.has(mesh) && !Array.isArray(material)) ? [material] : material;
+}
+
 // Late-bound reference to updateModelInfoDisplay (set by sidebar.js to avoid circular deps)
 let _updateModelInfoDisplay = null;
 export function setUpdateModelInfoDisplay(fn) {
@@ -353,6 +431,17 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
 
     // Record BVH availability for features that depend on fast raycasting (e.g. label occlusion)
     state.bvhAvailable = !bvhBuildFailed;
+
+    // Split the draw of large meshes into several draw calls (Firefox draw
+    // limit, see DRAW_CHUNK_FACES). Deliberately placed AFTER the BVH build:
+    // done before it, the face numbering of large models would change.
+    let chunkedMeshes = 0;
+    for (const mesh of state.modelMeshes) {
+        if (chunkLargeDraws(mesh)) chunkedMeshes++;
+    }
+    if (chunkedMeshes > 0) {
+        console.log(`setupLoadedModel: draw split into chunks of ${DRAW_CHUNK_FACES.toLocaleString()} faces for ${chunkedMeshes} mesh(es)`);
+    }
 
     // Display face count
     updateFaceCountDisplay(totalFaces);
@@ -797,31 +886,32 @@ export function applyDisplayMode() {
                             return c;
                         });
                     } else {
-                        child.material = original.clone();
-                        child.material.vertexColors = false;
+                        const restored = original.clone();
+                        restored.vertexColors = false;
+                        setMeshMaterial(child, restored);
                     }
                 }
             } else if (state.displayMode === 'vertexColors') {
                 disposeCurrent();
-                child.material = new THREE.MeshStandardMaterial({
+                setMeshMaterial(child, new THREE.MeshStandardMaterial({
                     vertexColors: true,
                     roughness: 0.7,
                     metalness: 0.0
-                });
+                }));
             } else if (state.displayMode === 'wireframe') {
                 disposeCurrent();
-                child.material = new THREE.MeshBasicMaterial({
+                setMeshMaterial(child, new THREE.MeshBasicMaterial({
                     color: new THREE.Color(state.wireframeColor),
                     wireframe: true
-                });
+                }));
             } else {
                 // Mesh mode (solid color, no texture)
                 disposeCurrent();
-                child.material = new THREE.MeshStandardMaterial({
+                setMeshMaterial(child, new THREE.MeshStandardMaterial({
                     color: new THREE.Color(state.meshColor),
                     roughness: 0.7,
                     metalness: 0.0
-                });
+                }));
             }
 
             const mats = Array.isArray(child.material) ? child.material : [child.material];
