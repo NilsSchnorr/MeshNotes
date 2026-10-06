@@ -73,6 +73,7 @@ const PRECACHE = [
   './js/survey/ui-mapping.js',
   './js/ui/event-listeners.js',
   './js/ui/icons.js',
+  './js/ui/manual.js',
   './js/ui/tool-help.js',
   './js/utils/coords.js',
   './js/utils/helpers.js',

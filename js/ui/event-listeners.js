@@ -1,6 +1,7 @@
 // js/ui/event-listeners.js
 import { state, dom } from '../state.js';
-import { showStatus, filterAnnotations, toggleManualItem, openManualItem } from '../utils/helpers.js';
+import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
+import { openManualItem, initManualSearch } from './manual.js';
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
@@ -930,6 +931,7 @@ export function setupEventListeners() {
     dom.btnManual.addEventListener('click', () => {
         dom.manualOverlay.classList.add('visible');
     });
+    initManualSearch();
     dom.manualModalClose.addEventListener('click', () => {
         dom.manualOverlay.classList.remove('visible');
     });

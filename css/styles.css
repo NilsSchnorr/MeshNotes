@@ -3969,6 +3969,83 @@
             margin-top: 0;
         }
 
+        /* Manual search: a bar between the header and the chapters */
+        #manual-search-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--color-blue);
+        }
+
+        #manual-search-input {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 12px;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            background: var(--color-blue-darkest);
+            color: var(--color-text-light);
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        #manual-search-input:focus {
+            outline: none;
+            border-color: var(--color-gold);
+        }
+
+        #manual-search-input::placeholder {
+            color: var(--color-text-dim);
+        }
+
+        #manual-search-count {
+            font-size: 12px;
+            color: var(--color-text-medium);
+            white-space: nowrap;
+        }
+
+        #manual-search-count.no-match {
+            color: var(--color-orange);
+        }
+
+        .manual-search-step {
+            width: 30px;
+            height: 30px;
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid var(--color-blue);
+            border-radius: 4px;
+            color: var(--color-text-light);
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .manual-search-step:hover:not(:disabled) {
+            border-color: var(--color-gold);
+        }
+
+        .manual-search-step:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+
+        /* Chapters without a match while a search shows its result */
+        .manual-search-hidden {
+            display: none !important;
+        }
+
+        mark.manual-search-hit {
+            background: rgba(237, 192, 64, 0.35);
+            color: #fff;
+            border-radius: 2px;
+        }
+
+        mark.manual-search-hit.current {
+            background: var(--color-gold);
+            color: #000;
+        }
+
         /* Collapsible manual items */
         .manual-item {
             background: var(--color-blue-darkest);

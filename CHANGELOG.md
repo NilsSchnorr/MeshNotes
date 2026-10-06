@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.3] — 2026-10-06
 
-A small release. A permanent share link can now be generated without loading a model first, and the Manual explains permanent sharing step by step, with Zenodo as the example.
+A small release. A permanent share link can now be generated without loading a model first, the Manual explains permanent sharing step by step with Zenodo as the example, and the Manual has a text search.
 
 ### Fixed
 
@@ -16,6 +16,7 @@ A small release. A permanent share link can now be generated without loading a m
 
 ### Added
 
+- **Search in the Manual** — a search field at the top of the Manual. From two characters on, it shows only the chapters that contain the search text, opens them and marks every match. A counter shows the position (for example *3 of 16*), and **Enter** and **Shift+Enter**, or the two arrow buttons, step through the matches. Emptying the field, or pressing **Escape** in it, shows all chapters again the way they were before the search; a second Escape closes the Manual. With the Manual open, **Ctrl+F** (Cmd+F on a Mac) goes to this field, because the browser's own search does not open the collapsed chapters; pressed again, it opens the browser's search as usual. The search ignores upper and lower case. A search text that runs across a change of formatting, such as bold into plain text, is not found.
 - **Link from the Share dialog to the Manual** — the Permanent section has a line **Step-by-step example with Zenodo**. It closes the Share dialog and opens the Manual at *Sharing*, under **Permanent Share**; the URLs already entered are kept.
 
 ### Changed
@@ -26,10 +27,10 @@ A small release. A permanent share link can now be generated without loading a m
 ### Internal
 
 - `index.html`: `longterm-generate-btn` no longer starts `disabled`, and `setupLoadedModelInternal()` in `js/core/model-loader.js` only enables `share-generate-btn`.
-- New `openManualItem()` in `js/utils/helpers.js` shows the Manual, expands the chapter around a target element and scrolls to it. The link in the Share dialog targets the sub-headline `manual-permanent-share`.
+- New module `js/ui/manual.js`. `openManualItem()` shows the Manual, expands the chapter around a target element and scrolls to it; the link in the Share dialog targets the sub-headline `manual-permanent-share`. `findMatches()`, `searchManual()`, `clearManualSearch()` and `initManualSearch()` are the search. Matches are wrapped in `<mark class="manual-search-hit">` and taken out again when the search ends, which leaves the Manual's markup exactly as it was; the search bar sits outside `#manual-modal-content`, so the PDF manual does not read it.
 - The step titles of the Zenodo example are bold paragraphs, not headings: `js/export/pdf-manual.js` extracts `h4`, `p`, `ul` and `.limitation-note`, and `h4` is taken by the two sub-headlines.
-- New `tests/share-dialog.test.js` (four tests) covers the state of both Generate buttons, the target of the Manual link and the structure of the *Sharing* chapter.
-- No file format, specification or vendored library changed, and no new module was added, so the precache list is unchanged.
+- New `tests/share-dialog.test.js` (four tests) covers the state of both Generate buttons, the target of the Manual link and the structure of the *Sharing* chapter. New `tests/manual-search.test.js` (six tests) covers `findMatches()` and the markup and wiring of the search bar.
+- No file format, specification or vendored library changed. `js/ui/manual.js` is added to the precache list in `sw.js`.
 
 
 ## [1.6.2] — 2026-10-05

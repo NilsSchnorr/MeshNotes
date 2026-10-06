@@ -108,6 +108,12 @@
                 <h2>Manual</h2>
                 <button id="manual-modal-close">✕</button>
             </div>
+            <div id="manual-search-bar">
+                <input type="search" id="manual-search-input" placeholder="Search the manual..." aria-label="Search the manual" autocomplete="off" spellcheck="false">
+                <span id="manual-search-count" aria-live="polite"></span>
+                <button type="button" class="manual-search-step" id="manual-search-prev" title="Previous match (Shift+Enter)" aria-label="Previous match" disabled>▲</button>
+                <button type="button" class="manual-search-step" id="manual-search-next" title="Next match (Enter)" aria-label="Next match" disabled>▼</button>
+            </div>
             <div id="manual-modal-content">
                 <section>
                     <h3>Quick Start</h3>
