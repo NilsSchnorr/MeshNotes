@@ -522,11 +522,11 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     dom.btnScreenshot.disabled = false;
     dom.btnExport.disabled = false;
     if (dom.btnImportSurvey) dom.btnImportSurvey.disabled = false;   // Import > Survey points (CSV)
-    // Enable share generate buttons (Share dialog itself is always accessible)
+    // Enable Quick Share's Generate button: it uploads the loaded model. The
+    // Share dialog itself and the Permanent button, which only builds a link
+    // from the URLs typed into the dialog, work without a model.
     const shareGenBtn = document.getElementById('share-generate-btn');
-    const longtermGenBtn = document.getElementById('longterm-generate-btn');
     if (shareGenBtn) shareGenBtn.disabled = false;
-    if (longtermGenBtn) longtermGenBtn.disabled = false;
     state.displayMode = 'texture';
     updateTextureButtonLabel();
 

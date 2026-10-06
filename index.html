@@ -528,21 +528,59 @@
                             <span class="toggle-icon">▶</span>
                         </div>
                         <div class="manual-item-content">
-                            <p>Click <strong>Share</strong> in the toolbar to open the sharing dialog. MeshNotes offers two sharing modes:</p>
-
-                            <p style="margin-top: 10px;"><strong>Quick Share (90 days):</strong> Uploads your model and annotations to meshnotes.org and generates a link. Anyone with the link can open the model and annotations directly in MeshNotes — no file download or manual import needed. Quick Share links expire after 90 days. Click <strong>Generate Link</strong> to upload. Maximum file size: 100 MB.</p>
-
-                            <p style="margin-top: 10px;"><strong>Tip:</strong> Large GLB models can be reduced significantly using <em>Draco compression</em> before sharing. See the <em>Model Preparation &amp; Format Guide</em> section for details and tools.</p>
-
-                            <p style="margin-top: 10px;"><strong>Permanent (own hosting / DOI):</strong> For long-term, citable sharing, upload your model and annotation files to a CORS-friendly repository that supports direct file access from the browser. Enter the file URLs in the dialog, select the model format (important when the URL does not contain a file extension), and MeshNotes generates a permanent link. These links do not expire and do not use meshnotes.org storage — the files are loaded directly from your repository. If your repository mints DOIs, the link is citable in publications.</p>
+                            <p>Click <strong>Share</strong> in the toolbar to open the sharing dialog. MeshNotes offers two sharing modes: <strong>Quick Share</strong> and <strong>Permanent Share</strong>.</p>
 
                             <p style="margin-top: 10px;"><strong>Previously generated links:</strong> The Share dialog keeps a history of all links you have generated, showing the model name, creation date, and time remaining until expiry. You can copy any previous link or remove entries from the list. This history is stored in your browser’s local storage.</p>
 
                             <p style="margin-top: 10px;"><strong>Recipient workflow:</strong> When someone opens a share link, the model and annotations load automatically in MeshNotes. The recipient can view, edit, and add their own annotations. To save the work, they can export the annotations as JSON-LD, download the model files via <strong>Export ▾ → Model Files</strong>, or re-share with a new link.</p>
 
+                            <h4 style="margin-top: 14px;">Quick Share</h4>
+                            <p style="margin-top: 10px;">Uploads your model and annotations to meshnotes.org and generates a link. Anyone with the link can open the model and annotations directly in MeshNotes — no file download or manual import needed. Quick Share links expire after 90 days. Click <strong>Generate Link</strong> to upload. Maximum file size: 100 MB.</p>
+
+                            <p style="margin-top: 10px;"><strong>Tip:</strong> Large GLB models can be reduced significantly using <em>Draco compression</em> before sharing. See the <em>Model Preparation &amp; Format Guide</em> section for details and tools.</p>
+
                             <div class="limitation-note" style="margin-top: 12px;">
                                 <strong>⚠️ Data privacy note:</strong> When using Quick Share, your model file and annotations are uploaded to meshnotes.org (hosted on Cloudflare). Your data is no longer fully offline after sharing. If data confidentiality is important, use the offline file exchange workflow instead (see <em>Collaborative Workflow</em> below).
                             </div>
+
+                            <h4 id="manual-permanent-share" style="margin-top: 14px;">Permanent Share</h4>
+                            <p style="margin-top: 10px;">For long-term, citable sharing, upload your model and annotation files to a CORS-friendly repository that supports direct file access from the browser. Enter the file URLs in the dialog, select the model format, and MeshNotes generates a permanent link. These links do not expire and do not use meshnotes.org storage — the files are loaded directly from your repository. If your repository mints DOIs, the link is citable in publications. The steps below use Zenodo as an example.</p>
+
+                            <p style="margin-top: 10px;"><strong>Example with Zenodo:</strong> <a href="https://zenodo.org" target="_blank">Zenodo</a> is a free research data repository that gives every upload a DOI. MeshNotes loads the files directly from Zenodo, so the link works for as long as the Zenodo record exists. Other repositories can be used in the same way if they allow a website on another address to fetch their files (CORS).</p>
+
+                            <p style="margin-top: 12px;"><strong>1. Prepare the two files</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li>Annotate your model (in GLB format) and once you are dpone and ready for sharing, export the annotations as a JSON-LD file.</li>
+                            </ul>
+
+                            <p style="margin-top: 12px;"><strong>2. Upload to Zenodo</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li>Log in at zenodo.org, start a <strong>New upload</strong> and add both files (the GLB and the JSON-LD) to it. One upload gives the model and its annotations a shared DOI.</li>
+                                <li>Fill in the record and leave the files <strong>public</strong>.</li>
+                                <li>Click <strong>Publish</strong>. The address of the published record ends in a number, as in <code>zenodo.org/records/1234567</code>. That number is the record ID.</li>
+                            </ul>
+
+                            <p style="margin-top: 12px;"><strong>3. Build the two file links</strong></p>
+                            <p style="margin-top: 10px;">MeshNotes needs a direct link to each file, in this form:</p>
+                            <p style="margin-top: 10px; overflow-wrap: anywhere;"><code>https://zenodo.org/api/records/RECORD-ID/files/FILE-NAME/content</code></p>
+                            <p style="margin-top: 10px; overflow-wrap: anywhere;">Put in the record ID and the exact file name, once for the model and once for the annotation file. If you are unsure about the spelling, open <code>https://zenodo.org/api/records/RECORD-ID</code> in the browser: it shows the record as text, including every file with its link. The download links on the Zenodo record page (ending in <code>?download=1</code>) and the DOI link do not work in MeshNotes.</p>
+
+                            <p style="margin-top: 12px;"><strong>4. Generate the permanent link</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li>In MeshNotes, click <strong>Share</strong> and switch to <strong>Permanent (own hosting)</strong>.</li>
+                                <li>Paste the model link into <strong>Model URL</strong> and set <strong>Model Format</strong> to <strong>GLB</strong>. The format has to be set by hand, because the link does not end in a file extension.</li>
+                                <li>Paste the annotation link into <strong>Annotations URL</strong>.</li>
+                                <li>Click <strong>Generate Permanent Link</strong> and copy the link.</li>
+                            </ul>
+
+                            <p style="margin-top: 12px;"><strong>5. Check the link and add it to the record on the repository (in this example Zenodo)</strong></p>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li>Edit the Zenodo record and add the link to its description, so the DOI page leads straight to the annotated model. Changing the description does not create a new version.</li>
+                            </ul>
+
+                            <p style="margin-top: 12px;"><strong>Updating the annotations later:</strong> Create a <strong>New version</strong> of the Zenodo record with the updated annotation file. Every version has its own record ID, so build the two file links and the permanent link again. The earlier link keeps showing the earlier state. Zenodo gives each version its own DOI, plus one DOI that always leads to the newest version; cite the version DOI when you refer to a particular state.</p>
+
+                            <p style="margin-top: 10px;"><strong>Example:</strong> The MeshNotes example dataset, an annotated skyphos from the Antikensammlung of Saarland University, was published this way: <a href="https://zenodo.org/records/23190439" target="_blank">zenodo.org/records/23190439</a>. <a href="https://meshnotes.org/?model=https%3A%2F%2Fzenodo.org%2Fapi%2Frecords%2F23190439%2Ffiles%2FSkyphos_UdS-2.glb%2Fcontent&amp;annotations=https%3A%2F%2Fzenodo.org%2Fapi%2Frecords%2F23190439%2Ffiles%2Fmeshnotes-Skyphos_UdS-2.glb-1791296179829.jsonld%2Fcontent&amp;format=glb" target="_blank"> Open the example in MeshNotes</a> to see the result of the steps above.</p>
                         </div>
                     </div>
 
@@ -1366,8 +1404,9 @@
                     <!-- Long-term sharing section -->
                     <div id="share-longterm" style="display:none;">
                         <p style="margin-top: 16px;">Enter CORS-friendly URLs for your model and annotation files:</p>
+                        <p style="margin: 6px 0 12px 0; font-size: 12px;">Not sure where to host them? <a href="#" id="longterm-manual-link">Step-by-step example with Zenodo</a> (opens the Manual).</p>
                         <label for="longterm-model-url">Model URL *</label>
-                        <input type="text" id="longterm-model-url" placeholder="https://your-repository.org/api/access/datafile/...">
+                        <input type="text" id="longterm-model-url" placeholder="https://zenodo.org/api/records/.../files/model.glb/content">
                         <label for="longterm-model-format" style="margin-top: 8px;">Model Format *</label>
                         <select id="longterm-model-format" style="width:100%; padding:8px 12px; background:var(--color-input-bg,#0a2a3f); border:1px solid #1A5A8A; color:#eee; border-radius:4px; font-size:13px;">
                             <option value="glb">GLB</option>
@@ -1377,8 +1416,8 @@
                         </select>
                         <p class="share-privacy-note" style="font-size: 12px;"><strong>Tip:</strong> GLB is recommended for permanent sharing because it bundles the model, materials, and textures into a single file. If your model is OBJ with separate MTL/texture files, consider converting to GLB before uploading to your repository.</p>
                         <label for="longterm-annotations-url" style="margin-top: 8px;">Annotations URL (optional)</label>
-                        <input type="text" id="longterm-annotations-url" placeholder="https://your-repository.org/api/access/datafile/...">
-                        <button id="longterm-generate-btn" class="share-action-btn" disabled style="margin-top: 12px; width: 100%;">Generate Permanent Link</button>
+                        <input type="text" id="longterm-annotations-url" placeholder="https://zenodo.org/api/records/.../files/annotations.jsonld/content">
+                        <button id="longterm-generate-btn" class="share-action-btn" style="margin-top: 12px; width: 100%;">Generate Permanent Link</button>
                     </div>
                 </div>
 

@@ -1,6 +1,6 @@
 // js/ui/event-listeners.js
 import { state, dom } from '../state.js';
-import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
+import { showStatus, filterAnnotations, toggleManualItem, openManualItem } from '../utils/helpers.js';
 import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
@@ -585,6 +585,14 @@ export function setupEventListeners() {
         showLongTermShareDialog();
     });
     document.getElementById('longterm-generate-btn').addEventListener('click', generateLongTermLink);
+    // "Step-by-step example with Zenodo": the Share dialog closes first,
+    // because it would cover the Manual (both sit on the same layer). The
+    // URL fields keep what was typed.
+    document.getElementById('longterm-manual-link').addEventListener('click', (e) => {
+        e.preventDefault();
+        closeShareDialog();
+        openManualItem('manual-permanent-share');
+    });
     document.getElementById('share-history-toggle').addEventListener('click', toggleHistory);
 
     // Per-annotation share dialog ("See what I see")

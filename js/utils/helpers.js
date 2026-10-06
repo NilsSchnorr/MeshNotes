@@ -135,6 +135,25 @@ export function toggleManualItem(header) {
 // Make accessible for inline onclick handlers
 window.toggleManualItem = toggleManualItem;
 
+/**
+ * Opens the Manual at one place: shows the Manual, expands the chapter the
+ * target belongs to and scrolls the target to the top of the Manual window.
+ * @param {string} targetId - id of a chapter (.manual-item) or of an element
+ *   inside one, e.g. a sub-headline
+ */
+export function openManualItem(targetId) {
+    const target = document.getElementById(targetId);
+    const item = target && target.closest('.manual-item');
+    if (!item) return;
+    // Visible and expanded first: a hidden element has no position to scroll to
+    dom.manualOverlay.classList.add('visible');
+    const header = item.querySelector('.manual-item-header');
+    const content = item.querySelector('.manual-item-content');
+    if (header) header.classList.add('expanded');
+    if (content) content.classList.add('expanded');
+    target.scrollIntoView({ block: 'start' });
+}
+
 export function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }

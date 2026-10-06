@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.3] — 2026-10-06
+
+A small release. A permanent share link can now be generated without loading a model first, and the Manual explains permanent sharing step by step, with Zenodo as the example.
+
+### Fixed
+
+- **Generate Permanent Link stayed disabled until a model was loaded** — in **Share → Permanent (own hosting)**, the **Generate Permanent Link** button was greyed out in a fresh session and only became active once a model had been loaded, although the link is built from nothing but the URLs and the format entered in the dialog. Entering the URLs did not enable it. The button is now always active; without a Model URL it still answers with "Please enter a model URL". **Generate Link** under Quick Share is unchanged and still waits for a model, because it uploads the loaded one.
+
+### Added
+
+- **Link from the Share dialog to the Manual** — the Permanent section has a line **Step-by-step example with Zenodo**. It closes the Share dialog and opens the Manual at *Sharing*, under **Permanent Share**; the URLs already entered are kept.
+
+### Changed
+
+- **Manual** — *Sharing* is divided into **Quick Share** and **Permanent Share**. *Permanent Share* gains a worked example with Zenodo: preparing the model and the annotation file, uploading both to one record, building the two file links, generating the permanent link and checking it. It names the one link form Zenodo serves to other websites, `https://zenodo.org/api/records/…/files/…/content`; the download links on a Zenodo record page and the DOI link cannot be loaded. The example ends with a published dataset to open in MeshNotes.
+- **URL placeholders in the Permanent section** — the two URL fields show the Zenodo link form instead of a Dataverse address.
+
+### Internal
+
+- `index.html`: `longterm-generate-btn` no longer starts `disabled`, and `setupLoadedModelInternal()` in `js/core/model-loader.js` only enables `share-generate-btn`.
+- New `openManualItem()` in `js/utils/helpers.js` shows the Manual, expands the chapter around a target element and scrolls to it. The link in the Share dialog targets the sub-headline `manual-permanent-share`.
+- The step titles of the Zenodo example are bold paragraphs, not headings: `js/export/pdf-manual.js` extracts `h4`, `p`, `ul` and `.limitation-note`, and `h4` is taken by the two sub-headlines.
+- New `tests/share-dialog.test.js` (four tests) covers the state of both Generate buttons, the target of the Manual link and the structure of the *Sharing* chapter.
+- No file format, specification or vendored library changed, and no new module was added, so the precache list is unchanged.
+
+
 ## [1.6.2] — 2026-10-05
 
 Two refinements of the survey CSV import: the markers shown while picking control points can be sized and no longer hide the picked spot, and accepting an alignment offers to set the display unit to metres.
@@ -308,6 +334,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.6.3]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.3
 [1.6.2]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.2
 [1.6.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.1
 [1.6.0]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.0
