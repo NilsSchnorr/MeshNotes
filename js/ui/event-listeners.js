@@ -957,6 +957,67 @@ export function setupEventListeners() {
         }
     });
 
+    // About, Manual, Legal and Settings: draggable by the header. The dragged
+    // position is kept for the lifetime of the session, so that reopening a
+    // window does not throw it back over the model. Deliberately not persisted
+    // to localStorage: a position that suited one window size is rarely the
+    // right one days later on a different screen. The window is held inside
+    // the browser window: while dragging, when it is shown again (whichever
+    // code opened it), when its content grows (a Manual chapter expanding) and
+    // when the browser window is resized.
+    function makeModalDraggable(overlay, modal, header) {
+        let dragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+        let position = null;
+
+        const place = (left, top) => {
+            const maxX = Math.max(0, window.innerWidth - modal.offsetWidth);
+            const maxY = Math.max(0, window.innerHeight - modal.offsetHeight);
+            position = {
+                left: Math.max(0, Math.min(left, maxX)),
+                top: Math.max(0, Math.min(top, maxY))
+            };
+            modal.style.left = `${position.left}px`;
+            modal.style.top = `${position.top}px`;
+        };
+
+        // Undragged windows stay centred by the overlay; a hidden one has no
+        // size to clamp against.
+        const keepInView = () => {
+            if (position && overlay.classList.contains('visible')) {
+                place(position.left, position.top);
+            }
+        };
+
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button')) return; // Don't drag when clicking close button
+            dragging = true;
+            const rect = modal.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            place(e.clientX - offsetX, e.clientY - offsetY);
+        });
+
+        document.addEventListener('mouseup', () => {
+            dragging = false;
+        });
+
+        // Fires when the window is shown (its size goes from nothing to
+        // something) and whenever its content changes its size.
+        new ResizeObserver(keepInView).observe(modal);
+        window.addEventListener('resize', keepInView);
+    }
+
+    makeModalDraggable(dom.aboutOverlay, document.getElementById('about-modal'), document.getElementById('about-modal-header'));
+    makeModalDraggable(dom.manualOverlay, document.getElementById('manual-modal'), document.getElementById('manual-modal-header'));
+    makeModalDraggable(dom.legalOverlay, document.getElementById('legal-modal'), document.getElementById('legal-modal-header'));
+
     // Camera toggle and flip toggle (now in sliders panel header)
     dom.cameraToggle.addEventListener('click', toggleCamera);
     dom.flipToggle.addEventListener('click', () => {
@@ -980,16 +1041,8 @@ export function setupEventListeners() {
     });
     
     // Settings modal
-    const settingsModal = document.getElementById('settings-modal');
-    const settingsHeader = document.getElementById('settings-modal-header');
-    let isDraggingSettings = false;
-    let settingsDragOffsetX = 0;
-    let settingsDragOffsetY = 0;
-    // Where the panel was last dragged to, kept for the lifetime of the session
-    // so that reopening it does not throw it back over the model. Deliberately
-    // not persisted to localStorage: a position that suited one window size is
-    // rarely the right one days later on a different screen.
-    let settingsPosition = null;
+    // Dragging by the title bar: makeModalDraggable, above.
+    makeModalDraggable(dom.settingsOverlay, document.getElementById('settings-modal'), document.getElementById('settings-modal-header'));
 
     // Rail pane switching. The panes carry both the .active class and the hidden
     // attribute: the class drives the CSS, the attribute keeps the inactive panes
@@ -1039,30 +1092,8 @@ export function setupEventListeners() {
         });
     });
 
-    function clampSettingsPosition(left, top) {
-        const maxX = Math.max(0, window.innerWidth - settingsModal.offsetWidth);
-        const maxY = Math.max(0, window.innerHeight - settingsModal.offsetHeight);
-        return {
-            left: Math.max(0, Math.min(left, maxX)),
-            top: Math.max(0, Math.min(top, maxY))
-        };
-    }
-    
     dom.btnSettings.addEventListener('click', () => {
         dom.settingsOverlay.classList.add('visible');
-        if (settingsPosition) {
-            // Clamped after the overlay is visible, so offsetWidth/offsetHeight
-            // are measurable and a since-resized window cannot strand the panel
-            // off-screen.
-            const pos = clampSettingsPosition(settingsPosition.left, settingsPosition.top);
-            settingsModal.style.left = `${pos.left}px`;
-            settingsModal.style.top = `${pos.top}px`;
-            settingsModal.style.transform = 'none';
-        } else {
-            settingsModal.style.left = '';
-            settingsModal.style.top = '';
-            settingsModal.style.transform = '';
-        }
     });
     dom.settingsModalClose.addEventListener('click', () => {
         dom.settingsOverlay.classList.remove('visible');
@@ -1071,34 +1102,6 @@ export function setupEventListeners() {
         if (e.target === dom.settingsOverlay) {
             dom.settingsOverlay.classList.remove('visible');
         }
-    });
-    
-    // Settings modal dragging
-    settingsHeader.addEventListener('mousedown', (e) => {
-        if (e.target === dom.settingsModalClose) return; // Don't drag when clicking close button
-        isDraggingSettings = true;
-        const rect = settingsModal.getBoundingClientRect();
-        settingsDragOffsetX = e.clientX - rect.left;
-        settingsDragOffsetY = e.clientY - rect.top;
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isDraggingSettings) return;
-        
-        const pos = clampSettingsPosition(
-            e.clientX - settingsDragOffsetX,
-            e.clientY - settingsDragOffsetY
-        );
-        
-        settingsPosition = pos;
-        settingsModal.style.left = `${pos.left}px`;
-        settingsModal.style.top = `${pos.top}px`;
-        settingsModal.style.transform = 'none';
-    });
-    
-    document.addEventListener('mouseup', () => {
-        isDraggingSettings = false;
     });
     
     // Settings: Default Author

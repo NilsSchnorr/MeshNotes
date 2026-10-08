@@ -8,7 +8,7 @@
 //     CanvasTexture would blur (and would blur again in a 4× export tile);
 //   • it keeps a constant on-screen size instead of scaling with the model the
 //     way createScaledTextSprite() does;
-//   • the "Details" button and any entry links are real, clickable DOM;
+//   • the close and "Details" buttons and any entry links are real, clickable DOM;
 //   • it inherits the app's CSS custom properties directly;
 //   • and, most importantly, captureAtSize() renders state.scene only, so the
 //     callout is automatically absent from screenshots, the six-view plate and
@@ -33,9 +33,11 @@ const EDGE_MARGIN = 8;
 // Late-bound to avoid importing data.js (which imports groups.js, which imports
 // this module) — same pattern as setGroupCallbacks().
 let _openAnnotationPopupForEdit = null;
+let _deselectAnnotation = null;
 
-export function setCalloutCallbacks({ openAnnotationPopupForEdit }) {
+export function setCalloutCallbacks({ openAnnotationPopupForEdit, deselectAnnotation }) {
     _openAnnotationPopupForEdit = openAnnotationPopupForEdit;
+    _deselectAnnotation = deselectAnnotation;
 }
 
 // Reusable vector — the position update runs every frame.
@@ -59,11 +61,21 @@ function el() {
 }
 
 /**
- * Wire the Details button once at startup.
+ * Wire the close and Details buttons once at startup.
  */
 export function initSelectionCallout() {
     const panel = el();
     if (!panel) return;
+
+    // The close button clears the selection — sidebar highlight, model emphasis
+    // and this callout — exactly as Esc does; the camera stays where it is.
+    const closeBtn = panel.querySelector('.ac-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (_deselectAnnotation) _deselectAnnotation();
+        });
+    }
 
     const detailsBtn = panel.querySelector('.ac-details');
     if (detailsBtn) {

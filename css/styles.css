@@ -29,6 +29,17 @@
             /* Functional */
             --color-danger: #dc3545;
             --color-border: #ccc;
+
+            /* Semantic aliases (used by the Share and Metadata styles) */
+            --color-text: var(--color-text-light);
+            --color-bg: var(--color-blue-darkest);
+            --color-input-bg: var(--color-blue-darkest);
+
+            /* Corner radius by role. The layout frame (header, toolbar, sidebar)
+               is square; cards inside a frame (sidebar groups etc.) keep 6px. */
+            --radius-window: 4px;   /* anything floating: modals, popups, dialogs, menus, viewport panels */
+            --radius-control: 4px;  /* buttons, inputs, selects */
+            --radius-detail: 3px;   /* badges, count chips */
         }
 
         * {
@@ -91,7 +102,7 @@
             padding: 8px 16px;
             background: var(--color-blue);
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             color: var(--color-text-light);
             cursor: pointer;
             font-size: 14px;
@@ -141,7 +152,7 @@
         .tool-btn {
             padding: 8px 12px;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             background: var(--color-blue-dark);
             color: var(--color-text-light);
             cursor: pointer;
@@ -226,7 +237,7 @@
             margin-top: 4px;
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
             z-index: 600;
             min-width: 180px;
@@ -277,7 +288,7 @@
             margin-top: 4px;
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
             z-index: 600;
             min-width: 200px;
@@ -365,7 +376,7 @@
         .obj-dialog {
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 8px;
+            border-radius: var(--radius-window);
             padding: 24px;
             max-width: 420px;
             text-align: center;
@@ -1072,7 +1083,7 @@
             position: absolute;
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 8px;
+            border-radius: var(--radius-window);
             padding: 16px;
             z-index: 200;
             box-shadow: 0 4px 20px var(--color-overlay-light);
@@ -1282,7 +1293,7 @@
             background: var(--color-blue);
             color: var(--color-text-medium);
             padding: 1px 6px;
-            border-radius: 10px;
+            border-radius: var(--radius-detail);
             font-size: 10px;
             margin-left: auto;
         }
@@ -1430,7 +1441,7 @@
             display: none;
             background: var(--color-blue-darkest);
             border: 1px solid var(--color-gold);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             padding: 10px;
             margin-bottom: 10px;
         }
@@ -1665,7 +1676,7 @@
             background: var(--color-blue);
             color: var(--color-text-medium);
             padding: 1px 6px;
-            border-radius: 10px;
+            border-radius: var(--radius-detail);
             font-size: 10px;
             margin-left: auto;
         }
@@ -1739,7 +1750,7 @@
             padding: 10px;
             background: var(--color-blue);
             border: 1px dashed var(--color-gold);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             color: var(--color-gold);
             cursor: pointer;
             font-size: 13px;
@@ -1777,7 +1788,7 @@
         .confirm-dialog {
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 8px;
+            border-radius: var(--radius-window);
             padding: 20px;
             max-width: 350px;
             text-align: center;
@@ -1888,7 +1899,7 @@
         .survey-dialog {
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 8px;
+            border-radius: var(--radius-window);
             box-shadow: 0 4px 20px var(--color-overlay-light);
             width: min(920px, 100%);
             max-height: 100%;
@@ -2174,7 +2185,7 @@
             gap: 6px 10px;
             padding: 6px 8px;
             margin-bottom: 4px;
-            border-radius: 4px;
+            border-radius: 0 var(--radius-control) var(--radius-control) 0;
             border-left: 3px solid var(--color-blue-hover);
             background: rgba(26, 90, 138, 0.35);
             font-size: 12px;
@@ -2239,7 +2250,7 @@
             padding: 10px 12px;
             margin-bottom: 10px;
             border-left: 3px solid var(--color-orange);
-            border-radius: 4px;
+            border-radius: 0 var(--radius-control) var(--radius-control) 0;
             background: rgba(232, 163, 60, 0.14);
         }
 
@@ -2490,7 +2501,7 @@
         #survey-pick-selected {
             padding: 8px 10px;
             border-left: 3px solid #00E5FF;
-            border-radius: 4px;
+            border-radius: 0 var(--radius-control) var(--radius-control) 0;
             background: rgba(0, 229, 255, 0.08);
             font-size: 12px;
             line-height: 1.4;
@@ -2654,7 +2665,7 @@
             padding: 10px 12px;
             margin-bottom: 12px;
             border-left: 3px solid var(--color-blue-hover);
-            border-radius: 4px;
+            border-radius: 0 var(--radius-control) var(--radius-control) 0;
             font-size: 14px;
             line-height: 1.4;
         }
@@ -2761,7 +2772,7 @@
             margin-bottom: 10px;
             border: 1px solid var(--color-blue);
             border-left: 3px solid var(--color-blue-hover);
-            border-radius: 4px;
+            border-radius: 0 var(--radius-control) var(--radius-control) 0;
             background: rgba(26, 90, 138, 0.2);
         }
 
@@ -2993,7 +3004,7 @@
             background: var(--color-surface);
             color: var(--color-gold);
             padding: 12px 16px;
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             font-size: 12px;
             min-width: 200px;
             max-height: 300px;
@@ -3121,7 +3132,7 @@
             background: var(--color-surface);
             color: var(--color-gold);
             padding: 12px 16px;
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             font-size: 12px;
             min-width: 180px;
         }
@@ -3179,7 +3190,7 @@
 
         #profile-preview-modal {
             background: #ffffff;
-            border-radius: 8px;
+            border-radius: var(--radius-window);
             max-width: 90vw;
             max-height: 90vh;
             overflow: auto;
@@ -3193,7 +3204,7 @@
             padding: 12px 16px;
             background: var(--color-blue-dark);
             color: var(--color-text-light);
-            border-radius: 8px 8px 0 0;
+            border-radius: var(--radius-window) var(--radius-window) 0 0;
             font-size: 14px;
             font-weight: 600;
         }
@@ -3230,7 +3241,7 @@
             gap: 8px;
             padding: 12px 16px;
             background: #f5f5f5;
-            border-radius: 0 0 8px 8px;
+            border-radius: 0 0 var(--radius-window) var(--radius-window);
             justify-content: flex-end;
         }
 
@@ -3268,7 +3279,7 @@
             background: var(--color-surface);
             color: var(--color-gold);
             padding: 12px 16px;
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             font-size: 12px;
             z-index: 100;
             min-width: 200px;
@@ -3377,7 +3388,7 @@
             margin-left: auto;
             padding: 6px 12px;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             background: var(--color-blue);
             color: var(--color-text-light);
             cursor: pointer;
@@ -3397,7 +3408,7 @@
             background: var(--color-surface-90);
             color: var(--color-text-medium);
             padding: 10px 14px;
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             font-size: 12px;
             z-index: 100;
         }
@@ -3413,7 +3424,7 @@
             top: 10px;
             left: 10px;
             background: var(--color-surface);
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             padding: 12px 16px;
             z-index: 100;
             min-width: 200px;
@@ -3489,7 +3500,7 @@
             background: var(--color-surface-80);
             color: var(--color-text-muted);
             padding: 6px 10px;
-            border-radius: 4px;
+            border-radius: var(--radius-window);
             font-size: 11px;
             z-index: 100;
         }
@@ -3511,7 +3522,7 @@
             margin-left: 8px;
             padding: 1px 7px;
             border: 1px solid var(--color-blue-hover);
-            border-radius: 10px;
+            border-radius: var(--radius-detail);
             background: transparent;
             color: var(--color-text-light);
             font-size: 11px;
@@ -3560,7 +3571,7 @@
             z-index: 100;
             background: var(--color-surface-90);
             padding: 8px 12px;
-            border-radius: 4px;
+            border-radius: var(--radius-window);
             display: none;
         }
 
@@ -3580,7 +3591,7 @@
             z-index: 300;
             background: rgba(4, 29, 49, 0.9);
             padding: 20px 30px;
-            border-radius: 8px;
+            border-radius: var(--radius-window);
         }
 
         #loading.visible {
@@ -3628,7 +3639,7 @@
             bottom: 10px;
             right: 10px;
             background: var(--color-surface);
-            border-radius: 6px;
+            border-radius: var(--radius-window);
             z-index: 100;
             min-width: 200px;
         }
@@ -3774,10 +3785,14 @@
         }
 
         #legal-modal {
+            /* Absolute, like #settings-modal: centred by the overlay until it
+               is dragged by its header (makeModalDraggable). */
+            position: absolute;
             background: var(--color-blue-dark);
-            border-radius: 12px;
-            width: 90%;
-            max-width: 700px;
+            border: 1px solid var(--color-blue);
+            border-radius: var(--radius-window);
+            width: 92%;
+            max-width: 860px;
             max-height: 85vh;
             overflow: hidden;
             display: flex;
@@ -3791,6 +3806,12 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            cursor: move;
+            user-select: none;
+        }
+
+        #legal-modal-header:hover {
+            background: var(--color-white-hover);
         }
 
         #legal-modal-header h2 {
@@ -3864,10 +3885,12 @@
 
         #about-modal,
         #manual-modal {
+            position: absolute;
             background: var(--color-blue-dark);
-            border-radius: 12px;
-            width: 90%;
-            max-width: 700px;
+            border: 1px solid var(--color-blue);
+            border-radius: var(--radius-window);
+            width: 92%;
+            max-width: 860px;
             max-height: 85vh;
             overflow: hidden;
             display: flex;
@@ -3882,6 +3905,13 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            cursor: move;
+            user-select: none;
+        }
+
+        #about-modal-header:hover,
+        #manual-modal-header:hover {
+            background: var(--color-white-hover);
         }
 
         #about-modal-header h2,
@@ -4116,7 +4146,7 @@
             margin-top: 16px;
             background: var(--color-blue);
             border: 1px solid var(--color-gold);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             color: var(--color-gold);
             cursor: pointer;
             font-size: 14px;
@@ -4358,7 +4388,8 @@
 
         #share-modal {
             background: var(--color-blue-dark);
-            border-radius: 12px;
+            border: 1px solid var(--color-blue);
+            border-radius: var(--radius-window);
             width: 90%;
             max-width: 640px;
             overflow: hidden;
@@ -4415,7 +4446,7 @@
             padding: 10px 12px;
             background: rgba(255, 180, 0, 0.08);
             border: 1px solid rgba(255, 180, 0, 0.25);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             font-size: 13px;
             color: var(--color-gold) !important;
         }
@@ -4425,7 +4456,7 @@
             background: var(--color-blue);
             border: 2px solid var(--color-gold);
             color: var(--color-text-light);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             cursor: pointer;
             font-size: 15px;
             font-weight: 600;
@@ -4735,7 +4766,8 @@
 
         #annotation-share-modal {
             background: var(--color-blue-dark);
-            border-radius: 12px;
+            border: 1px solid var(--color-blue);
+            border-radius: var(--radius-window);
             width: 90%;
             max-width: 640px;
             overflow: hidden;
@@ -4825,7 +4857,7 @@
             flex-direction: column;
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 8px;
+            border-radius: var(--radius-window);
             box-shadow: 0 4px 20px var(--color-overlay-light);
             z-index: 200;
             overflow: hidden;
@@ -4942,11 +4974,11 @@
             padding: 10px 12px;
             background: var(--color-blue-dark);
             border: 1px solid var(--color-blue);
-            border-radius: 8px;
+            border-radius: var(--radius-window);
             box-shadow: 0 4px 20px var(--color-overlay-light);
             z-index: 190;
-            /* The box must not swallow orbit drags — only the button is
-               interactive (see .ac-details below). */
+            /* The box must not swallow orbit drags — only its two buttons are
+               interactive (see .ac-close and .ac-details below). */
             pointer-events: none;
             /* Set from the Viewport settings pane via setCalloutOpacity(). */
             opacity: var(--ac-opacity, 1);
@@ -4982,12 +5014,52 @@
             border-color: transparent transparent transparent var(--color-blue);
         }
 
+        /* Closes the callout and clears the selection. Styled like the other
+           close buttons, scaled to the box. */
+        #annotation-callout .ac-close {
+            pointer-events: auto;
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: none;
+            border: none;
+            border-radius: 4px;
+            color: var(--color-text-muted);
+            font-size: 13px;
+            line-height: 1;
+            padding: 3px 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #annotation-callout .ac-close:hover {
+            background: var(--color-blue);
+            color: var(--color-text-light);
+        }
+
         #annotation-callout .ac-name {
             font-size: 14px;
             font-weight: 600;
             color: var(--color-gold);
             line-height: 1.3;
             word-break: break-word;
+            /* Clear of the close button */
+            padding-right: 20px;
+        }
+
+        /* Touch input: a larger target for the close button */
+        @media (pointer: coarse) {
+            #annotation-callout .ac-close {
+                top: 2px;
+                right: 2px;
+                min-width: 32px;
+                min-height: 32px;
+                font-size: 15px;
+            }
+
+            #annotation-callout .ac-name {
+                padding-right: 28px;
+            }
         }
 
         #annotation-callout .ac-meta {
@@ -5055,7 +5127,7 @@
         }
 
         #annotation-callout .ac-details {
-            /* The one part of the callout that accepts clicks. */
+            /* Accepts clicks, like .ac-close; the rest of the box does not. */
             pointer-events: auto;
             background: none;
             border: 1px solid var(--color-blue);
@@ -5076,7 +5148,8 @@
         #settings-modal {
             position: absolute;
             background: var(--color-blue-dark);
-            border-radius: 12px;
+            border: 1px solid var(--color-blue);
+            border-radius: var(--radius-window);
             width: 92%;
             max-width: 860px;
             /* Fixed height, not content height: switching rail panes must not
@@ -5145,7 +5218,7 @@
         .settings-rail-item {
             background: none;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             padding: 10px 12px;
             text-align: left;
             font-family: inherit;
@@ -5359,7 +5432,7 @@
             padding: 10px 12px;
             background: var(--color-blue-darkest);
             border: 1px solid var(--color-blue);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             color: var(--color-text-light);
             font-size: 13px;
             outline: none;
@@ -5380,7 +5453,7 @@
             padding: 10px 12px;
             background: var(--color-blue-darkest);
             border: 1px solid var(--color-blue);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             color: var(--color-text-light);
             font-size: 13px;
             outline: none;
@@ -5428,7 +5501,7 @@
             padding: 10px 16px;
             background: transparent;
             border: 1px solid var(--color-text-muted);
-            border-radius: 6px;
+            border-radius: var(--radius-control);
             color: var(--color-text-muted);
             font-size: 13px;
             cursor: pointer;
@@ -5621,7 +5694,6 @@
             #model-stats .alignment-chip {
                 min-height: 32px;
                 padding: 4px 10px;
-                border-radius: 16px;
             }
 
             /* Instructions / status: inward from edge + above home indicator */

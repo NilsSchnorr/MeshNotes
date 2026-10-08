@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.4] — 2026-10-08
+
+A visual clean-up release. Windows, popups and panels get squarer corners that fit the straight-edged layout, About, Manual and Legal are as wide as Settings and can be dragged like it, and the selection callout has a close button.
+
+### Added
+
+- **Close button on the selection callout** — a **✕** in the top right corner of the callout closes it and clears the selection, as **Esc** and a second click on the sidebar entry do. The camera stays where it is. On touch devices the button is larger. The rest of the callout still lets clicks and drags through to the model.
+- **About, Manual and Legal can be dragged** — by their title bar, like Settings. A window stays where it was put for the rest of the session and is kept inside the browser window.
+
+### Changed
+
+- **Squarer corners on everything that floats above the layout** — Settings, About, Manual, Legal, the two Share dialogs, the annotation, group and metadata popups, the confirmations, the model loading dialogs, the survey import dialogs and panels, the Import, Screenshot and Export menus, the selection callout and the panels in the viewport now have a corner radius of 4px. They had 6, 8 or 12px, growing with the size of the window, which did not fit the square header, toolbar and sidebar. The boxes in the sidebar keep their 6px.
+- **Thin outline on the large windows** — Settings, About, Manual, Legal and the Share dialogs get the 1px blue outline the other popups already had. It takes 2px from their content width.
+- **Buttons and fields** — the toolbar and header buttons, and the fields and buttons in Settings and in the Share dialogs, go from a corner radius of 6px to 4px, like the fields and buttons everywhere else.
+- **Badges instead of pills** — the alignment chip below the viewport, the version count of an entry and the attribute count of a surveyed position have the 3px corners of the other badges.
+- **Coloured stripes** — the check and verdict rows of the survey import and the entries of the Alignment Manager are square on the side of their coloured stripe, as the limitation notes in the Manual already were.
+- **About, Manual and Legal are as wide as Settings** — up to 860px instead of 700px.
+- **Export ▾ → Annotations (.jsonld)** — the item was named *JSON-LD (.jsonld)*. It now reads like its counterpart under **Import ▾**, and the Manual names it accordingly.
+- **Settings follows a smaller browser window** — a dragged Settings panel is pulled back inside when the browser window shrinks while it is open. Before, this only happened when it was opened again.
+
+### Fixed
+
+- **Fields in the Share dialogs had no background of their own** — the URL fields, the field with the generated link, the inactive mode button and the rows of the share history took their background from a colour variable that was never defined, so they showed the blue of the dialog instead of the dark background of every other field. The **Model Format** selection had a third shade. All of them now use the dark field background.
+
+### Internal
+
+- `css/styles.css`: `:root` gains `--radius-window` (4px), `--radius-control` (4px) and `--radius-detail` (3px), and the aliases `--color-text`, `--color-bg` and `--color-input-bg`, which the Share and Metadata rules used without a definition. In the Metadata popup nothing changes on screen, because the general popup rules already set those fields. The bottom sheets of the touch and narrow layouts and the tablet sidebar tab keep their radii. The update banner in `index.html` goes from 8px to 4px.
+- `js/ui/event-listeners.js`: new `makeModalDraggable(overlay, modal, header)`, used by Settings, About, Manual and Legal; the drag code Settings had of its own is removed. A `ResizeObserver` on the window and a `resize` listener keep a dragged window inside the browser window, whichever code opened it. `#about-modal`, `#manual-modal` and `#legal-modal` are now `position: absolute`, like `#settings-modal`. Dragging is by mouse, as before. The backdrops are unchanged: 30% behind Settings, 70% behind the other three.
+- `js/annotation-tools/selection-callout.js`: the button is `.ac-close` in `#annotation-callout`. `setCalloutCallbacks()` takes `deselectAnnotation` next to `openAnnotationPopupForEdit`, passed in from `js/main.js`, for the reason the module already gives for the other callback.
+- No file format, specification or vendored library changed, and no new module or test was added, so the precache list is unchanged.
+
+
 ## [1.6.3] — 2026-10-06
 
 A small release. A permanent share link can now be generated without loading a model first, the Manual explains permanent sharing step by step with Zenodo as the example, and the Manual has a text search.
@@ -335,6 +367,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.6.4]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.4
 [1.6.3]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.3
 [1.6.2]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.2
 [1.6.1]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.1

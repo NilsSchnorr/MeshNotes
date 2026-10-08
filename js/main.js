@@ -4,7 +4,7 @@ import { initScene, initControls, addGrid, onWindowResize } from './core/scene.j
 import { initCameras, initViewHelper, updateViewHelperLabels } from './core/camera.js';
 import { initLighting, updateLightFromCamera, setBackgroundColor, setMeasurementUnit, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, setCalloutEnabled, restoreSurveySettings } from './core/lighting.js';
 import { setUpdateModelInfoDisplay, onceModelSetupComplete, setModelHashReadyCallback, setModelReplacedCallback, loadModel, loadOBJModel, loadPLYModel, loadSTLModel } from './core/model-loader.js';
-import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation } from './annotation-tools/groups.js';
+import { createDefaultGroup, updateGroupsList, setGroupCallbacks, initGroupsEventDelegation, deselectAnnotation } from './annotation-tools/groups.js';
 import { updateModelInfoDisplay, openAnnotationPopup, openAnnotationPopupForEdit } from './annotation-tools/data.js';
 import { setEditingCallbacks, setSurveyPickCallbacks, renderMeasurements } from './annotation-tools/editing.js';
 import { updateMeasurementsDisplay } from './annotation-tools/editing.js';
@@ -53,7 +53,8 @@ setRenderCallbacks({
     renderMeasurements
 });
 setCalloutCallbacks({
-    openAnnotationPopupForEdit
+    openAnnotationPopupForEdit,
+    deselectAnnotation
 });
 
 // Survey CSV import: the mapping dialog hands an import job to the selection
