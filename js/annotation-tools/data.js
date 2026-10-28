@@ -42,6 +42,7 @@ export function positionPopup(popup, x, y) {
         if (newRect.left < 10) {
             popup.style.left = '10px';
         }
+        if (popup === dom.annotationPopup) keepAnnotationPopupInView();
     });
 }
 
@@ -53,6 +54,35 @@ function resetPopupPosition() {
     dom.annotationPopup.style.right = 'auto';
     dom.annotationPopup.style.bottom = 'auto';
     dom.annotationPopup.style.transform = 'none';
+    // Reopened while already on screen at the same size, so the observer in
+    // event-listeners.js does not fire.
+    keepAnnotationPopupInView();
+}
+
+// Space kept between the annotation window and the edges of the viewport.
+const POPUP_EDGE_MARGIN = 10;
+
+/**
+ * Keeps the annotation window inside the browser window. It opens at a fixed
+ * place (centred for a short window, or beside the click) and grows when an
+ * entry is edited, so it is moved up as far as its bottom edge needs, but
+ * never above the top of the viewport. Run by a ResizeObserver and a resize
+ * listener (event-listeners.js) and after each placement here. Desktop only:
+ * on touch devices the window is a bottom sheet with a position of its own.
+ */
+export function keepAnnotationPopupInView() {
+    const popup = dom.annotationPopup;
+    if (!popup || !popup.classList.contains('visible')) return;
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    const area = popup.offsetParent;
+    if (!area) return;
+
+    const bottomLimit = Math.min(window.innerHeight, area.getBoundingClientRect().bottom) - POPUP_EDGE_MARGIN;
+    const overflow = popup.getBoundingClientRect().bottom - bottomLimit;
+    if (overflow <= 0) return;
+
+    popup.style.top = `${Math.max(POPUP_EDGE_MARGIN, popup.offsetTop - overflow)}px`;
+    popup.style.bottom = 'auto';
 }
 
 export function openAnnotationPopup(event, type, points, extraData = null) {
@@ -191,6 +221,8 @@ export function openModelInfoPopup() {
 }
 
 export function renderModelInfoEntriesList() {
+    // A rebuilt list shows every entry closed.
+    endEntryEdit();
     const entries = state.modelInfo.entries || [];
 
     if (entries.length === 0) {
@@ -236,20 +268,7 @@ export function renderModelInfoEntriesList() {
                     <input type="text" data-field="author" value="${escapeHtml(entry.author || '')}" placeholder="Author">
                     <div class="links-section">
                         <label>Links</label>
-                        <div class="entry-links-list" data-entry-id="${entry.id}">
-                            ${(entry.links || []).map((link, li) => {
-                                const url = safeUrl(link);
-                                const linkHtml = url
-                                    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>`
-                                    : `<span title="Link disabled (unsupported protocol)">${escapeHtml(link)}</span>`;
-                                return `
-                                <div class="link-item">
-                                    ${linkHtml}
-                                    <button data-link-index="${li}">✕</button>
-                                </div>
-                            `;
-                            }).join('')}
-                        </div>
+                        <div class="entry-links-list" data-entry-id="${entry.id}"></div>
                         <div class="add-link-row">
                             <input type="text" data-field="new-link" placeholder="https://...">
                             <button class="btn-save" data-action="add-link">+</button>
@@ -296,69 +315,23 @@ export function renderModelInfoEntriesList() {
             } else if (action === 'save-edit') {
                 saveModelInfoEntryEdit(entryId, card);
             } else if (action === 'add-link') {
-                const input = card.querySelector('[data-field="new-link"]');
-                const link = input.value.trim();
-                if (link) {
-                    const entry = state.modelInfo.entries.find(en => en.id === entryId);
-                    if (!entry.links) entry.links = [];
-                    entry.links.push(link);
-                    input.value = '';
-                    renderModelInfoEntriesList();
-                    startEditingModelInfoEntry(entryId);
-                }
-            }
-        });
-    });
-
-    dom.entriesList.querySelectorAll('.entry-links-list button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const card = btn.closest('.entry-card');
-            const entryId = parseInt(card.dataset.entryId);
-            const linkIndex = parseInt(btn.dataset.linkIndex);
-            const entry = state.modelInfo.entries.find(en => en.id === entryId);
-            if (entry && entry.links) {
-                entry.links.splice(linkIndex, 1);
-                renderModelInfoEntriesList();
-                startEditingModelInfoEntry(entryId);
+                addDraftLink(card);
             }
         });
     });
 }
 
 function startEditingModelInfoEntry(entryId) {
-    state.editingEntryId = entryId;
-    dom.entriesList.querySelectorAll('.entry-card').forEach(card => {
-        if (parseInt(card.dataset.entryId) === entryId) {
-            card.classList.add('editing');
-        } else {
-            card.classList.remove('editing');
-        }
-    });
+    const entry = state.modelInfo.entries.find(en => en.id === entryId);
+    if (entry) beginEntryEdit(entry);
 }
 
 function saveModelInfoEntryEdit(entryId, card) {
     const entry = state.modelInfo.entries.find(en => en.id === entryId);
     if (!entry) return;
 
-    const description = card.querySelector('[data-field="description"]').value.trim();
-    const author = card.querySelector('[data-field="author"]').value.trim();
-    
-    // Get current links from the entry (they may have been modified in-place)
-    const currentLinks = entry.links || [];
-    
-    // Create version snapshot before applying changes
-    const hasChanges = createEntryVersion(entry, description, author, currentLinks);
+    const hasChanges = commitEntryEdit(entry, card);
 
-    // A changed author name invalidates the stored ORCID — it belonged to the
-    // previous author. The local user's ORCID is re-resolved by name at export.
-    if ((entry.author || '') !== author) entry.authorOrcid = undefined;
-    entry.description = description;
-    entry.author = author;
-    entry.modified = new Date().toISOString();
-    saveLastAuthor(author);
-
-    state.editingEntryId = null;
     renderModelInfoEntriesList();
     updateModelInfoDisplay();
     showStatus(hasChanges ? 'Entry updated (previous version saved)' : 'Entry saved');
@@ -392,6 +365,8 @@ export function updateModelInfoDisplay() {
 }
 
 export function renderEntriesList(ann) {
+    // A rebuilt list shows every entry closed.
+    endEntryEdit();
     const entries = ann.entries || [];
 
     if (entries.length === 0) {
@@ -437,20 +412,7 @@ export function renderEntriesList(ann) {
                     <input type="text" data-field="author" value="${escapeHtml(entry.author || '')}" placeholder="Author">
                     <div class="links-section">
                         <label>Links</label>
-                        <div class="entry-links-list" data-entry-id="${entry.id}">
-                            ${(entry.links || []).map((link, li) => {
-                                const url = safeUrl(link);
-                                const linkHtml = url
-                                    ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>`
-                                    : `<span title="Link disabled (unsupported protocol)">${escapeHtml(link)}</span>`;
-                                return `
-                                <div class="link-item">
-                                    ${linkHtml}
-                                    <button data-link-index="${li}">✕</button>
-                                </div>
-                            `;
-                            }).join('')}
-                        </div>
+                        <div class="entry-links-list" data-entry-id="${entry.id}"></div>
                         <div class="add-link-row">
                             <input type="text" data-field="new-link" placeholder="https://...">
                             <button class="btn-save" data-action="add-link">+</button>
@@ -497,31 +459,7 @@ export function renderEntriesList(ann) {
             } else if (action === 'save-edit') {
                 saveEntryEdit(entryId, card);
             } else if (action === 'add-link') {
-                const input = card.querySelector('[data-field="new-link"]');
-                const link = input.value.trim();
-                if (link) {
-                    const entry = ann.entries.find(en => en.id === entryId);
-                    if (!entry.links) entry.links = [];
-                    entry.links.push(link);
-                    input.value = '';
-                    renderEntriesList(ann);
-                    startEditingEntry(entryId);
-                }
-            }
-        });
-    });
-
-    dom.entriesList.querySelectorAll('.entry-links-list button').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const card = btn.closest('.entry-card');
-            const entryId = parseInt(card.dataset.entryId);
-            const linkIndex = parseInt(btn.dataset.linkIndex);
-            const entry = ann.entries.find(en => en.id === entryId);
-            if (entry && entry.links) {
-                entry.links.splice(linkIndex, 1);
-                renderEntriesList(ann);
-                startEditingEntry(entryId);
+                addDraftLink(card);
             }
         });
     });
@@ -536,21 +474,158 @@ export function renderEntriesList(ann) {
 }
 
 function startEditingEntry(entryId) {
-    state.editingEntryId = entryId;
-    dom.entriesList.querySelectorAll('.entry-card').forEach(card => {
-        if (parseInt(card.dataset.entryId) === entryId) {
-            card.classList.add('editing');
-        } else {
-            card.classList.remove('editing');
-        }
-    });
+    const entries = (state.editingAnnotation && state.editingAnnotation.entries) || [];
+    const entry = entries.find(en => en.id === entryId);
+    if (entry) beginEntryEdit(entry);
 }
 
 export function cancelEditingEntry() {
-    state.editingEntryId = null;
+    endEntryEdit();
     dom.entriesList.querySelectorAll('.entry-card').forEach(card => {
         card.classList.remove('editing');
     });
+}
+
+// ============ Entry Edit Form ============
+//
+// An entry opened with Edit changes only when it is saved. Its text fields
+// hold what was typed, and its links are kept here as a draft: + and ✕ change
+// the draft and redraw that card's link list alone, so the text fields are
+// never rebuilt and nothing typed is lost. Either Save button keeps the edit
+// (Save Entry in the card, Save at the bottom of the window); Cancel, ✕,
+// Escape and a click beside the window drop it. One entry is edited at a
+// time (state.editingEntryId), in an annotation or in Model Information.
+
+let _linksDraft = null;
+
+function beginEntryEdit(entry) {
+    state.editingEntryId = entry.id;
+    _linksDraft = [...(entry.links || [])];
+
+    let editedCard = null;
+    dom.entriesList.querySelectorAll('.entry-card').forEach(card => {
+        const isEdited = parseInt(card.dataset.entryId) === entry.id;
+        card.classList.toggle('editing', isEdited);
+        if (isEdited) editedCard = card;
+    });
+    if (!editedCard) return;
+
+    renderDraftLinks(editedCard);
+    // The entry list gives up its own scroll height while an entry is edited
+    // (css/styles.css), so the window grows; show the whole card.
+    revealInPopup(editedCard);
+}
+
+function endEntryEdit() {
+    state.editingEntryId = null;
+    _linksDraft = null;
+}
+
+function renderDraftLinks(card) {
+    const list = card.querySelector('.entry-links-list');
+    if (!list || !_linksDraft) return;
+
+    list.innerHTML = _linksDraft.map((link, i) => {
+        const url = safeUrl(link);
+        const linkHtml = url
+            ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(link)}</a>`
+            : `<span title="Link disabled (unsupported protocol)">${escapeHtml(link)}</span>`;
+        return `
+            <div class="link-item">
+                ${linkHtml}
+                <button data-link-index="${i}">✕</button>
+            </div>
+        `;
+    }).join('');
+
+    list.querySelectorAll('button[data-link-index]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!_linksDraft) return;
+            _linksDraft.splice(parseInt(btn.dataset.linkIndex), 1);
+            renderDraftLinks(card);
+        });
+    });
+}
+
+function addDraftLink(card) {
+    const input = card.querySelector('[data-field="new-link"]');
+    const link = input.value.trim();
+    if (!link || !_linksDraft) return;
+    _linksDraft.push(link);
+    input.value = '';
+    renderDraftLinks(card);
+}
+
+/**
+ * Applies an edit to an entry. The previous version is kept first; an edit
+ * that changes neither description, author nor links leaves the entry as it
+ * was, its modified date included. Pure data (tests/entry-edit.test.js).
+ * @param {Object} entry
+ * @param {{description: string, author: string, links: string[]}} edit
+ * @returns {boolean} true when the entry changed
+ */
+export function applyEntryEdit(entry, { description, author, links }) {
+    if (!createEntryVersion(entry, description, author, links)) return false;
+
+    // A changed author name invalidates the stored ORCID — it belonged to the
+    // previous author. The local user's ORCID is re-resolved by name at export.
+    if ((entry.author || '') !== author) entry.authorOrcid = undefined;
+    entry.description = description;
+    entry.author = author;
+    // An entry that never had links does not get an empty list.
+    if (entry.links || links.length > 0) entry.links = [...links];
+    entry.modified = new Date().toISOString();
+    return true;
+}
+
+// Saves the entry edited in this card. Returns true when it changed.
+function commitEntryEdit(entry, card) {
+    const author = card.querySelector('[data-field="author"]').value.trim();
+    const changed = applyEntryEdit(entry, {
+        description: card.querySelector('[data-field="description"]').value.trim(),
+        author,
+        links: _linksDraft || entry.links || []
+    });
+    if (changed) saveLastAuthor(author);
+    return changed;
+}
+
+/**
+ * Saves an entry still open for editing when the window's own Save is used,
+ * so either Save button keeps what was typed. Only a card that still shows
+ * its edit form counts. Returns true when the entry changed.
+ * @param {Array} entries The entries of the annotation or of Model Information.
+ */
+function commitOpenEntryEdit(entries) {
+    const entryId = state.editingEntryId;
+    if (entryId === null) return false;
+
+    const entry = (entries || []).find(en => en.id === entryId);
+    const card = dom.entriesList.querySelector(`.entry-card.editing[data-entry-id="${entryId}"]`);
+    const changed = !!(entry && card) && commitEntryEdit(entry, card);
+    endEntryEdit();
+    return changed;
+}
+
+// Scrolls what holds the element inside the annotation window (the window
+// itself on desktop, its sections in the touch bottom sheet) just far enough
+// to show it, its top first when it is taller than the space. Not
+// scrollIntoView(), which can also scroll the page behind the window.
+function revealInPopup(el) {
+    for (let box = el.parentElement; box; box = box.parentElement) {
+        const overflowY = getComputedStyle(box).overflowY;
+        if (box.scrollHeight > box.clientHeight && (overflowY === 'auto' || overflowY === 'scroll')) {
+            const b = box.getBoundingClientRect();
+            const r = el.getBoundingClientRect();
+            if (r.bottom > b.bottom) {
+                box.scrollTop += Math.min(r.bottom - b.bottom, r.top - b.top);
+            } else if (r.top < b.top) {
+                box.scrollTop -= b.top - r.top;
+            }
+        }
+        if (box === dom.annotationPopup) break;
+    }
 }
 
 // ============ Versioning System ============
@@ -720,24 +795,8 @@ function saveEntryEdit(entryId, card) {
     const entry = state.editingAnnotation.entries.find(en => en.id === entryId);
     if (!entry) return;
 
-    const description = card.querySelector('[data-field="description"]').value.trim();
-    const author = card.querySelector('[data-field="author"]').value.trim();
-    
-    // Get current links from the entry (they may have been modified in-place)
-    const currentLinks = entry.links || [];
-    
-    // Create version snapshot before applying changes
-    const hasChanges = createEntryVersion(entry, description, author, currentLinks);
+    const hasChanges = commitEntryEdit(entry, card);
 
-    // A changed author name invalidates the stored ORCID — it belonged to the
-    // previous author. The local user's ORCID is re-resolved by name at export.
-    if ((entry.author || '') !== author) entry.authorOrcid = undefined;
-    entry.description = description;
-    entry.author = author;
-    entry.modified = new Date().toISOString();
-    saveLastAuthor(author);
-
-    state.editingEntryId = null;
     renderEntriesList(state.editingAnnotation);
     showStatus(hasChanges ? 'Entry updated (previous version saved)' : 'Entry saved');
 }
@@ -873,6 +932,9 @@ function createAnnotationGroupVersion(ann, newGroupId) {
 
 export function saveAnnotation() {
     if (state.editingModelInfo) {
+        // An entry still open for editing is saved too (see commitOpenEntryEdit).
+        commitOpenEntryEdit(state.modelInfo.entries);
+
         if (state.isAddingEntry || state.modelInfo.entries.length === 0) {
             const description = dom.annDescription.value.trim();
             const author = dom.annAuthor.value.trim();
@@ -907,6 +969,9 @@ export function saveAnnotation() {
     let lockStatus = '';
 
     if (state.editingAnnotation) {
+        // An entry still open for editing is saved too (see commitOpenEntryEdit).
+        commitOpenEntryEdit(state.editingAnnotation.entries);
+
         // Create version snapshots before applying changes
         const nameChanged = createAnnotationNameVersion(state.editingAnnotation, name);
         const groupChanged = createAnnotationGroupVersion(state.editingAnnotation, groupId);

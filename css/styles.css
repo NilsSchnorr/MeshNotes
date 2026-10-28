@@ -1494,7 +1494,11 @@
 
         #annotation-popup {
             width: 520px;
-            max-height: 80vh;
+            /* At most 80% of the window, and never more than fits below the
+               header and toolbar (92px) with 10px to spare at either edge:
+               keepAnnotationPopupInView() moves it up when it would run off
+               the bottom. */
+            max-height: min(80vh, calc(100vh - 112px));
             overflow-y: auto;
         }
 
@@ -1518,6 +1522,13 @@
             max-height: 300px;
             overflow-y: auto;
             margin-bottom: 12px;
+        }
+
+        /* While an entry is edited, its card shows in full: the list gives up
+           its own scroll height and the window grows instead, so there is one
+           scrollbar and Save Entry is not hidden below the list's edge. */
+        #entries-list:has(.entry-card.editing) {
+            max-height: none;
         }
 
         .entry-card {

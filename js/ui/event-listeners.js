@@ -9,7 +9,7 @@ import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLi
 import { onCanvasTap, onCanvasDoubleTap, onCanvasPointerDown, onCanvasPointerMove, onCanvasPointerUp, clearTempDrawing, cancelUnfinishedDrawing, clearAllMeasurements, undoLastPoint, undoLastSurfaceStroke, undoLastMeasurePoint } from '../annotation-tools/editing.js';
 import { initCanvasTouchAction } from '../input/pointer-manager.js';
 import { openGroupPopup, saveGroup, deleteGroup, hideGroupDeleteDialog, confirmGroupDelete, updateGroupsList, createDefaultGroup, createGroupInline, showInlineGroupForm, hideInlineGroupForm, deselectAnnotation } from '../annotation-tools/groups.js';
-import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay } from '../annotation-tools/data.js';
+import { saveAnnotation, deleteAnnotation, addLink, showAddEntryForm, hideConfirm, hideScalebarConfirm, openModelInfoPopup, updateModelInfoDisplay, keepAnnotationPopupInView } from '../annotation-tools/data.js';
 import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
@@ -49,11 +49,12 @@ export function setTool(tool) {
     // stays active while the panel is open and locks the toolbar meanwhile.
     if ((tool === 'survey-pick') !== (previousTool === 'survey-pick')) {
         setToolbarLocked(tool === 'survey-pick');
-        // A click on a marker before (onCanvasPointerUp) leaves wasDragging
-        // set, which would swallow the first pick tap. Markers are never
-        // dragged with this tool.
-        state.wasDragging = false;
     }
+
+    // A click on a marker before (onCanvasPointerUp) leaves wasDragging set,
+    // which would swallow the first tap of the new tool: a point not placed,
+    // a vertex or a survey pick not taken. A tool change starts afresh.
+    state.wasDragging = false;
 
     // Reset the canvas cursor on every tool change; a leftover 'move'/'grab'/
     // 'resize' cursor from box hover or manipulation would otherwise stick,
@@ -415,8 +416,11 @@ export function setupEventListeners() {
             clearTempDrawing();
             setTool(null);
         } else {
-            // Switching to a different tool: cancel any in-progress drawing/box/
+            // Switching to a different tool: end a sidebar selection (its
+            // callout sits over the model where the new annotation goes; the
+            // camera stays where it is), cancel any in-progress drawing/box/
             // surface (measurements deliberately persist), then activate the tool.
+            deselectAnnotation();
             cancelUnfinishedDrawing();
             setTool(tool);
         }
@@ -913,6 +917,13 @@ export function setupEventListeners() {
             state.isDraggingPopup = false;
         });
     }
+
+    // The annotation window opens at a fixed place and grows while an entry
+    // is edited, so it is held inside the browser window whenever its size
+    // changes (also when it is shown) and when the browser window is resized.
+    // keepAnnotationPopupInView() does nothing on touch devices.
+    new ResizeObserver(keepAnnotationPopupInView).observe(dom.annotationPopup);
+    window.addEventListener('resize', keepAnnotationPopupInView);
 
     // About modal
     dom.btnAbout.addEventListener('click', () => {

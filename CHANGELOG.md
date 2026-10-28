@@ -6,6 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.5] — 2026-10-28
+
+A bug-fix release for the annotation window and the toolbar. Text typed into an entry is no longer lost when a link is added or when the window's own **Save** is used, the window grows while an entry is edited and stays inside the browser window, and choosing a tool clears an annotation selection.
+
+### Fixed
+
+- **Adding a link discarded the text of an edited entry** — in an entry opened with **Edit**, **+** added the link but rebuilt the entry list from the saved entries, so the description and author typed since went back to their saved values, or blank. Removing a link with **✕** did the same. Links in the edit form are now kept with the edit until it is saved: **+** and **✕** redraw only the link list, and **Cancel** discards link changes along with the rest. The same applies to the entries of **Model Information**.
+- **Save at the bottom of the window dropped an edited entry** — the annotation window has two Save buttons, and the window's own **Save** saved name, group, lock and a new entry but not an entry open for editing, which was closed without a message. It now saves that entry as well, as **Save Entry** does, with its previous version kept. In **Model Information** it did the same while reporting "Model information saved"; this is fixed too.
+- **Link changes alone made no previous version** — links were written into the entry as soon as they were added or removed, so saving compared the entry's links with themselves: a change of links alone counted as no change, and the version kept by a text change already held the new links. Saving now compares with the links the entry had before the edit.
+- **First click after choosing a tool was ignored** — a plain click on a marker with no tool active left a flag set that swallowed the next click on the model, so the first point, vertex or survey pick after choosing a tool was not placed. Every tool change now clears it; before, only the survey picking tool did.
+
+### Changed
+
+- **Choosing a tool clears the selection** — an annotation selected in the sidebar stayed selected when a drawing or measuring tool was chosen, and its callout covered the model next to it, often where the new annotation was to go, hiding what was clicked or drawn there. Choosing a tool now clears the selection, as **Esc** does; the camera stays where it is.
+- **The window grows while an entry is edited** — the entry list kept its own scroll height of 300px, so the edit form of an entry, about 375px tall, always ran below the list's edge and **Save Entry** had to be scrolled to inside the list. While an entry is edited the list shows it in full and the window grows instead, up to its usual limit, with the edited entry scrolled into view.
+- **The annotation window stays inside the browser window** — it opened at a fixed place meant for a short window and was never moved afterwards, so on a browser window around 800px tall its bottom row with both Save buttons could lie below the screen edge. It is now moved up as far as needed when it opens, when it grows and when the browser window is resized, and its height is limited to the space below the toolbar. Touch devices keep their bottom sheet.
+- **Saving an unchanged entry** leaves its modified date as it was. Before, **Save Entry** set it even when nothing had changed.
+- **Manual** — *Multi-Entry Annotations* explains how an edited entry is saved or discarded, and *Tips → Selecting an annotation* says that choosing a tool clears the selection.
+
+### Internal
+
+- `js/annotation-tools/data.js`: an edit form's links are a draft (`_linksDraft`) from `beginEntryEdit()` until `endEntryEdit()`; `renderDraftLinks()` and `addDraftLink()` replace the in-place writes to `entry.links` in both entry lists, and the edit form's link list is no longer part of the list markup. New exported `applyEntryEdit(entry, edit)` holds the version-and-apply step both Save buttons use; `commitOpenEntryEdit()` runs it from `saveAnnotation()`. Both list renderers start with every entry closed. New exported `keepAnnotationPopupInView()`, also called after `positionPopup()` and `resetPopupPosition()`.
+- `js/ui/event-listeners.js`: `toggleTool()` calls `deselectAnnotation()` when it switches a tool on; `setTool()` clears `state.wasDragging` on every call. A `ResizeObserver` on the annotation window and a `resize` listener call `keepAnnotationPopupInView()`.
+- `css/styles.css`: `#entries-list:has(.entry-card.editing)` lifts the list's height limit; `#annotation-popup` gets `max-height: min(80vh, calc(100vh - 112px))`.
+- New test `tests/entry-edit.test.js` for `applyEntryEdit()`. No new module, so the precache list is unchanged; no file format or specification changed.
+
+
 ## [1.6.4] — 2026-10-08
 
 A visual clean-up release. Windows, popups and panels get squarer corners that fit the straight-edged layout, About, Manual and Legal are as wide as Settings and can be dragged like it, and the selection callout has a close button.
@@ -367,6 +394,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.6.5]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.5
 [1.6.4]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.4
 [1.6.3]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.3
 [1.6.2]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.2
