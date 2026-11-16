@@ -64,7 +64,17 @@ construction"). See the comment at the BVH build block in
 `js/core/model-loader.js`.
 
 MeshNotes uses only `computeBoundsTree`, `disposeBoundsTree`,
-`acceleratedRaycast` and `geometry.boundsTree.shapecast()`. There is no direct
+`acceleratedRaycast` and `geometry.boundsTree.shapecast()`.
+
+Since MeshNotes 1.6.6 every model BVH is built with `indirect: true`
+(`BVH_OPTIONS` in `js/annotation-tools/face-order.js`): the index buffer keeps
+the file's triangle order, which is the order of surface face numbers
+(`meshnotes:faces`). Files from earlier versions hold face numbers in the order
+of the old in-place build; MeshNotes converts them through the indirect table,
+which works only while the library sorts exactly as 0.8.2 does.
+`tests/face-order.test.js` checks that against a stored order
+(`tests/fixtures/bvh-legacy-order.json`); an upgrade that fails it needs a
+vendored copy of the 0.8.2 build for the conversion. There is no direct
 `MeshBVH` construction and no use of serialized BVH data, which keeps the blast
 radius of any future upgrade small. Note that 0.9.4 changed serialized-node
 indexing and 0.9.x refactored the build internals substantially — worth knowing

@@ -11,6 +11,7 @@ import { getIntersectionWithFace, paintAtPoint, finishSurfacePainting, clearTemp
 import { setDrawingCallbacks, addDrawingPoint, handlePointTap, finishDrawing } from './drawing.js';
 import { clearPendingBox, updatePendingBoxManipulation, updateSelectedBoxManipulation, confirmBoxPlacement, endPendingBoxManipulation, endSelectedBoxManipulation, setBoxEditCallbacks, handleUnlockedBoxClickElsewhere, beginBoxPlacement, toggleExistingBoxLock, handlePendingBoxPointerDown, beginBoxHandleDrag, beginBoxBodyDrag } from './box-edit.js';
 import { PLACEMENT } from '../survey/alignment.js';
+import { touchAnnotation } from './history.js';
 import { findAlignment, handMovedOffset, handMovedStatus } from '../survey/survey-display.js';
 import { renderSurveyBlock } from './survey-block.js';
 import { refreshViewerSurveyBlock } from './annotation-viewer.js';
@@ -407,6 +408,7 @@ export function onCanvasPointerUp(event) {
         const ann = state.draggedAnnotation;
         const moved = !!ann && dragMovedPoint(ann, state.draggedPointIndex);
         let status = moved ? 'Point moved' : null;
+        if (moved) touchAnnotation(ann);
         if (moved && ann.survey) {
             ann.survey.placement = PLACEMENT.MANUAL;
             const alignment = findAlignment(state.alignments, ann.survey.alignmentId);

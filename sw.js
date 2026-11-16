@@ -8,7 +8,7 @@
 // IMPORTANT: bump CACHE on every release — alongside APP_VERSION in
 // js/state.js, CITATION.cff, and CHANGELOG.md — so existing clients pick up
 // newly deployed assets.
-const CACHE = 'meshnotes-v1.6.5';
+const CACHE = 'meshnotes-v1.6.6';
 
 // Precache the full app shell so a SINGLE online visit makes the app
 // offline-ready (no need to exercise every feature first). Paths are RELATIVE
@@ -35,7 +35,9 @@ const PRECACHE = [
   './js/annotation-tools/data.js',
   './js/annotation-tools/drawing.js',
   './js/annotation-tools/editing.js',
+  './js/annotation-tools/face-order.js',
   './js/annotation-tools/groups.js',
+  './js/annotation-tools/history.js',
   './js/annotation-tools/measure.js',
   './js/annotation-tools/projection.js',
   './js/annotation-tools/render.js',

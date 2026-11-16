@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { state, dom } from '../state.js';
 import { getIcon } from '../ui/icons.js';
-import { generateUUID, generateInternalId, escapeHtml, showStatus, toDisplayCoords, filterAnnotations } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, escapeHtml, showStatus, toDisplayCoords, filterAnnotations, getLastAuthor } from '../utils/helpers.js';
+import { recordGroupChange } from './history.js';
 import { renderAnnotations } from './render.js';
 import { applySelectionHighlight } from './selection-highlight.js';
 import { showSelectionCallout, hideSelectionCallout } from './selection-callout.js';
@@ -12,6 +13,9 @@ import { clearBoxEditState, restoreToolHelp } from '../ui/tool-help.js';
 // from every existing constructor need no migration:
 //   group.collapsed      absent = expanded       -> read as !!group.collapsed
 //   group.labelsVisible  absent = labels shown   -> read as group.labelsVisible !== false
+//   group.modified       absent = name and colour unchanged since creation;
+//                        set when either changes, so a merge can take the
+//                        newer name and colour (import-json.js)
 
 // Late-bound references
 let _openGroupPopup = null;
@@ -79,6 +83,9 @@ export function saveGroup() {
     const labelsVisible = dom.groupLabelsVisible.checked;
 
     if (state.editingGroup) {
+        if (state.editingGroup.name !== name || state.editingGroup.color !== color) {
+            state.editingGroup.modified = new Date().toISOString();
+        }
         state.editingGroup.name = name;
         state.editingGroup.color = color;
         state.editingGroup.opacity = opacity;
@@ -160,7 +167,13 @@ export function confirmGroupDelete(mode) {
         const targetId = parseInt(dom.groupDeleteTarget.value);
         const target = state.groups.find(g => g.id === targetId && g.id !== group.id)
             || state.groups.find(g => g.id !== group.id);
-        members.forEach(ann => { ann.groupId = target.id; });
+        // Each move is recorded in the annotation's group history, with the
+        // deleted group's uuid and name, before the group is removed.
+        const change = { now: new Date().toISOString(), changedBy: getLastAuthor() };
+        members.forEach(ann => {
+            recordGroupChange(ann, target.id, state.groups, change);
+            ann.groupId = target.id;
+        });
         removeGroup(group, target.id);
         showStatus(`Group "${group.name}" deleted, ${annotationCountText(members.length)} moved to "${target.name}"`);
     } else if (mode === 'delete') {

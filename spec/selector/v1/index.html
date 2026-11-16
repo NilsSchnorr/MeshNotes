@@ -161,7 +161,7 @@ Orientation (used by <code>meshnotes:BoxSelector</code>) is expressed as a <stro
   <tr><th>Property</th><th>Type</th><th>Description</th></tr>
   <tr><td><code>meshnotes:centroid</code></td><td>WKT <code>POINT Z</code> string</td><td>A representative point within the region, in the local model frame.</td></tr>
   <tr><td><code>meshnotes:normal</code> <em>(optional)</em></td><td>WKT <code>POINT Z</code> string</td><td>The outward surface normal at the centroid, as a unit direction vector encoded in <code>POINT Z</code> coordinate notation. Reserved: emitted only by tools that capture surface orientation; consumers must tolerate its absence.</td></tr>
-  <tr><td><code>meshnotes:faces</code></td><td>set of strings</td><td>Mesh face identifiers covered by the region. <strong>Hint only</strong> — valid solely against the exact mesh identified by the model integrity hash (§5).</td></tr>
+  <tr><td><code>meshnotes:faces</code></td><td>set of strings</td><td>Mesh face identifiers covered by the region, each <code>m_t</code> as defined in §5. <strong>Hint only</strong> — valid solely against the exact mesh identified by the model integrity hash (§5).</td></tr>
 </table>
 <pre><code>"selector": {
   "type": "meshnotes:SurfaceSelector",
@@ -191,6 +191,19 @@ Orientation (used by <code>meshnotes:BoxSelector</code>) is expressed as a <stro
 <h2>5. Model binding and the status of face identifiers</h2>
 <p>
 Mesh face identifiers (<code>meshnotes:faces</code>) are indices into a specific triangulation. Any operation that changes the triangulation — decimation, retopology, hole-filling, re-export — invalidates them. They are therefore recorded as a <strong>hint</strong> and <span class="rfc">must not</span> be treated as authoritative unless the consumer can confirm it holds the identical mesh.
+</p>
+<p>
+<strong>Face identifiers.</strong> Each identifier is <code>m_t</code>: <code>m</code> numbers the triangle meshes of the model as loaded, <code>t</code> the triangles of that mesh in the order the model file lists its faces, both counted from 0. A face with more than three corners counts as the triangles it is split into, in its place. The table gives the numbering per format as MeshNotes reads the files (informative).
+</p>
+<table>
+  <tr><th>Format</th><th>Mesh number <code>m</code></th><th>Triangle number <code>t</code></th></tr>
+  <tr><td>glTF, GLB</td><td>Each primitive drawn as triangles, in depth-first order of the scene's nodes, primitives in their order; a mesh used by two nodes counts twice</td><td>Index order, or vertex order without an index; triangle strips and fans as converted to triangles</td></tr>
+  <tr><td>OBJ</td><td>Each <code>o</code> or <code>g</code> object that has faces, in file order</td><td>File face order; a face with <em>n</em> corners adds <em>n</em> − 2 triangles: the first corner with each following pair</td></tr>
+  <tr><td>PLY</td><td>Always 0</td><td>File face order; a quad adds (v0, v1, v3) and (v1, v2, v3); faces with more than four corners are not read</td></tr>
+  <tr><td>STL</td><td>Always 0</td><td>File triangle order</td></tr>
+</table>
+<p class="note">
+(Erratum 2026-11-16: earlier wording did not say how faces are numbered. MeshNotes before 1.6.6 numbered triangles in the order of its internal acceleration structure, which other software cannot reproduce, and in file order where that structure was not built. From 1.6.6 on, a document declares file order with <code>meshnotes:faceOrder</code> on its model description (annotation format specification, §4). A consumer <span class="rfc">should</span> treat face identifiers in a document without that declaration as unverified.)
 </p>
 <p>
 To make that confirmation possible, an annotation document <span class="rfc">should</span> bind to its target model by a content hash, expressed on the model description (<code>modelSource</code>) as <code>schema:sha256</code> over the canonical model file, alongside a persistent identifier (e.g. a DOI) for the model where one exists. The durable, mesh-independent part of a <code>meshnotes:SurfaceSelector</code> is its <code>centroid</code> (and <code>normal</code> where present); a consumer that does not hold the matching mesh can still locate the region approximately from those.

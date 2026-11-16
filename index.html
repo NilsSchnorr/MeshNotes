@@ -197,6 +197,7 @@
                             <p style="margin-top: 10px;"><strong>How it works internally:</strong> The 3D engine that MeshNotes is built on (Three.js) uses Y-up internally, which is common for web-based 3D viewers. MeshNotes handles the translation between these two conventions automatically, so you never need to worry about it. The View Helper in the top-right corner always shows Z (blue) pointing up, Y (green) pointing forward, and X (red) pointing right, reflecting the Z-up convention most users will be used to.</p>
 
                             <p style="margin-top: 10px;"><strong>On import:</strong> When loading OBJ or PLY files, MeshNotes asks which axis is up in your source software and rotates the model accordingly. GLB/GLTF files always use Y-up by specification, so MeshNotes handles them automatically. When importing annotation files, MeshNotes checks the <code>upAxis</code> field in the JSON. Files marked as Z-up are loaded directly; older files without this field are treated as legacy Y-up data and converted automatically.</p>
+                            <p style="margin-top: 10px;"><strong>The up-axis travels with the annotations:</strong> The annotation file also records which up-axis an OBJ, PLY or STL model was loaded with. Share links open the model with that up-axis. When you import an annotation file, or restore an autosaved session, that was made with the model loaded under the other up-axis, MeshNotes warns you, because the annotations would not sit on the model, and offers <strong>Reload as Y-up</strong> (or Z-up): the same model file is loaded again with the stored up-axis, and the annotations are then imported or restored. Work in the current session is cleared first, after the usual question.</p>
 
                             <p style="margin-top: 10px;"><strong>On export:</strong> All annotation JSON files include an <code>"upAxis": "Z"</code> field near the top of the file. This tells any software reading the file which coordinate convention to expect. The field is deliberately not prefixed with a MeshNotes-specific namespace, so it is easy for other tools to read and interpret.</p>
                         </div>
@@ -260,6 +261,7 @@
                             <p>Click <strong>Surface</strong> to paint directly on the 3D model's mesh faces. Adjust the brush size using the slider (0.1-20% of model size), then click and drag to highlight faces. <strong>Right-click and drag</strong> to rotate the view while painting — this lets you paint a continuous surface annotation from multiple angles (e.g., wrapping around a statue's arm). Hold <strong>Shift</strong> while painting to erase. Double-click to finish and open the annotation popup.</p>
                             <p style="margin-top: 10px;"><strong>Undo:</strong> Press <code>Ctrl+Z</code> (or <code>Cmd+Z</code> on Mac) to undo the last paint stroke. Each stroke (one mousedown-to-mouseup drag) is treated as one undoable step, including erase strokes. You can undo multiple strokes in succession.</p>
                             <p style="margin-top: 10px;">Surface annotations are ideal for marking 3D regions like weathered areas, specific architectural features, or body parts on sculptures that can't be easily captured with flat polygons.</p>
+                            <p style="margin-top: 10px;"><strong>Older files:</strong> A surface annotation stores the numbers of the faces it covers. Since version 1.6.6 they follow the face order of the model file; files from earlier versions are renumbered when you import them. If a region cannot be checked on your device (for example because no model is loaded), the import status says so, and the region keeps its numbers until it is opened on a device that can check it.</p>
                             <div class="limitation-note">
                                 <strong>Performance Note:</strong> The Surface tool uses BVH (Bounding Volume Hierarchy) acceleration for fast spatial queries, significantly improving painting performance. It works best on smaller models (statues, ceramics, artifacts). Performance depends on face count:
                                 <ul style="margin: 8px 0 0 20px; padding: 0;">
@@ -542,7 +544,7 @@
                             <p style="margin-top: 10px;"><strong>Recipient workflow:</strong> When someone opens a share link, the model and annotations load automatically in MeshNotes. The recipient can view, edit, and add their own annotations. To save the work, they can export the annotations as JSON-LD, download the model files via <strong>Export ▾ → Model Files</strong>, or re-share with a new link.</p>
 
                             <h4 style="margin-top: 14px;">Quick Share</h4>
-                            <p style="margin-top: 10px;">Uploads your model and annotations to meshnotes.org and generates a link. Anyone with the link can open the model and annotations directly in MeshNotes — no file download or manual import needed. Quick Share links expire after 90 days. Click <strong>Generate Link</strong> to upload. Maximum file size: 100 MB.</p>
+                            <p style="margin-top: 10px;">Uploads your model and annotations to meshnotes.org and generates a link. Anyone with the link can open the model and annotations directly in MeshNotes — no file download or manual import needed. The annotation file is always included, also without annotations: it carries the metadata, model information and alignments, and the up-axis the model was loaded with. Quick Share links expire after 90 days. Click <strong>Generate Link</strong> to upload. Maximum file size: 100 MB.</p>
 
                             <p style="margin-top: 10px;"><strong>Tip:</strong> Large GLB models can be reduced significantly using <em>Draco compression</em> before sharing. See the <em>Model Preparation &amp; Format Guide</em> section for details and tools.</p>
 
@@ -606,8 +608,8 @@
                             <p style="margin-top: 10px;"><strong>How it works:</strong> Every annotation and every entry within an annotation is assigned a unique ID (UUID) when created. When you import a JSON file, MeshNotes compares these IDs to determine what is new and what already exists:</p>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
                                 <li><strong>New annotations</strong> (unknown UUID) are added alongside your existing ones.</li>
-                                <li><strong>Existing annotations</strong> (matching UUID) are updated — any new entries from collaborators are merged in, and entries that were edited are updated if the imported version has a newer timestamp.</li>
-                                <li><strong>Groups</strong> with the same name are combined. New groups from the imported file are created automatically.</li>
+                                <li><strong>Existing annotations</strong> (matching UUID) are updated — any new entries from collaborators are merged in, and entries that were edited are updated if the imported version has a newer timestamp. Name and group are decided separately: whichever copy renamed the annotation or moved it to another group more recently wins, whoever imports whose file. The other name or group is kept in the annotation's history.</li>
+                                <li><strong>Groups</strong> are matched by their identifier, then by name. New groups from the imported file are created automatically. A group's name and colour follow the copy that changed them more recently; visibility, opacity and the sidebar display stay as you set them.</li>
                                 <li><strong>Model Information</strong> entries are merged in the same way as annotation entries.</li>
                                 <li><strong>Survey alignments</strong> are matched by their identifier; the more recently modified copy wins, and survey points placed by the fit follow it (see <em>Survey Points (CSV Import)</em>).</li>
                             </ul>
@@ -1928,6 +1930,19 @@
                         <button class="btn-cancel" id="annotation-clear-cancel">Cancel</button>
                         <button class="btn-delete" id="annotation-clear-discard">Clear</button>
                         <button class="btn-save" id="annotation-clear-export">Export & Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Up-axis mismatch: an imported annotation file or a restored session was made with the model loaded under the other up-axis -->
+            <div class="confirm-overlay" id="up-axis-overlay">
+                <div class="confirm-dialog" style="max-width: 450px;">
+                    <button class="confirm-close-btn" id="up-axis-dialog-close" title="Cancel">✕</button>
+                    <p id="up-axis-message" style="padding: 0 16px;">These annotations were made with the model loaded with another up-axis.</p>
+                    <p style="margin-top: 12px; font-size: 12px; color: #888;">The up-axis of an OBJ, PLY or STL model is chosen when it is loaded and cannot be changed afterwards. Reloading opens the same model file again with the stored up-axis; work in the current session is cleared first, after the usual question.</p>
+                    <div class="btn-row" style="margin-top: 16px; flex-wrap: wrap;">
+                        <button class="btn-cancel" id="up-axis-continue">Import anyway</button>
+                        <button class="btn-save" id="up-axis-reload">Reload as Y-up</button>
                     </div>
                 </div>
             </div>

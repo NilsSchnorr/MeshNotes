@@ -37,6 +37,7 @@ import {
 import { SELECTION_LIMIT_DEFAULT, SURFACE_WARN_DEFAULT } from './rigid-fit.js';
 import { buildRecords, emptyMapping, MAPPING_ROLES, REQUIRED_ROLES } from './column-mapping.js';
 import { formatMetres } from './survey-display.js';
+import { touchAnnotation } from '../annotation-tools/history.js';
 
 export { isSurfaceQueryAvailable };
 
@@ -349,7 +350,7 @@ function unchangedSince(ann, mark, session) {
 }
 
 // marks: markOf() per move for a chunked run, or null (synchronous run).
-function finishReplacement(moves, snaps, skippedBefore, snapped, marks = null) {
+function finishReplacement(moves, snaps, skippedBefore, snapped, marks = null, changedAt = undefined) {
     const shifts = [];
     let skipped = skippedBefore;
     const session = marks ? new Set(state.annotations) : null;
@@ -363,6 +364,9 @@ function finishReplacement(moves, snaps, skippedBefore, snapped, marks = null) {
         const after = snaps[i].point;
         ann.points[0] = after;
         ann.survey.surfaceDistance = snaps[i].surfaceDistance;
+        // A new position counts as a change, at the time of the fit that set
+        // it (the alignment's modified), so two copies agree after a merge.
+        touchAnnotation(ann, move.changedAt || changedAt);
         shifts.push(before && [before.x, before.y, before.z].every(isNum) ? distance3(before, after) : 0);
     });
     return {
@@ -382,8 +386,11 @@ function finishReplacement(moves, snaps, skippedBefore, snapped, marks = null) {
  * manual after the plan was made. Without a model or BVH the points move to
  * their fitted positions unsnapped, with surfaceDistance null.
  * Synchronous; use applyReplacementChunked for more than SURFACE_CHUNK_SIZE points.
- * @param {{moves: Array<{annotation: object, to: {x,y,z}}>}} plan - a
- *   planRefinePlacement() result (only moves is read), or several plans' moves joined
+ * @param {{moves: Array<{annotation: object, to: {x,y,z}, changedAt?: string}>, changedAt?: string}} plan - a
+ *   planRefinePlacement() result, or several plans' moves joined. changedAt
+ *   (per move, else for the plan) is when the fit that sets the new positions
+ *   was made, the alignment's modified; each moved point's modified becomes
+ *   that time (now when absent).
  * @returns {{moved: number, maxMove: number, medianMove: number, skipped: number, snapped: boolean}}
  *   moved = points moved; maxMove / medianMove = metres between each moved
  *   point's old and new points[0]; skipped = moves left out (hand-moved);
@@ -394,7 +401,7 @@ export function applyReplacement(plan) {
     const moves = all.filter(stillFitPoint);
     const out = new Array(moves.length);
     const snapped = moves.length > 0 ? snapRange(moves.map(m => m.to), 0, moves.length, out) : isSurfaceQueryAvailable();
-    return finishReplacement(moves, out, all.length - moves.length, snapped);
+    return finishReplacement(moves, out, all.length - moves.length, snapped, null, plan && plan.changedAt);
 }
 
 /**
@@ -415,7 +422,7 @@ export async function applyReplacementChunked(plan, options = {}) {
     const marks = moves.map(m => markOf(m.annotation));
     const snapped = isSurfaceQueryAvailable();
     const out = await snapToSurfaceChunked(moves.map(m => m.to), options);
-    return finishReplacement(moves, out, all.length - moves.length, snapped, marks);
+    return finishReplacement(moves, out, all.length - moves.length, snapped, marks, plan && plan.changedAt);
 }
 
 /**
@@ -578,6 +585,8 @@ export function buildSurveyAnnotation(record, {
         uuid: generateUUID(),
         type: 'point',
         name,
+        // The time of the import (annotation format section 10.1).
+        created: importedAt,
         creator: author,
         groupId,
         points: [{ x: point.x, y: point.y, z: point.z }],

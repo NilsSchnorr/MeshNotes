@@ -99,7 +99,7 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
   <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
   <tr><td><code>@context</code></td><td><span class="rfc">must</span></td><td>array</td><td>The W3C Web Annotation context followed by the MeshNotes context: <code>["http://www.w3.org/ns/anno.jsonld", "https://meshnotes.org/ns/context-v1.jsonld"]</code>.</td></tr>
   <tr><td><code>type</code></td><td><span class="rfc">must</span></td><td>string</td><td>The literal <code>"AnnotationCollection"</code>.</td></tr>
-  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>IRI</td><td>Collection identifier, of the form <code>urn:meshnotes:collection:{uuid}</code>.</td></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">must</span></td><td>IRI</td><td>Collection identifier, of the form <code>urn:meshnotes:collection:{uuid}</code>. It names the record: exports of the same work keep it, and <code>generated</code> tells their versions apart. (Changed 2026-11-16, §10.2: files from before MeshNotes 1.6.6 carry a new id for every export.)</td></tr>
   <tr><td><code>label</code></td><td><span class="rfc">should</span></td><td>string</td><td>Human-readable label, e.g. <code>"MeshNotes: skyphos.glb"</code>.</td></tr>
   <tr><td><code>dcterms:conformsTo</code></td><td><span class="rfc">must</span></td><td>IRI</td><td>This specification's URL. Identifies the annotation-format version, independent of the producing application's version.</td></tr>
   <tr><td><code>generator</code></td><td><span class="opt">may</span></td><td>object</td><td>The producing software: <code>{ "type": "Software", "name", "schema:version", "homepage" }</code>.</td></tr>
@@ -109,6 +109,7 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
   <tr><td><code>meshnotes:groups</code></td><td><span class="opt">may</span></td><td>array</td><td>Group definitions; see §7.</td></tr>
   <tr><td><code>modelInfo</code></td><td><span class="opt">may</span></td><td>object</td><td>Free-text notes about the whole model; see §8.</td></tr>
   <tr><td><code>metadata</code></td><td><span class="opt">may</span></td><td>object</td><td>Structured meta- and paradata report; see §8.</td></tr>
+  <tr><td><code>meshnotes:viewState</code></td><td><span class="opt">may</span></td><td>object</td><td>The view the author saw, written only for a share link of a single annotation; see §10.2.</td></tr>
   <tr><td><code>total</code></td><td><span class="rfc">must</span></td><td>integer</td><td>Number of annotations in the collection.</td></tr>
   <tr><td><code>first</code></td><td><span class="rfc">must</span>*</td><td>object</td><td>An <code>AnnotationPage</code>: <code>{ "id", "type": "AnnotationPage", "items": [ Annotation, ... ] }</code>, with <code>id</code> derived from the collection id (<code>{collection-id}/page/1</code>). *Required when <code>total</code> ≥ 1; <span class="rfc">must</span> be omitted when the collection is empty, because a W3C <code>AnnotationPage</code> requires at least one item. (Erratum 2026-06-11: earlier wording required <code>first</code> unconditionally, which forced WADM-invalid output for empty, e.g. metadata-only, collections; files produced under the old rule carry <code>first</code> with empty <code>items</code> and no page <code>id</code>, and consumers <span class="rfc">should</span> tolerate them.)</td></tr>
 </table>
@@ -126,7 +127,7 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
                  "schema:version": "1.1.0", "homepage": "https://meshnotes.org" },
   "generated": "2026-06-08T09:14:00.000Z",
   "modelSource": { … },
-  "stylesheet": { "type": "CssStylesheet", "value": ".group-1 { color: #EDC040; }" },
+  "stylesheet": { "type": "CssStylesheet", "value": ".group-b2e1… { color: #EDC040; }" },
   "meshnotes:groups": [ … ],
   "modelInfo": { … },
   "metadata": { … },
@@ -148,7 +149,9 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
   <tr><td><code>upAxis</code></td><td><span class="rfc">should</span></td><td>string</td><td>Coordinate up-axis of the exported coordinates. MeshNotes always emits <code>"Z"</code>. See [SEL] §3.</td></tr>
   <tr><td><code>unit</code></td><td><span class="opt">may</span></td><td>string</td><td>Real-world linear unit of the coordinates (e.g. <code>"m"</code>, <code>"cm"</code>, <code>"mm"</code>). Omitted when the producer has no declared unit; a consumer <span class="rfc">should not</span> assume one when absent.</td></tr>
   <tr><td><code>meshnotes:crs</code></td><td><span class="opt">may</span></td><td>IRI</td><td>OGC CRS URI when the model is georeferenced; governs the georeferenced selector form in [SEL] §3.3.</td></tr>
+  <tr><td><code>meshnotes:modelUpAxis</code></td><td><span class="opt">may</span></td><td>string</td><td><code>"y-up"</code> or <code>"z-up"</code>: the up-axis the producer loaded the model file with. glTF files are always <code>"y-up"</code>; for formats without a fixed convention, such as OBJ, PLY and STL, it is the user's choice. It is not the frame of the exported coordinates, which <code>upAxis</code> gives: a consumer that loads the model file to show the annotations on it <span class="rfc">should</span> load it with this up-axis, otherwise the annotations do not sit on the model. (Added 2026-11-16, §10.2; the same term as on a survey alignment, §10.1.)</td></tr>
   <tr><td><code>schema:sha256</code></td><td><span class="rfc">should</span></td><td>string</td><td>SHA-256 hex digest of the canonical model file, binding annotations (and face hints, [SEL] §5) to this exact mesh. Omitted when not available.</td></tr>
+  <tr><td><code>meshnotes:faceOrder</code></td><td><span class="opt">may</span></td><td>string</td><td><code>"file"</code>: the face identifiers of every surface selector in the document number triangles as defined in [SEL] §5. Absent in files written before MeshNotes 1.6.6, and when the producer could not verify every region; such identifiers may follow MeshNotes' former internal order. (Added 2026-11-16, §10.2.)</td></tr>
 </table>
 <pre><code>"modelSource": {
   "id": "urn:meshnotes:model:skyphos.glb",
@@ -156,8 +159,10 @@ The document root is a W3C <code>AnnotationCollection</code> ([WADM] §3.3) hold
   "schema:name": "skyphos.glb",
   "format": "model/gltf-binary",
   "upAxis": "Z",
+  "meshnotes:modelUpAxis": "y-up",
   "unit": "cm",
-  "schema:sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+  "schema:sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+  "meshnotes:faceOrder": "file"
 }</code></pre>
 
 <h2>5. The Annotation object</h2>
@@ -171,16 +176,16 @@ Each entry in <code>first.items</code> is a standard W3C <code>Annotation</code>
   <tr><td><code>target</code></td><td><span class="rfc">must</span></td><td>object</td><td>A <code>SpecificResource</code>; see §5.1.</td></tr>
   <tr><td><code>motivation</code></td><td><span class="rfc">should</span></td><td>string</td><td><code>"tagging"</code> for surface regions, otherwise <code>"describing"</code>.</td></tr>
   <tr><td><code>schema:name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Annotation name.</td></tr>
-  <tr><td><code>created</code></td><td><span class="rfc">should</span></td><td>xsd:dateTime</td><td>Creation timestamp.</td></tr>
+  <tr><td><code>created</code></td><td><span class="rfc">should</span></td><td>xsd:dateTime</td><td>When the annotation was made. (Erratum 2026-11-16: MeshNotes before 1.6.6 wrote the time of the oldest remaining entry, which moves later when that entry is deleted, and the export time when no entry is left.)</td></tr>
   <tr><td><code>creator</code></td><td><span class="opt">may</span></td><td>object</td><td>The annotation's author (same shape as §6.1), <strong>frozen at creation</strong>: the author of the first version of the first entry. Later edits to entries never change it. Absent in files produced before this member existed; a consumer <span class="rfc">may</span> reconstruct it from the first version of the first entry.</td></tr>
   <tr><td><code>dcterms:contributor</code></td><td><span class="opt">may</span></td><td>array</td><td>Everyone who authored or edited an entry of this annotation, excluding the <code>creator</code>; each element has the §6.1 shape. Derived afresh from the entries and their version histories on each export — a convenience view, not an authoritative store.</td></tr>
-  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>The latest change to any constituent entry — a later entry's creation, or an edit to an existing entry. Omitted when nothing changed after creation.</td></tr>
+  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>The latest change to the annotation after its creation: an entry added, edited or deleted; a new name or group; a change of its geometry, lock or surface projection; a new position from its survey alignment. Omitted when nothing changed after creation. (Erratum 2026-11-16: earlier wording counted only entries. Files written before MeshNotes 1.6.6 carry that narrower time; a consumer <span class="rfc">should</span> read it as the earliest possible time of the latest change.)</td></tr>
   <tr><td><code>body</code></td><td><span class="opt">may</span></td><td>array</td><td>Zero or more <code>TextualBody</code> entries; see §6.</td></tr>
   <tr><td><code>annotationType</code></td><td><span class="rfc">should</span></td><td>string</td><td>One of <code>point</code>, <code>line</code>, <code>polygon</code>, <code>surface</code>, <code>box</code>. Redundant with, but more convenient than, inspecting the selector type.</td></tr>
   <tr><td><code>meshnotes:groupUuid</code></td><td><span class="opt">may</span></td><td>string</td><td>UUID of the group this annotation belongs to (see §7). This is the durable group reference.</td></tr>
   <tr><td><code>surfaceProjection</code></td><td><span class="opt">may</span></td><td>boolean</td><td>Emitted as <code>false</code> only when surface projection is disabled for a line/polygon; absence means the default (projected).</td></tr>
-  <tr><td><code>meshnotes:nameVersions</code></td><td><span class="opt">may</span></td><td>array</td><td>Prior values of the annotation name, each <code>{ "value", "meshnotes:savedAt" }</code>.</td></tr>
-  <tr><td><code>meshnotes:groupVersions</code></td><td><span class="opt">may</span></td><td>array</td><td>Prior group assignments, each <code>{ "groupId", "meshnotes:savedAt" }</code>. <code>groupId</code> is a producer-internal reference and is not a durable identifier.</td></tr>
+  <tr><td><code>meshnotes:nameVersions</code></td><td><span class="opt">may</span></td><td>array</td><td>Prior values of the annotation name, oldest first, each <code>{ "value", "meshnotes:savedAt", "meshnotes:changedBy" }</code>: the name, when it was replaced, and the person who replaced it (§6.1 shape; optional). The current name was set at the last <code>meshnotes:savedAt</code>; without entries it is unchanged since creation.</td></tr>
+  <tr><td><code>meshnotes:groupVersions</code></td><td><span class="opt">may</span></td><td>array</td><td>Prior group assignments, oldest first, each <code>{ "meshnotes:groupUuid", "meshnotes:groupName", "meshnotes:savedAt", "meshnotes:changedBy" }</code>: the UUID of the group the annotation left and the name that group had then, when it moved, and the person who moved it (optional). (Erratum 2026-11-16: earlier wording gave each element a producer-internal <code>groupId</code> instead of the group's UUID and name. Such a number cannot be resolved outside the session that wrote it; a consumer <span class="rfc">should</span> read an element without <code>meshnotes:groupUuid</code> and <code>meshnotes:groupName</code> as a move from an unknown group.)</td></tr>
 </table>
 
 <h3>5.1 target</h3>
@@ -192,7 +197,7 @@ The <code>target</code> is an <code>oa:SpecificResource</code> whose <code>sourc
   <tr><td><code>type</code></td><td><span class="rfc">must</span></td><td>string</td><td><code>"SpecificResource"</code>.</td></tr>
   <tr><td><code>source</code></td><td><span class="rfc">must</span></td><td>object</td><td>Reference to the model: <code>{ "id", "type": "Dataset", "format" }</code>. <code>id</code> equals <code>modelSource.id</code>.</td></tr>
   <tr><td><code>selector</code></td><td><span class="rfc">must</span></td><td>object</td><td>A MeshNotes 3D selector conforming to [SEL].</td></tr>
-  <tr><td><code>styleClass</code></td><td><span class="opt">may</span></td><td>string</td><td>CSS class linking to the group colour in the collection <code>stylesheet</code>, e.g. <code>"group-1"</code>.</td></tr>
+  <tr><td><code>styleClass</code></td><td><span class="opt">may</span></td><td>string</td><td>CSS class linking to the group colour in the collection <code>stylesheet</code>: <code>"group-{uuid}"</code>, with the group's UUID (§7).</td></tr>
 </table>
 <pre><code>{
   "type": "Annotation",
@@ -206,7 +211,7 @@ The <code>target</code> is an <code>oa:SpecificResource</code> whose <code>sourc
     "type": "SpecificResource",
     "source": { "id": "urn:meshnotes:model:skyphos.glb",
                 "type": "Dataset", "format": "model/gltf-binary" },
-    "styleClass": "group-1",
+    "styleClass": "group-b2e1…",
     "selector": {
       "type": "meshnotes:PointSelector",
       "dcterms:conformsTo": "https://meshnotes.org/spec/selector/v1/",
@@ -259,16 +264,17 @@ Each element of <code>meshnotes:versions</code> records a superseded state of th
 
 <h2>7. Groups</h2>
 <p>
-Annotations are organised into named, colour-coded groups. Group definitions are carried in <code>meshnotes:groups</code>; each annotation references its group by UUID (<code>meshnotes:groupUuid</code>), and group colours are also expressed as an <code>oa:CssStylesheet</code> so that a generic W3C consumer can render them via each target's <code>styleClass</code>.
+Annotations are organised into named, colour-coded groups. Group definitions are carried in <code>meshnotes:groups</code>; each annotation references its group by UUID (<code>meshnotes:groupUuid</code>), and group colours are also expressed as an <code>oa:CssStylesheet</code> so that a generic W3C consumer can render them via each target's <code>styleClass</code>. The stylesheet class of a group is <code>group-{uuid}</code>.
 </p>
 <table>
   <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
-  <tr><td><code>id</code></td><td><span class="rfc">should</span></td><td>number</td><td>Producer-internal group id; matches the <code>styleClass</code> suffix and the stylesheet selector. Not a durable identifier.</td></tr>
+  <tr><td><code>id</code></td><td><span class="rfc">should</span></td><td>IRI</td><td><code>urn:meshnotes:group:{uuid}</code>, with the UUID of <code>meshnotes:uuid</code>. (Erratum 2026-11-16: earlier wording made <code>id</code> a producer-internal number matching the <code>styleClass</code> suffix. Because <code>id</code> maps to <code>@id</code> in the W3C context, a number is not a valid JSON-LD node identifier, and JSON-LD processors reject such files. Files written that way remain valid against the schema (§12); consumers <span class="rfc">should</span> ignore a numeric <code>id</code> and identify the group by <code>meshnotes:uuid</code>.)</td></tr>
   <tr><td><code>meshnotes:uuid</code></td><td><span class="rfc">should</span></td><td>string</td><td>Persistent group UUID; the value referenced by <code>meshnotes:groupUuid</code> on annotations.</td></tr>
   <tr><td><code>schema:name</code></td><td><span class="rfc">should</span></td><td>string</td><td>Group name.</td></tr>
   <tr><td><code>schema:color</code></td><td><span class="rfc">should</span></td><td>string</td><td>Group colour (CSS hex).</td></tr>
   <tr><td><code>meshnotes:visible</code></td><td><span class="opt">may</span></td><td>boolean</td><td>Group visibility state.</td></tr>
   <tr><td><code>meshnotes:opacity</code></td><td><span class="opt">may</span></td><td>number</td><td>Group opacity, 0.0–1.0.</td></tr>
+  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>When the group's name or colour last changed; absent when neither changed since the group was made. (Added 2026-11-16, §10.2.)</td></tr>
 </table>
 
 <h2>8. Model Information and Metadata</h2>
@@ -278,10 +284,13 @@ Annotations are organised into named, colour-coded groups. Group definitions are
 <p>
 <code>metadata</code> carries the structured meta- and paradata report (project, capture, reference, processing, paradata and legal information). Its internal field structure is producer-defined and is treated as an open object by this version of the format; a consumer <span class="rfc">may</span> preserve it verbatim on round-trip and <span class="rfc">should not</span> reject unknown members within it. A future version may give this block a normative schema and a CIDOC CRM / LIDO crosswalk.
 </p>
+<p class="note">
+The JSON-LD context declares <code>metadata</code> a JSON literal (<code>"@type": "@json"</code>, JSON-LD 1.1), so the whole block passes through JSON-LD processing and RDF conversion unchanged, as one value. (Erratum 2026-11-16: the context previously gave <code>metadata</code> no type, and JSON-LD processors dropped every member inside it except <code>dcterms:conformsTo</code>: the sections, fields, values and authority URIs were lost in RDF. The change is in the context file only; the JSON shape of the block is unchanged.)
+</p>
 
 <h2>9. Coordinate frame, units and model binding</h2>
 <p>
-All geometric coordinates in this format — within selectors and their embedded points — follow the coordinate frame, WKT notation, CRS rules, rotation convention and model-binding hash defined normatively in [SEL] §3 and §5. In summary: coordinates are Z-up and right-handed in the model's local frame; the up-axis and unit are declared on <code>modelSource</code> (§4); face identifiers in surface selectors are a non-authoritative hint valid only against the mesh identified by <code>modelSource.schema:sha256</code>.
+All geometric coordinates in this format — within selectors and their embedded points — follow the coordinate frame, WKT notation, CRS rules, rotation convention and model-binding hash defined normatively in [SEL] §3 and §5. In summary: coordinates are Z-up and right-handed in the model's local frame; the up-axis and unit are declared on <code>modelSource</code> (§4); face identifiers in surface selectors, numbered as in [SEL] §5, are a non-authoritative hint valid only against the mesh identified by <code>modelSource.schema:sha256</code>.
 </p>
 
 <h2>10. Extensibility and unknown terms</h2>
@@ -442,6 +451,63 @@ The JSON-LD context gained additive term definitions only; no existing definitio
   <li>MeshNotes versions before 1.6 load such files with all annotations in place. They ignore the alignments, surveyed positions, locks, group flags and frame origin, and drop them when the file is exported again.</li>
   <li>Files without these members are read by MeshNotes 1.6 as before.</li>
   <li>When MeshNotes merges two files (informative), alignments are matched by <code>id</code>; the copy with the later <code>modified</code> wins, the other fit is kept in <code>meshnotes:alignmentVersions</code>, and survey points with <code>meshnotes:placement</code> <code>"fit"</code> follow the winning alignment.</li>
+</ul>
+
+<h3>10.2 Additions and errata of 2026-11-16</h3>
+<p>
+This subsection was added on 2026-11-16 under the rule of §10. It collects errata that make MeshNotes files valid and complete under JSON-LD processing, that define how surface face identifiers are numbered ([SEL] §5), and that give an annotation's <code>created</code> and <code>modified</code> and the collection <code>id</code> their full meaning. It also lists the optional members that MeshNotes 1.6.6 and later write for the model's load up-axis, the face numbering and the history and merge of names and groups, and documents <code>meshnotes:viewState</code>, which earlier versions already wrote for single-annotation share links. As in §10.1, every member is optional; the selectors keep their structure, and the selector specification only gains the definition of face identifiers.
+</p>
+
+<h4>Errata</h4>
+<ul>
+  <li><strong>Group <code>id</code> (§7).</strong> A group's <code>id</code> is its IRI <code>urn:meshnotes:group:{uuid}</code>; it was a producer-internal number, which is not a valid JSON-LD node identifier (<code>id</code> maps to <code>@id</code>), so JSON-LD processors rejected the whole document. The stylesheet class and each target's <code>styleClass</code> use <code>group-{uuid}</code> accordingly (§5.1). The JSON Schema accepts a string or a number (§12).</li>
+  <li><strong><code>metadata</code> as a JSON literal (§8).</strong> The context declares <code>metadata</code> (and its older spelling <code>meshnotes:metadata</code>) <code>"@type": "@json"</code>. Before, processors kept only its <code>dcterms:conformsTo</code>. As a JSON literal the whole block is kept as one value; its <code>dcterms:conformsTo</code> is then part of that value rather than a statement of its own.</li>
+  <li><strong>Group history (§5).</strong> Elements of <code>meshnotes:groupVersions</code> name the group by <code>meshnotes:groupUuid</code> and <code>meshnotes:groupName</code>; the producer-internal <code>groupId</code> written before could not be resolved and is no longer written.</li>
+  <li><strong>Annotation <code>modified</code> (§5).</strong> It is the latest change of any kind to the annotation, as in the W3C model: entries, name, group, geometry, lock, surface projection, a new position from its survey alignment. Before, it counted only entries, so a rename or a moved vertex left it unchanged.</li>
+  <li><strong>Annotation <code>created</code> (§5).</strong> It is when the annotation was made, kept by the producer. Before, MeshNotes wrote the time of the oldest remaining entry, which moved when that entry was deleted, and the export time when no entry was left.</li>
+  <li><strong>Collection <code>id</code> (§3).</strong> It names the record rather than one export: a producer keeps it for every export of the same work, and <code>generated</code> tells the versions apart. MeshNotes starts a new record when another model is loaded or the session is cleared, and continues the record of a file imported into a session without work.</li>
+  <li><strong>Face identifiers ([SEL] §4.4 and §5).</strong> The selector specification now defines their numbering: triangles in the order of the model file. See <code>meshnotes:faceOrder</code> below.</li>
+</ul>
+<p>
+Because every MeshNotes file references the same context, the two context changes apply to files written before them as well. Nothing in the JSON of those files changes.
+</p>
+
+<h4>Where the members appear</h4>
+<table>
+  <tr><th>Member</th><th>Req.</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>meshnotes:modelUpAxis</code></td><td><span class="opt">may</span></td><td>string</td><td>On <code>modelSource</code> (§4): the up-axis the model file was loaded with.</td></tr>
+  <tr><td><code>meshnotes:faceOrder</code></td><td><span class="opt">may</span></td><td>string</td><td>On <code>modelSource</code> (§4): <code>"file"</code> when the face identifiers of every surface selector follow the numbering of [SEL] §5, which an erratum of the same date defines.</td></tr>
+  <tr><td><code>modified</code></td><td><span class="opt">may</span></td><td>xsd:dateTime</td><td>On a group (§7): when its name or colour last changed.</td></tr>
+  <tr><td><code>meshnotes:groupUuid</code>, <code>meshnotes:groupName</code></td><td><span class="opt">may</span></td><td>string</td><td>In an element of <code>meshnotes:groupVersions</code> (§5): the UUID of the group the annotation left, and the name that group had at that moment, which stays readable after the group is renamed or deleted.</td></tr>
+  <tr><td><code>meshnotes:changedBy</code></td><td><span class="opt">may</span></td><td>object</td><td>In an element of <code>meshnotes:nameVersions</code> or <code>meshnotes:groupVersions</code> (§5): the person who made the change at <code>meshnotes:savedAt</code>, in the shape of §6.1.</td></tr>
+  <tr><td><code>meshnotes:viewState</code></td><td><span class="opt">may</span></td><td>object</td><td>On the collection (§3): the view described below.</td></tr>
+</table>
+
+<h4>View state</h4>
+<p>
+<code>meshnotes:viewState</code> is written only into the file of a share link for a single annotation, so that the link opens the view the author was looking at; regular exports and the shared collection do not carry it. It is a MeshNotes-internal value, declared a JSON literal in the context: <code>{ "version": 1, "camera": { "orthographic", "position": [x, y, z], "target": [x, y, z], "zoom" }, "lighting": { "followsCamera", "azimuth", "elevation", "brightness" }, "modelOpacity", "displayMode", "flipped" }</code>. Camera position and target are in the producer's internal Y-up scene frame, not in the exported frame of §9. Azimuth and elevation are in degrees, brightness in percent (0–300), <code>modelOpacity</code> runs from 0 to 1, and <code>displayMode</code> is one of <code>"texture"</code>, <code>"vertexColors"</code>, <code>"mesh"</code> and <code>"wireframe"</code>. A consumer <span class="rfc">may</span> ignore it.
+</p>
+
+<h4>Merging names and groups (informative)</h4>
+<ul>
+  <li>The time of an annotation's current name is the last <code>meshnotes:savedAt</code> of its <code>meshnotes:nameVersions</code>, the time of its current group the last one of its <code>meshnotes:groupVersions</code>; without elements, the value is unchanged since creation.</li>
+  <li>When MeshNotes merges two copies of an annotation, name and group are decided each on its own and independently of the bodies: the copy with the later time wins, a tie keeps the local copy. The losing value is added to the history, superseded at the winning change's time and by its author, so no name or group is lost. When neither copy records a change, the copy with the newer bodies wins, as before.</li>
+  <li>For a group held in both copies, name and colour follow the copy with the later <code>modified</code>. Visibility, opacity and the sidebar flags (§10.1) stay as the local user set them.</li>
+</ul>
+
+<h4>Terms and context</h4>
+<p>
+New terms in the <code>meshnotes:</code> namespace (§11): <code>changedBy</code>, <code>faceOrder</code>, <code>groupName</code> and <code>viewState</code> (already written by earlier versions; documented here). <code>meshnotes:modelUpAxis</code> (§10.1) and <code>meshnotes:groupUuid</code> (§5) are reused with their meaning; <code>modified</code> is existing vocabulary. The context gained the term definitions <code>meshnotes:metadata</code> and <code>meshnotes:viewState</code>, both <code>"@type": "@json"</code>, and the definition of <code>metadata</code> changed from a plain alias of <code>meshnotes:metadata</code> to a JSON literal (see Errata).
+</p>
+
+<h4>Compatibility</h4>
+<ul>
+  <li>MeshNotes versions before 1.6.6 load such files with all annotations in place and in their groups: they find groups by <code>meshnotes:uuid</code>, and ignore a non-numeric group <code>id</code>. They ignore the new members and drop them when the file is exported again; a group history they re-export loses the group of each element.</li>
+  <li>Files from before 1.6.6 are read by MeshNotes 1.6.6 as before. Their group history elements are read as moves from an unknown group. Without a stored load up-axis, the up-axis that a survey alignment of the file recorded is used; without either, OBJ, PLY and STL models open Z-up, as before.</li>
+  <li>MeshNotes before 1.6.6 highlights the wrong triangles for surface regions in files that declare <code>meshnotes:faceOrder</code>. Positions, centroids and all other members are unaffected, and a re-export keeps the face numbers but drops <code>meshnotes:faceOrder</code>.</li>
+  <li>MeshNotes 1.6.6 reads files without <code>meshnotes:faceOrder</code> by checking each surface region against its centroid and renumbering it when it is in the former internal order. A region it cannot check keeps its numbers, and the file it exports then leaves <code>meshnotes:faceOrder</code> out.</li>
+  <li>MeshNotes before 1.6.6 ignores the collection <code>id</code> on import and writes a new one at every export. MeshNotes 1.6.6 takes the <code>id</code> of the first file imported into a new session, older files included.</li>
+  <li>An annotation's <code>created</code> and <code>modified</code> in files from before 1.6.6 are read as they are; <code>modified</code> is then a lower bound. MeshNotes before 1.6.6 ignores both members on import and derives them again from the entries when it exports.</li>
 </ul>
 
 <h2>11. Versioning policy</h2>

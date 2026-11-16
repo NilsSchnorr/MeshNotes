@@ -4,6 +4,7 @@ import { state } from '../state.js';
 import { generateUUID, generateInternalId, getModelMimeType } from '../utils/helpers.js';
 import { wktNum, wktPointZ, parsePointZ, parseWKT, pointToZUp, pointFromZUp } from '../utils/coords.js';
 import { annotationSurveyToJsonLd, annotationSurveyFromJsonLd } from '../survey/alignment.js';
+import { annotationTimes } from '../annotation-tools/history.js';
 
 // Moved to js/utils/coords.js; re-exported so existing importers keep working.
 export { pointToZUp, pointFromZUp };
@@ -65,6 +66,72 @@ function deriveAnnotationCreator(ann) {
         return { name: first.versions[0].author || '', orcid: first.versions[0].authorOrcid };
     }
     return { name: first.author || '', orcid: first.authorOrcid };
+}
+
+// ============ Group identity ============
+
+// IRI of a group: urn:meshnotes:group:<uuid>, the same pattern as annotations
+// and alignments. A JSON-LD node id must be an IRI string; the session number
+// (group.id) is neither durable nor valid there. Undefined without a uuid.
+export function groupIri(group) {
+    return group && group.uuid ? `urn:meshnotes:group:${group.uuid}` : undefined;
+}
+
+// CSS class of a group in the collection stylesheet and in each target's
+// styleClass: group-<uuid> (the session number only for a group without one).
+export function groupStyleClass(group) {
+    return `group-${group.uuid || group.id}`;
+}
+
+// ============ Name and group history ============
+// Shapes of the internal entries: see js/annotation-tools/history.js.
+
+// One prior name: { value, meshnotes:savedAt, meshnotes:changedBy? }.
+export function nameVersionToJsonLd(v) {
+    return {
+        value: v.value,
+        'meshnotes:savedAt': v.savedAt,
+        'meshnotes:changedBy': authorToCreator(v.changedBy, v.changedByOrcid)
+    };
+}
+
+// One prior group: the uuid and the name of the group left, when, and by
+// whom. An entry whose group is unknown (read from a file written before 1.6.6)
+// keeps only its time and author.
+export function groupVersionToJsonLd(v) {
+    return {
+        'meshnotes:groupUuid': v.groupUuid || undefined,
+        'meshnotes:groupName': typeof v.groupName === 'string' ? v.groupName : undefined,
+        'meshnotes:savedAt': v.savedAt,
+        'meshnotes:changedBy': authorToCreator(v.changedBy, v.changedByOrcid)
+    };
+}
+
+// The optional changedBy members of an internal history entry.
+function changedByFromJsonLd(v) {
+    const { name, orcid } = creatorToAuthor(v['meshnotes:changedBy']);
+    const out = {};
+    if (name) out.changedBy = name;
+    if (orcid) out.changedByOrcid = orcid;
+    return out;
+}
+
+export function nameVersionFromJsonLd(v) {
+    return { value: v.value, savedAt: v['meshnotes:savedAt'], ...changedByFromJsonLd(v) };
+}
+
+// Files before 1.6.6 hold only a session-internal group number (groupId) that
+// no later session can resolve (it was never translated on import), so such
+// an entry keeps its date and its group is unknown (null).
+export function groupVersionFromJsonLd(v) {
+    const uuid = v['meshnotes:groupUuid'];
+    const name = v['meshnotes:groupName'];
+    return {
+        groupUuid: typeof uuid === 'string' && uuid ? uuid : null,
+        groupName: typeof name === 'string' ? name : null,
+        savedAt: v['meshnotes:savedAt'],
+        ...changedByFromJsonLd(v)
+    };
 }
 
 // ============ Quaternion helper ============
@@ -290,16 +357,12 @@ export function convertToW3CAnnotation(ann, group) {
         ? { name: ann.creator, orcid: ann.creatorOrcid }
         : deriveAnnotationCreator(ann);
 
-    // modified = the latest change to any constituent entry (a later entry's
-    // creation, or an edit to an existing entry); omitted when nothing
-    // changed after creation. Matches the definition in the format spec.
-    const created = ann.entries && ann.entries.length > 0 ? ann.entries[0].timestamp : new Date().toISOString();
-    let modified;
-    (ann.entries || []).forEach(entry => {
-        [entry.timestamp, entry.modified].forEach(t => {
-            if (t && t > created && (!modified || t > modified)) modified = t;
-        });
-    });
+    // created = when the annotation was made (stored since 1.6.6; before, the
+    // oldest entry). modified = its latest change of any kind: entries, name,
+    // group, geometry, lock, surface projection, a new position from its
+    // alignment; omitted when nothing changed after creation (annotation
+    // format section 5, erratum of 2026-11-16; history.js annotationTimes()).
+    const { created, modified } = annotationTimes(ann);
 
     // Convert internal annotation to W3C Web Annotation format
     const w3cAnn = {
@@ -323,7 +386,7 @@ export function convertToW3CAnnotation(ann, group) {
 
     // Add styleClass for group color
     if (group) {
-        w3cAnn.target.styleClass = `group-${group.id}`;
+        w3cAnn.target.styleClass = groupStyleClass(group);
     }
 
     // Convert entries to body array
@@ -407,18 +470,12 @@ export function convertToW3CAnnotation(ann, group) {
     
     // Include name version history if present
     if (ann.nameVersions && ann.nameVersions.length > 0) {
-        w3cAnn['meshnotes:nameVersions'] = ann.nameVersions.map(v => ({
-            value: v.value,
-            'meshnotes:savedAt': v.savedAt
-        }));
+        w3cAnn['meshnotes:nameVersions'] = ann.nameVersions.map(nameVersionToJsonLd);
     }
     
     // Include group version history if present
     if (ann.groupVersions && ann.groupVersions.length > 0) {
-        w3cAnn['meshnotes:groupVersions'] = ann.groupVersions.map(v => ({
-            groupId: v.groupId,
-            'meshnotes:savedAt': v.savedAt
-        }));
+        w3cAnn['meshnotes:groupVersions'] = ann.groupVersions.map(groupVersionToJsonLd);
     }
 
     return w3cAnn;
@@ -448,6 +505,12 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap, alignmentIdMap = nu
         points: [],
         entries: []
     };
+
+    // When it was made and last changed. Files before 1.6.6 carry the oldest
+    // entry's time as created and the latest entry change as modified; both
+    // are taken as they are (modified is then a lower bound).
+    if (typeof w3cAnn.created === 'string' && w3cAnn.created) ann.created = w3cAnn.created;
+    if (typeof w3cAnn.modified === 'string' && w3cAnn.modified) ann.modified = w3cAnn.modified;
 
     // Frozen annotation-level creator (absent in files from before the field
     // existed — the next export then derives it from the first version of
@@ -519,18 +582,12 @@ export function convertFromW3CAnnotation(w3cAnn, groupIdMap, alignmentIdMap = nu
     
     // Restore name version history if present
     if (w3cAnn['meshnotes:nameVersions'] && w3cAnn['meshnotes:nameVersions'].length > 0) {
-        ann.nameVersions = w3cAnn['meshnotes:nameVersions'].map(v => ({
-            value: v.value,
-            savedAt: v['meshnotes:savedAt']
-        }));
+        ann.nameVersions = w3cAnn['meshnotes:nameVersions'].map(nameVersionFromJsonLd);
     }
     
     // Restore group version history if present
     if (w3cAnn['meshnotes:groupVersions'] && w3cAnn['meshnotes:groupVersions'].length > 0) {
-        ann.groupVersions = w3cAnn['meshnotes:groupVersions'].map(v => ({
-            groupId: v.groupId,
-            savedAt: v['meshnotes:savedAt']
-        }));
+        ann.groupVersions = w3cAnn['meshnotes:groupVersions'].map(groupVersionFromJsonLd);
     }
 
     return ann;

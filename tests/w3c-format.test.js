@@ -82,3 +82,45 @@ test('a detached point or an unknown alignment writes no link and reads back det
     assert.equal(convertFromW3CAnnotation(linked, GROUP_MAP, { other: 7 }).survey.alignmentId, null);
     assert.equal(convertFromW3CAnnotation(linked, GROUP_MAP).survey.source.importedAt, T1);
 });
+
+// ---- created and modified (annotation format section 5, erratum of 2026-11-16) ----
+
+const T2 = '2026-10-02T09:00:00.000Z';
+const T3 = '2026-10-03T09:00:00.000Z';
+
+test('created and modified are written from the stored times and read back', () => {
+    const ann = { ...plainAnnotation({ id: 7, uuid: 'm1' }), created: T1, modified: T3 };
+    const w3c = roundTrip(convertToW3CAnnotation(ann, G));
+    assert.equal(w3c.created, T1);
+    assert.equal(w3c.modified, T3);
+    const back = convertFromW3CAnnotation(w3c, GROUP_MAP);
+    assert.equal(back.created, T1);
+    assert.equal(back.modified, T3);
+});
+
+test('deleting the oldest entry moves modified, not created; an annotation without entries keeps its created', () => {
+    const ann = plainAnnotation({ id: 8, uuid: 'm2' });           // one entry at T1
+    ann.created = T1;
+    ann.entries.push({ id: 9, uuid: 'm2-e2', description: 'Later', author: 'B', timestamp: T2, links: [] });
+    ann.entries.shift();                                           // the oldest entry deleted at T3
+    ann.modified = T3;
+    let w3c = roundTrip(convertToW3CAnnotation(ann, G));
+    assert.equal(w3c.created, T1);
+    assert.equal(w3c.modified, T3);
+
+    ann.entries = [];
+    w3c = roundTrip(convertToW3CAnnotation(ann, G));
+    assert.equal(w3c.created, T1, 'not the export time');
+    assert.equal(w3c.modified, T3);
+});
+
+test('an annotation from before 1.6.6 (no stored times) exports created and modified from its entries, as before', () => {
+    const ann = plainAnnotation({ id: 10, uuid: 'm3' });
+    ann.entries[0].modified = T2;
+    const w3c = roundTrip(convertToW3CAnnotation(ann, G));
+    assert.equal(w3c.created, T1);
+    assert.equal(w3c.modified, T2);
+    const untouched = roundTrip(convertToW3CAnnotation(plainAnnotation({ id: 11, uuid: 'm4' }), G));
+    assert.equal(untouched.created, T1);
+    assert.equal('modified' in untouched, false);
+});

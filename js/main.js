@@ -10,11 +10,11 @@ import { setEditingCallbacks, setSurveyPickCallbacks, renderMeasurements } from 
 import { updateMeasurementsDisplay } from './annotation-tools/editing.js';
 import { renderAnnotations, setRenderCallbacks } from './annotation-tools/render.js';
 import { setRenderAnnotations } from './annotation-tools/projection.js';
-import { setupEventListeners, setTool } from './ui/event-listeners.js';
+import { setupEventListeners, setTool, warnOnUpAxisMismatch } from './ui/event-listeners.js';
 import { openGroupPopup } from './annotation-tools/groups.js';
 import { initLabelOcclusionUpdates } from './utils/label-occlusion.js';
 import { showStatus, toDisplayCoords } from './utils/helpers.js';
-import { importAnnotations } from './export/import-json.js';
+import { importAnnotations, readStoredUpAxis } from './export/import-json.js';
 import { applyViewState } from './export/view-state.js';
 import { openAnnotationShareDialog } from './export/share.js';
 import { openAnnotationViewer, initAnnotationViewer } from './annotation-tools/annotation-viewer.js';
@@ -25,7 +25,7 @@ import { parseUrlParams, loadShareFiles, loadDirectFiles, isShareExpired, daysUn
 import * as THREE from 'three';
 import { loadIcons, initIcons } from './ui/icons.js';
 import { setOnAnnotationsExported } from './export/export-json.js';
-import { initSessionPersistence, maybeOfferRestore, clearSavedSession } from './core/session-persistence.js';
+import { initSessionPersistence, maybeOfferRestore, clearSavedSession, setUpAxisCheck } from './core/session-persistence.js';
 import { setSurveyMappingCallbacks, refreshSurveyMappingBinding } from './survey/ui-mapping.js';
 import { initSurveyUI, setSurveyManagerCallbacks, startSurveySelection, refreshSurveyChip, closeAlignmentManager } from './survey/ui-manager.js';
 import {
@@ -98,6 +98,8 @@ setModelHashReadyCallback(() => {
     refreshSurveyChip();
 });
 setOnAnnotationsExported(clearSavedSession);
+// A restore of a session saved under the other up-axis warns first.
+setUpAxisCheck(warnOnUpAxisMismatch);
 
 function init() {
     // Initialize DOM references
@@ -246,22 +248,27 @@ async function loadFromUrlParams() {
         const { modelFile, materialFiles, annotationFile, format } = shareData;
         const ext = modelFile.name.split('.').pop().toLowerCase();
 
+        // OBJ, PLY and STL open with the up-axis the author loaded them with,
+        // which the annotation file records (glTF is always Y-up); Z-up when
+        // the file does not say or there is none, as before.
+        const upAxis = (annotationFile && await readStoredUpAxis(annotationFile)) || 'z-up';
+
         // Load model using existing loaders, bypassing file-input dialogs
         if (format === 'glb' || ext === 'glb' || ext === 'gltf') {
             // loadModel handles GLB directly without showing a dialog
             loadModel(modelFile);
         } else if (format === 'obj' || ext === 'obj') {
             // Call loadOBJModel directly with materials, skipping the OBJ dialog
-            loadOBJModel(modelFile, materialFiles, 'z-up');
+            loadOBJModel(modelFile, materialFiles, upAxis);
         } else if (format === 'ply' || ext === 'ply') {
             // Find texture file among materials
             const textureFile = materialFiles.find(f => {
                 const e = f.name.split('.').pop().toLowerCase();
                 return ['jpg', 'jpeg', 'png', 'tif', 'tiff'].includes(e);
             }) || null;
-            loadPLYModel(modelFile, textureFile, 'z-up');
+            loadPLYModel(modelFile, textureFile, upAxis);
         } else if (format === 'stl' || ext === 'stl') {
-            loadSTLModel(modelFile, 'z-up');
+            loadSTLModel(modelFile, upAxis);
         } else {
             throw new Error(`Unsupported format: ${ext}`);
         }

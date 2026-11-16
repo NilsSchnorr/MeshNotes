@@ -1,7 +1,9 @@
 // js/export/import-json.js - W3C and legacy annotation import with merge support
 import { state } from '../state.js';
-import { generateUUID, generateInternalId, showStatus } from '../utils/helpers.js';
+import { generateUUID, generateInternalId, showStatus, sessionHasWork } from '../utils/helpers.js';
 import { convertFromW3CAnnotation, pointFromZUp, creatorToAuthor, normalizeLinks } from './w3c-format.js';
+import { mergeName, mergeGroup, laterTime, earlierTime } from '../annotation-tools/history.js';
+import { normalizeSurfaceFaces, FACE_ORDER, FACE_ORDER_FILE } from '../annotation-tools/face-order.js';
 import { updateModelInfoDisplay } from '../annotation-tools/data.js';
 import { updateMetadataDisplay } from '../metadata/metadata-ui.js';
 import { normalizeMetadata } from '../metadata/templates.js';
@@ -19,31 +21,97 @@ import {
 export function importAnnotations(file, onComplete) {
     const reader = new FileReader();
     reader.onload = (e) => {
-        let viewState = null;
+        let data;
         try {
-            const data = JSON.parse(e.target.result);
-
-            // Check if this is W3C format (has @context and type: AnnotationCollection)
-            if (data['@context'] && data.type === 'AnnotationCollection') {
-                importW3CAnnotations(data);
-                // Surface any "see what I see" snapshot to the caller. Only the
-                // share/direct load path acts on it; manual import ignores it.
-                viewState = data['meshnotes:viewState'] || null;
-            }
-            // Legacy format support (old MeshNotes format)
-            else if (data.groups && data.annotations) {
-                importLegacyAnnotations(data);
-            }
-            else {
-                showStatus('Invalid annotation file format');
-            }
+            data = JSON.parse(e.target.result);
         } catch (error) {
             console.error('Import error:', error);
             showStatus('Error importing file');
+            if (typeof onComplete === 'function') onComplete({ viewState: null });
+            return;
         }
-        if (typeof onComplete === 'function') onComplete({ viewState });
+        importAnnotationData(data, onComplete);
     };
     reader.readAsText(file);
+}
+
+/**
+ * Imports an already parsed annotation file (W3C collection or legacy
+ * format); importAnnotations() after reading the file. Used directly where
+ * the file was parsed first, e.g. for the up-axis check of a manual import.
+ * @param {Object} data - the parsed JSON
+ * @param {Function} [onComplete] - called with { viewState }
+ */
+export function importAnnotationData(data, onComplete) {
+    let viewState = null;
+    try {
+        // Check if this is W3C format (has @context and type: AnnotationCollection)
+        if (data['@context'] && data.type === 'AnnotationCollection') {
+            importW3CAnnotations(data);
+            // Surface any "see what I see" snapshot to the caller. Only the
+            // share/direct load path acts on it; manual import ignores it.
+            viewState = data['meshnotes:viewState'] || null;
+        }
+        // Legacy format support (old MeshNotes format)
+        else if (data.groups && data.annotations) {
+            importLegacyAnnotations(data);
+        }
+        else {
+            showStatus('Invalid annotation file format');
+        }
+    } catch (error) {
+        console.error('Import error:', error);
+        showStatus('Error importing file');
+    }
+    if (typeof onComplete === 'function') onComplete({ viewState });
+}
+
+// ============ Stored up-axis ============
+
+function normaliseUpAxis(value) {
+    const v = typeof value === 'string' ? value.trim().toLowerCase() : '';
+    return v === 'y-up' || v === 'z-up' ? v : null;
+}
+
+/**
+ * The up-axis the model was loaded with when the annotation file was made:
+ * 'y-up' or 'z-up', from modelSource's meshnotes:modelUpAxis (MeshNotes 1.6.6
+ * and later). Older files fall back to the one their survey alignments
+ * recorded (the default alignment first). null when the file does not say;
+ * the caller then keeps its own default.
+ * @param {Object} data - a parsed AnnotationCollection
+ * @returns {'y-up'|'z-up'|null}
+ */
+export function storedModelUpAxis(data) {
+    if (!data || typeof data !== 'object') return null;
+    const fromSource = normaliseUpAxis(data.modelSource && data.modelSource['meshnotes:modelUpAxis']);
+    if (fromSource) return fromSource;
+    const alignments = Array.isArray(data['meshnotes:alignments']) ? data['meshnotes:alignments'] : [];
+    const def = data['meshnotes:defaultAlignment'];
+    const defId = typeof def === 'string' ? def : (def && (def.id || def['@id']));
+    const ordered = [
+        ...alignments.filter(a => a && a.id === defId),
+        ...alignments.filter(a => a && a.id !== defId)
+    ];
+    for (const a of ordered) {
+        const axis = normaliseUpAxis(a['meshnotes:modelUpAxis']);
+        if (axis) return axis;
+    }
+    return null;
+}
+
+/**
+ * storedModelUpAxis() of an annotation file or blob not read yet; null when
+ * it cannot be read or parsed (the import itself reports that).
+ * @param {Blob} file
+ * @returns {Promise<'y-up'|'z-up'|null>}
+ */
+export async function readStoredUpAxis(file) {
+    try {
+        return storedModelUpAxis(JSON.parse(await file.text()));
+    } catch (e) {
+        return null;
+    }
 }
 
 /**
@@ -143,6 +211,10 @@ export function importStatusText(result, extra = '') {
     };
     alignmentPart(result.alignments.added.length, 'added');
     alignmentPart(result.alignments.replaced.length, 'updated');
+    const unchecked = (result.surfaceFaces && result.surfaceFaces.unchecked) || 0;
+    if (unchecked > 0) {
+        parts.push(`${unchecked} surface region${unchecked !== 1 ? 's' : ''} could not be checked on this device`);
+    }
     if (extra) parts.push(extra);
     return `Import: ${parts.join(', ') || 'nothing to import'}`;
 }
@@ -150,15 +222,23 @@ export function importStatusText(result, extra = '') {
 /**
  * Merges a W3C Web Annotation Collection into the session state.
  * Uses UUID-based duplicate detection: existing annotations are updated
- * (entries merged by UUID, newer timestamps win), new annotations are added.
+ * (entries merged by UUID, newer timestamps win; name and group each follow
+ * the newer recorded change, see history.js), new annotations are added.
  * Also imports groups, survey alignments and model info with the same merge
  * strategy. The sidebar, scene and status refresh is left to the caller
  * (importW3CAnnotations); the model-info and metadata panels still refresh
  * here when the file carries them.
  * @param {Object} data - Parsed W3C AnnotationCollection JSON-LD
+ * Surface face numbers are brought into file order before the merge
+ * (normalizeSurfaceFaces() in face-order.js): a file whose modelSource says
+ * meshnotes:faceOrder "file" is taken as it is, older files are checked
+ * region by region against the loaded model.
  * @returns {{added: number, merged: number, unchanged: number,
  *            alignments: {added: string[], replaced: string[], kept: string[], skipped: number},
- *            realign: Array<{uuid: string, kind: 'replaced'|'kept', previous: Object, alignment: Object, plan: Object}>}}
+ *            realign: Array<{uuid: string, kind: 'replaced'|'kept', previous: Object, alignment: Object, plan: Object}>,
+ *            surfaceFaces: {converted: number, unchecked: number}}}
+ *   surfaceFaces: surface regions of the file renumbered from the order of
+ *   MeshNotes before 1.6.6, and regions that could not be checked.
  *   alignments: uuid lists from mergeAlignments(), skipped = unusable alignment
  *   nodes. realign: survey points left at the fit of the alignment copy that
  *   lost the merge, per alignment whose two copies hold different fits, as
@@ -178,6 +258,10 @@ export function importStatusText(result, extra = '') {
  */
 export function mergeW3CCollection(data) {
     // Import W3C Web Annotation Collection format with merge support
+    // A file imported into a session without work continues the file's
+    // record: the session takes its collection id (annotation format section
+    // 3). Into a session with work, the session keeps its own record.
+    const startsRecord = !sessionHasWork();
     const groupIdMap = {};
     let addedCount = 0;
     let mergedCount = 0;
@@ -198,6 +282,11 @@ export function mergeW3CCollection(data) {
         return sel && typeof sel.type === 'string' && sel.type.indexOf('meshnotes:') === 0;
     }));
     const needsTransform = (importedUpAxis === 'Z') || (importedUpAxis === '' && (conformsToV1 || hasV1Selectors));
+
+    // Surface face numbers: files from 1.6.6 on declare file order; older
+    // files are checked region by region (face-order.js).
+    const facesDeclared = !!(data.modelSource && data.modelSource['meshnotes:faceOrder'] === FACE_ORDER_FILE);
+    const surfaceFaces = { converted: 0, unchecked: 0 };
 
     // Helper: transform all coordinates in an annotation from Z-up to Three.js Y-up
     function transformAnnotationCoords(ann) {
@@ -388,13 +477,22 @@ export function mergeW3CCollection(data) {
                 // value (labels hidden, collapsed); absent means the default.
                 if (importedGroup['meshnotes:labelsVisible'] === false) newGroup.labelsVisible = false;
                 if (importedGroup['meshnotes:collapsed'] === true) newGroup.collapsed = true;
+                if (typeof importedGroup.modified === 'string') newGroup.modified = importedGroup.modified;
                 // Map both internal ID and UUID for annotation lookup
                 groupIdMap[importedGroup.id] = newGroupId;
                 if (groupUuid) groupIdMap['uuid:' + groupUuid] = newGroupId;
                 state.groups.push(newGroup);
             } else {
-                // Existing group - map IDs. Its visibility, opacity and sidebar
-                // flags (labelsVisible, collapsed) keep their local state.
+                // Existing group - map IDs. Name and colour follow the copy
+                // edited more recently (modified; a tie, or no date in the
+                // file, keeps the local ones). Visibility, opacity and the
+                // sidebar flags (labelsVisible, collapsed) keep their local
+                // state: they are how this user views the group.
+                if (timeOf(importedGroup.modified) > timeOf(existing.modified)) {
+                    existing.name = groupName;
+                    existing.color = importedGroup['schema:color'] || importedGroup.color || existing.color;
+                    existing.modified = importedGroup.modified;
+                }
                 groupIdMap[importedGroup.id] = existing.id;
                 if (groupUuid) groupIdMap['uuid:' + groupUuid] = existing.id;
             }
@@ -441,6 +539,14 @@ export function mergeW3CCollection(data) {
             // Transform coordinates from Z-up to Three.js Y-up if needed
             transformAnnotationCoords(importedAnn);
 
+            // Face numbers in file order before anything compares them; needs
+            // the centroid in the storage frame, hence after the transform.
+            if (importedAnn.type === 'surface') {
+                const order = normalizeSurfaceFaces(importedAnn, { declared: facesDeclared });
+                if (order === FACE_ORDER.CONVERTED) surfaceFaces.converted++;
+                else if (order === FACE_ORDER.UNCHECKED) surfaceFaces.unchecked++;
+            }
+
             // If no group assigned, use default
             if (!importedAnn.groupId) {
                 if (state.groups.length === 0) {
@@ -476,37 +582,47 @@ export function mergeW3CCollection(data) {
                     existingAnn.creatorOrcid = importedAnn.creatorOrcid;
                 }
 
-                // Merge name version histories
-                if (importedAnn.nameVersions && importedAnn.nameVersions.length > 0) {
-                    if (!existingAnn.nameVersions) existingAnn.nameVersions = [];
-                    mergeVersionHistories(existingAnn.nameVersions, importedAnn.nameVersions);
-                }
-                
-                // Merge group version histories
-                if (importedAnn.groupVersions && importedAnn.groupVersions.length > 0) {
-                    if (!existingAnn.groupVersions) existingAnn.groupVersions = [];
-                    mergeVersionHistories(existingAnn.groupVersions, importedAnn.groupVersions);
-                }
+                // Made at the earlier, last changed at the later of the two
+                // times (an absent time takes the other copy's).
+                const created = earlierTime(existingAnn.created, importedAnn.created);
+                const modified = laterTime(existingAnn.modified, importedAnn.modified);
+                if (created) existingAnn.created = created;
+                if (modified) existingAnn.modified = modified;
 
-                // Update metadata (name, group) if imported version is newer.
-                // The geometry follows the same rule, except for survey points
+                // Name and group are decided each on its own, independent of
+                // the entries: the copy whose latest recorded rename or move is
+                // newer wins, a tie keeps the local copy, and the losing value
+                // is kept in the history, so no name or group is lost
+                // (history.js). Without a recorded change on either side
+                // (files without history), the entries rule decides as before.
+                const entriesNewer = importedLatest > existingLatest;
+                const nameMerge = mergeName(existingAnn, importedAnn, entriesNewer);
+                const groupMerge = mergeGroup(existingAnn, importedAnn, state.groups, entriesNewer);
+                const nameOrGroupChanged = nameMerge.value !== existingAnn.name ||
+                    groupMerge.value !== existingAnn.groupId;
+                existingAnn.name = nameMerge.value;
+                existingAnn.groupId = groupMerge.value;
+                if (nameMerge.versions.length > 0) existingAnn.nameVersions = nameMerge.versions;
+                if (groupMerge.versions.length > 0) existingAnn.groupVersions = groupMerge.versions;
+
+                // The geometry follows the entries rule, except for survey points
                 // held on both sides: their position, survey block and lock
                 // follow the alignment that won the merge ('imported' or
                 // 'local'), whatever the entries say. A copy moved by hand on
                 // either side (placement 'manual'), or two copies on different
                 // alignments, fall back to the entries rule ('entries'). Other
                 // annotations always get 'entries', i.e. the old behaviour.
-                const entriesNewer = importedLatest > existingLatest;
                 const positionSource = surveyPointMergeSource(existingAnn, importedAnn, alignmentMerge);
                 const takeImportedPosition = positionSource === MERGE_SOURCE.IMPORTED ||
                     (positionSource === MERGE_SOURCE.ENTRIES && entriesNewer);
-                if (entriesNewer) {
-                    existingAnn.name = importedAnn.name;
-                    existingAnn.groupId = importedAnn.groupId;
-                }
                 if (takeImportedPosition) {
                     existingAnn.points = importedAnn.points;
-                    if (importedAnn.faceData) existingAnn.faceData = importedAnn.faceData;
+                    if (importedAnn.faceData) {
+                        existingAnn.faceData = importedAnn.faceData;
+                        // The check of the face order goes with the faces.
+                        if (importedAnn.faceOrderUnchecked) existingAnn.faceOrderUnchecked = true;
+                        else delete existingAnn.faceOrderUnchecked;
+                    }
                     if (importedAnn.boxData) existingAnn.boxData = importedAnn.boxData;
                     if (importedAnn.projectedEdges) existingAnn.projectedEdges = importedAnn.projectedEdges;
                     // The lock goes with the position (absent = unlocked).
@@ -532,7 +648,7 @@ export function mergeW3CCollection(data) {
                 const result = mergeEntries(existingAnn.entries, importedAnn.entries);
 
                 if (result.entriesAdded > 0 || result.entriesUpdated > 0 ||
-                    positionSource === MERGE_SOURCE.IMPORTED) {
+                    positionSource === MERGE_SOURCE.IMPORTED || nameOrGroupChanged) {
                     mergedCount++;
                 } else {
                     skippedCount++;
@@ -572,6 +688,8 @@ export function mergeW3CCollection(data) {
         if (plan.count > 0 || plan.manualCount > 0) realign.push({ uuid, kind: 'kept', previous, alignment, plan });
     });
 
+    if (startsRecord && isCollectionId(data.id)) state.collectionId = data.id;
+
     return {
         added: addedCount,
         merged: mergedCount,
@@ -582,8 +700,20 @@ export function mergeW3CCollection(data) {
             kept: alignmentMerge.kept,
             skipped: readAlignments.skipped.length
         },
-        realign
+        realign,
+        surfaceFaces
     };
+}
+
+// A MeshNotes collection id: urn:meshnotes:collection:{uuid}.
+function isCollectionId(id) {
+    return typeof id === 'string' && /^urn:meshnotes:collection:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+// Milliseconds of an ISO timestamp, 0 when missing or unreadable.
+function timeOf(s) {
+    const t = typeof s === 'string' ? Date.parse(s) : NaN;
+    return Number.isNaN(t) ? 0 : t;
 }
 
 // Two copies of an alignment hold the same fit: no fitted position differs.
@@ -598,10 +728,12 @@ function sameFit(a, b) {
  * and 5), joined into one list for applyReplacement() /
  * applyReplacementChunked() in survey-import.js.
  * @param {Array<{plan: {moves: object[]}}>} realign
- * @returns {Array<{annotation, from, to, displacement}>}
+ * @returns {Array<{annotation, from, to, displacement, changedAt}>}
  */
 export function realignMoves(realign) {
-    return (realign || []).flatMap(r => r.plan.moves);
+    // Each move carries the time of the winning fit, so the moved point's
+    // modified becomes that time (survey-import.js finishReplacement()).
+    return (realign || []).flatMap(r => r.plan.moves.map(m => ({ ...m, changedAt: r.alignment && r.alignment.modified })));
 }
 
 function importLegacyAnnotations(data) {

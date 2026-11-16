@@ -812,7 +812,8 @@ test('creating survey points: locked point annotations on the surface, in a new 
 
     const [p1, p2, p3] = result.created;
     // The shape of data.js saveAnnotation(), plus locked and survey.
-    assert.deepEqual(Object.keys(p1), ['id', 'uuid', 'type', 'name', 'creator', 'groupId', 'points', 'entries', 'locked', 'survey']);
+    assert.deepEqual(Object.keys(p1), ['id', 'uuid', 'type', 'name', 'created', 'creator', 'groupId', 'points', 'entries', 'locked', 'survey']);
+    assert.equal(p1.created, p1.entries[0].timestamp, 'created is the time of the import');
     assert.equal(p1.type, 'point');
     assert.equal(p1.name, 'P1');
     assert.equal(p1.creator, 'Test Person');
@@ -1054,4 +1055,24 @@ test('import jobs: Swap rebuilds the records, remembered mappings are checked ag
     assert.equal(SI.selectionDistanceText({ method: 'none' }, {}), 'not measured');
     assert.equal(SI.metresShort(0.5), '0.5 m');
     assert.equal(SI.metresShort(0.125), '0.125 m');
+});
+
+test('a refit or a merge that moves survey points sets their modified to the time of the winning fit', () => {
+    loadTestModel();
+    const a = makeAlignment({ id: 101, uuid: UA, now: T1 });
+    const a2 = refined(a, { headingDeg: 90.5, now: T3 });
+    const s1 = { e: 511999, n: 4122999, h: 58.25 };
+    const s3 = { e: 512000.5, n: 4122999.5, h: 58.1 };
+    const p1 = surveyAnnotation({ id: 1, uuid: 'p1', alignment: a, s: s1, position: onBaseTop(a, s1), surfaceDistance: 0.25 });
+    const p3 = surveyAnnotation({ id: 3, uuid: 'p3', alignment: a, s: s3, placement: 'manual', position: { x: -0.5, y: 0, z: 0.5 } });
+    state.annotations = [p1, p3];
+    const plan = AL.planRefinePlacement(state.annotations, a, a2);
+    SI.applyReplacement({ ...plan, changedAt: a2.modified });
+    assert.equal(p1.modified, a2.modified);
+    assert.equal(p3.modified, undefined, 'a hand-moved point does not move, so it does not change');
+
+    // The moves of a merge carry the winning alignment's time.
+    const moves = realignMoves([{ alignment: a2, plan }]);
+    assert.ok(moves.length > 0);
+    assert.ok(moves.every(m => m.changedAt === a2.modified));
 });

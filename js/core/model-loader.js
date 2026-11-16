@@ -8,6 +8,7 @@ import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+import { BVH_OPTIONS, noteBuildGroups } from '../annotation-tools/face-order.js';
 import { state, dom } from '../state.js';
 import { getIcon } from '../ui/icons.js';
 import { showStatus, updateFaceCountDisplay } from '../utils/helpers.js';
@@ -86,16 +87,15 @@ const _drawChunkedMeshes = new WeakSet();
  * buffers and the order of its faces are untouched; only the number of draw
  * calls changes.
  *
- * MUST run after the BVH build, never before. three-mesh-bvh builds one BVH
- * root per geometry group and sorts the index buffer inside each root, and
- * surface annotations store their faces as positions in that sorted buffer
- * ("meshnotes:faces"). Groups present during the build would therefore
- * renumber the faces of every large model and detach existing surface
- * annotations from their triangles. Added afterwards, the groups only cut the
- * already sorted buffer into ranges.
+ * Runs after the BVH build. The build is indirect (BVH_OPTIONS in
+ * face-order.js), so it leaves the index buffer and with it the face numbers
+ * of surface annotations ("meshnotes:faces") alone either way; after the
+ * build, the groups added here are also not recorded as groups the build saw
+ * (noteBuildGroups()), which the conversion of face numbers from files
+ * written before 1.6.6 relies on.
  *
  * A geometry that already has groups (a multi-material OBJ) is left alone:
- * its BVH roots follow those groups, and regrouping it would break that pairing.
+ * it already draws in one call per group.
  *
  * @param {THREE.Mesh} mesh
  * @param {number} [chunkFaces=DRAW_CHUNK_FACES] - faces per draw call
@@ -295,6 +295,9 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     // Cleared up front so a load that fails below never keeps the previous
     // model's centring offset (set again after the model is re-centred).
     state.modelFrameOrigin = null;
+    // A new model starts a new record; its id is made at the first export,
+    // or taken from the first file imported (export-json.js ensureCollectionId()).
+    state.collectionId = null;
     const primaryModelFile = state.loadedModelFiles && state.loadedModelFiles[0];
     // While true, a null hash means "still hashing" (the Alignment Manager
     // says it is checking the model file); false with a null hash = unknown.
@@ -405,6 +408,14 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     // So the try/catch below — not a face-count ceiling — is what makes this
     // safe: a failed build degrades to brute-force raycasting (and disables
     // label occlusion via state.bvhAvailable) instead of aborting the load.
+    //
+    // The build is indirect (BVH_OPTIONS): three-mesh-bvh keeps its triangle
+    // order in a table of its own and leaves the index buffer as the file has
+    // it, so surface face numbers ("meshnotes:faces") follow the file's
+    // triangle order on every device, with or without a BVH. Before 1.6.6 the
+    // build sorted the index buffer in place and the numbers followed that
+    // sort; face-order.js converts such numbers on import, and needs to know
+    // which geometries had groups at build time (noteBuildGroups()).
     const BVH_FACE_LIMIT = Infinity;
     
     if (totalFaces > BVH_FACE_LIMIT) {
@@ -415,7 +426,8 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
         for (const mesh of state.modelMeshes) {
             try {
                 if (!mesh.geometry.boundsTree) {
-                    mesh.geometry.computeBoundsTree();
+                    noteBuildGroups(mesh.geometry);
+                    mesh.geometry.computeBoundsTree(BVH_OPTIONS);
                 }
             } catch (error) {
                 console.error('BVH computation failed for mesh:', mesh.name || 'unnamed', error);
@@ -433,8 +445,8 @@ function setupLoadedModelInternal(model, fileName, upAxis) {
     state.bvhAvailable = !bvhBuildFailed;
 
     // Split the draw of large meshes into several draw calls (Firefox draw
-    // limit, see DRAW_CHUNK_FACES). Deliberately placed AFTER the BVH build:
-    // done before it, the face numbering of large models would change.
+    // limit, see DRAW_CHUNK_FACES). Placed after the BVH build, so the groups
+    // it adds are not taken for groups of the file (noteBuildGroups()).
     let chunkedMeshes = 0;
     for (const mesh of state.modelMeshes) {
         if (chunkLargeDraws(mesh)) chunkedMeshes++;

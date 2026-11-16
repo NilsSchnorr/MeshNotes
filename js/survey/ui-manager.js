@@ -1142,7 +1142,8 @@ async function moveRefinedPoints() {
         showStatus('The alignment changed meanwhile; no survey point was moved');
         return;
     }
-    const plan = refinePlanFromPositions(planRefinePlacement(state.annotations, r.previous, r.refined));
+    // The moved points change at the time of the refit (the alignment's modified).
+    const plan = { ...refinePlanFromPositions(planRefinePlacement(state.annotations, r.previous, r.refined)), changedAt: r.refined.modified };
     let stats;
     if (plan.moves.length > SURFACE_CHUNK_SIZE) {
         setRefineBusy(true);

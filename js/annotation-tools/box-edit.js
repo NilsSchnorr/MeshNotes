@@ -7,6 +7,7 @@ import { state, dom } from '../state.js';
 import { showStatus, toStorageCoords, toDisplayCoords, boxDisplayQuaternion } from '../utils/helpers.js';
 import { renderAnnotations } from './render.js';
 import { updateGroupsList } from './groups.js';
+import { touchAnnotation } from './history.js';
 import { showBoxEditHelp, hideToolHelp } from '../ui/tool-help.js';
 
 // The persistent position lock (ann.locked, switched in the edit popup) sits
@@ -398,6 +399,14 @@ export function endPendingBoxManipulation() {
 
 export function endSelectedBoxManipulation() {
     state.wasDragging = true;
+
+    // A real move, resize or rotation counts as a change (modified); a press
+    // that changed nothing does not.
+    const ann = state.selectedBoxAnnotation;
+    if (ann && ann.boxData && state.boxDragStartData &&
+        JSON.stringify(ann.boxData) !== JSON.stringify(state.boxDragStartData)) {
+        touchAnnotation(ann);
+    }
 
     const statusMsg = state.boxManipulationMode === 'move' ? 'Box moved' :
                       state.boxManipulationMode === 'resize' ? 'Box resized' :

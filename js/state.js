@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 // ============ Version ============
-export const APP_VERSION = '1.6.5';
+export const APP_VERSION = '1.6.6';
 
 // ============ Application State ============
 export const state = {
@@ -48,6 +48,7 @@ export const state = {
     modelHash: null,            // SHA-256 hex of the primary model file (for annotation/model binding)
     modelHashPending: false,    // true while that hash is being computed (null hash = not known yet)
     modelFrameOrigin: null,     // Centring offset {x, y, z} in the Z-up export frame (exported + origin = model scene coords)
+    collectionId: null,         // urn:meshnotes:collection:{uuid} of the record; null until the first export (or taken from an import into an empty session)
 
     // UI Multipliers
     // Marker size is split by marker class so each can be tuned on its own —
@@ -326,6 +327,13 @@ export function initDomReferences() {
     dom.annotationClearCancel = document.getElementById('annotation-clear-cancel');
     dom.annotationClearDiscard = document.getElementById('annotation-clear-discard');
     dom.annotationClearExport = document.getElementById('annotation-clear-export');
+
+    // Up-axis mismatch dialog (annotation import, session restore)
+    dom.upAxisOverlay = document.getElementById('up-axis-overlay');
+    dom.upAxisMessage = document.getElementById('up-axis-message');
+    dom.upAxisContinue = document.getElementById('up-axis-continue');
+    dom.upAxisReload = document.getElementById('up-axis-reload');
+    dom.upAxisDialogClose = document.getElementById('up-axis-dialog-close');
 
     // Refresh confirm dialog
     dom.refreshConfirmOverlay = document.getElementById('refresh-confirm-overlay');

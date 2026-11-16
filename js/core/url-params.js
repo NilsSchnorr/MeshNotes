@@ -99,6 +99,67 @@ export async function fetchShareFile(shareId, filename) {
     return response.blob();
 }
 
+const MODEL_FORMATS = ['glb', 'gltf', 'obj', 'ply', 'stl'];
+
+const extensionOf = (name) => {
+    const m = /\.([A-Za-z0-9]+)$/.exec(name || '');
+    return m ? m[1].toLowerCase() : '';
+};
+
+/**
+ * The file name a download URL carries, or null. Zenodo's working form
+ * .../files/<name>/content gives <name>; any other URL whose last path part
+ * has an extension gives that part. Both percent-decoded. Figshare's
+ * ndownloader.figshare.com/files/<id> carries none.
+ * @param {string} url
+ * @returns {string|null}
+ */
+export function fileNameFromUrl(url) {
+    if (typeof url !== 'string' || !url) return null;
+    let path;
+    try {
+        path = new URL(url).pathname;
+    } catch (e) {
+        path = url.split('#')[0].split('?')[0];
+    }
+    const decode = (part) => { try { return decodeURIComponent(part); } catch (e) { return part; } };
+    const parts = path.split('/').filter(Boolean);
+    const n = parts.length;
+    if (n >= 3 && parts[n - 1] === 'content' && parts[n - 3] === 'files') {
+        return decode(parts[n - 2]) || null;
+    }
+    const last = n > 0 ? decode(parts[n - 1]) : '';
+    return extensionOf(last) ? last : null;
+}
+
+/**
+ * The name a model loaded from a direct link gets: the name in its URL, else
+ * the model name the link's annotation file records (modelSource
+ * schema:name) when its extension fits the format, else model.<format>.
+ * @param {{modelUrl: string, format: string, storedName?: string|null}} options
+ * @returns {string}
+ */
+export function modelFileNameFor({ modelUrl, format, storedName = null }) {
+    const fromUrl = fileNameFromUrl(modelUrl);
+    if (fromUrl) return fromUrl;
+    const fits = format === 'glb' ? ['glb', 'gltf'] : [format];
+    if (typeof storedName === 'string' && storedName.trim() && fits.includes(extensionOf(storedName))) {
+        return storedName.trim();
+    }
+    return `model.${format === 'glb' ? 'glb' : format}`;
+}
+
+// modelSource schema:name of an annotation file, or null.
+async function storedModelName(blob) {
+    try {
+        const data = JSON.parse(await blob.text());
+        const name = data && data.modelSource && data.modelSource['schema:name'];
+        return typeof name === 'string' ? name : null;
+    } catch (e) {
+        return null;
+    }
+}
+
 /**
  * Fetch a file from a direct URL as a Blob.
  * Used for DOI / long-term share links.
@@ -198,33 +259,36 @@ export async function loadDirectFiles(modelUrl, annotationsUrl) {
     const params = new URLSearchParams(window.location.search);
     const formatParam = params.get('format');
     
-    const modelFilename = modelUrl.split('/').pop().split('?')[0];
-    const urlExt = modelFilename.includes('.') ? modelFilename.split('.').pop().toLowerCase() : '';
-    
+    // The file name in the URL (Zenodo's .../files/<name>/content included).
+    const urlExt = extensionOf(fileNameFromUrl(modelUrl));
+
     // Priority: explicit format param > URL extension > default to glb
     let format;
-    if (formatParam && ['glb', 'gltf', 'obj', 'ply', 'stl'].includes(formatParam)) {
+    if (formatParam && MODEL_FORMATS.includes(formatParam)) {
         format = formatParam === 'gltf' ? 'glb' : formatParam;
-    } else if (urlExt && ['glb', 'gltf', 'obj', 'ply', 'stl'].includes(urlExt)) {
+    } else if (urlExt && MODEL_FORMATS.includes(urlExt)) {
         format = ['glb', 'gltf'].includes(urlExt) ? 'glb' : urlExt;
     } else {
         format = 'glb'; // Default assumption
     }
-    
-    // Use a meaningful filename if the URL doesn't have one
-    const filename = urlExt ? modelFilename : `model.${format === 'glb' ? 'glb' : format}`;
 
     // Fetch model
     const modelBlob = await fetchDirectFile(modelUrl);
-    const modelFile = blobToFile(modelBlob, filename);
 
     // Fetch annotations if provided
     let annotationFile = null;
+    let storedName = null;
     if (annotationsUrl) {
-        const annFilename = annotationsUrl.split('/').pop().split('?')[0] || 'annotations.jsonld';
+        const annFilename = fileNameFromUrl(annotationsUrl) || 'annotations.jsonld';
         const annBlob = await fetchDirectFile(annotationsUrl);
         annotationFile = blobToFile(annBlob, annFilename);
+        storedName = await storedModelName(annBlob);
     }
+
+    // The model keeps its real name: from the URL, else from the annotation
+    // file, else model.<format> (modelFileNameFor()). Everything that shows or
+    // writes the model's name reads it from this file.
+    const modelFile = blobToFile(modelBlob, modelFileNameFor({ modelUrl, format, storedName }));
 
     // For OBJ, check for optional mtl/texture params
     const materialFiles = [];
@@ -232,14 +296,14 @@ export async function loadDirectFiles(modelUrl, annotationsUrl) {
     const mtlUrl = params.get('mtl');
     if (mtlUrl) {
         // params.get() already decoded the value — use it as-is.
-        const mtlFilename = mtlUrl.split('/').pop().split('?')[0];
+        const mtlFilename = fileNameFromUrl(mtlUrl) || mtlUrl.split('/').pop().split('?')[0];
         const mtlBlob = await fetchDirectFile(mtlUrl);
         materialFiles.push(blobToFile(mtlBlob, mtlFilename));
     }
 
     const textureUrl = params.get('texture');
     if (textureUrl) {
-        const texFilename = textureUrl.split('/').pop().split('?')[0];
+        const texFilename = fileNameFromUrl(textureUrl) || textureUrl.split('/').pop().split('?')[0];
         const texBlob = await fetchDirectFile(textureUrl);
         materialFiles.push(blobToFile(texBlob, texFilename));
     }

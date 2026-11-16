@@ -2,7 +2,7 @@
 import { state, dom } from '../state.js';
 import { showStatus, filterAnnotations, toggleManualItem } from '../utils/helpers.js';
 import { openManualItem, initManualSearch } from './manual.js';
-import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel } from '../core/model-loader.js';
+import { loadModel, toggleTexture, applyDisplayMode, loadOBJModel, loadOBJPlain, loadPLYModel, loadSTLModel, onceModelSetupComplete } from '../core/model-loader.js';
 import { toggleCamera } from '../core/camera.js';
 import { toggleFlip } from '../core/scene.js';
 import { setBrightness, setModelOpacity, toggleLightMode, setLightAzimuth, setLightElevation, setPointSize, setVertexSize, setBoxHandleSize, setMeasureMarkerSize, setTextSize, setCalloutOpacity, setCalloutEnabled, setBackgroundColor, setDefaultAuthor, setDefaultAuthorOrcid, setDefaultLanguage, setMeasurementUnit, setMeasurementLineColor, setMeasurementPointColor, setMeshColor, setWireframeColor, setPdfTitle, setPdfInstitution, setPdfProject, setPdfAccentColor, setPdfPageSize, setPdfOrientation, setPdfDpi, setPdfCameraDistance, setPdfCameraAngle, setScreenshotQuality, setPlatePngWidth, setPlatePdfDpi, setPlateCellShape, setSurveyLockImported, setSurveyLabelsOffAbove, setSurveyResidualWarn, setSurveySurfaceWarn, setSurveySurfaceLimit, setSurveyPdfSummary, resetAllSettings } from '../core/lighting.js';
@@ -14,7 +14,7 @@ import { takeScreenshot } from '../export/screenshot.js';
 import { exportAnnotations } from '../export/export-json.js';
 import { exportPdfReport } from '../export/pdf-report.js';
 import { exportViewsPlate, choosePlateFormat, hidePlateFormatDialog } from '../export/views-plate.js';
-import { importAnnotations } from '../export/import-json.js';
+import { importAnnotations, importAnnotationData, storedModelUpAxis } from '../export/import-json.js';
 import { openMetadataPopup, closeMetadataPopup, saveMetadata, initMetadata, updateMetadataDisplay } from '../metadata/metadata-ui.js';
 import { downloadMetadataJSON, downloadMetadataPDF, importMetadataJSON } from '../metadata/metadata-io.js';
 import { getMetadataStats } from '../metadata/templates.js';
@@ -103,6 +103,8 @@ function getSelectedUpAxis(radioName) {
  */
 function clearAnnotationsAndGroups() {
     state.annotations = [];
+    // Clear starts a new record (collection id, export-json.js ensureCollectionId()).
+    state.collectionId = null;
     state.groups = [];
     state.alignments = [];
     state.defaultAlignmentId = null;
@@ -237,12 +239,20 @@ function handleModelLoad(file) {
         return;
     }
 
-    // Store file reference and show the three-option dialog
-    const pendingFile = file;
+    askToClearSession('Loading a new model will clear it.', () => loadModel(file));
+}
 
+/**
+ * The three-option dialog before a load clears the session's work: export
+ * (JSON-LD) and clear, clear, or cancel. onCleared runs once the session is
+ * cleared (a model load, or a reload with another up-axis).
+ * @param {string} consequence - the sentence after the description of the work
+ * @param {Function} onCleared
+ */
+function askToClearSession(consequence, onCleared) {
     // Describe what the load will clear (annotations, metadata, model info)
     document.getElementById('annotation-clear-message').textContent =
-        `You have ${describeSessionContent()} in the current session. Loading a new model will clear it. What would you like to do?`;
+        `You have ${describeSessionContent()} in the current session. ${consequence} What would you like to do?`;
 
     dom.annotationClearOverlay.classList.add('visible');
 
@@ -264,15 +274,113 @@ function handleModelLoad(file) {
     newDiscard.addEventListener('click', () => {
         hideAnnotationClearDialog();
         clearAnnotationsAndGroups();
-        loadModel(pendingFile);
+        onCleared();
     });
 
     newExport.addEventListener('click', () => {
         hideAnnotationClearDialog();
         exportAnnotations();
         clearAnnotationsAndGroups();
-        loadModel(pendingFile);
+        onCleared();
     });
+}
+
+// ============ Up-axis check (annotation import, session restore) ============
+
+// The format of the loaded model when its up-axis was chosen at load
+// (OBJ, PLY, STL); null for glTF, which is always Y-up.
+function choosableUpAxisFormat() {
+    const file = state.loadedModelFiles && state.loadedModelFiles[0];
+    const name = (file && file.name) || state.modelFileName || '';
+    const ext = name.split('.').pop().toLowerCase();
+    return ['obj', 'ply', 'stl'].includes(ext) ? ext : null;
+}
+
+const UP_AXIS_LABELS = { 'y-up': 'Y-up', 'z-up': 'Z-up' };
+
+// { onContinue, onReload } of the open up-axis warning
+let _upAxisChoice = null;
+
+/**
+ * Warns when an annotation file or a saved session was made with the loaded
+ * OBJ, PLY or STL model under the other up-axis, so its annotations would not
+ * sit on the model, and offers to reload the model with the stored up-axis.
+ * @param {Object} data - the parsed JSON-LD
+ * @param {{kind: 'import'|'restore', onContinue: Function, onReloaded?: Function|null}} options
+ *   onContinue: go on as without the warning (Import / Restore anyway);
+ *   onReloaded: runs once the model is set up again with the stored up-axis.
+ *   Closing the dialog runs neither.
+ * @returns {boolean} true when the warning is shown; the caller stops there
+ */
+export function warnOnUpAxisMismatch(data, { kind, onContinue, onReloaded = null }) {
+    if (!state.currentModel || !choosableUpAxisFormat()) return false;
+    const stored = storedModelUpAxis(data);
+    if (!stored || stored === state.modelUpAxis) return false;
+    const was = UP_AXIS_LABELS[stored];
+    const now = UP_AXIS_LABELS[state.modelUpAxis] || state.modelUpAxis;
+    dom.upAxisMessage.textContent = kind === 'restore'
+        ? `Your last unsaved session for this model was made with the model loaded as ${was}. It is loaded as ${now} now, so its annotations would not sit on the model.`
+        : `These annotations were made with the model loaded as ${was}. It is loaded as ${now} now, so they would not sit on the model.`;
+    dom.upAxisContinue.textContent = kind === 'restore' ? 'Restore anyway' : 'Import anyway';
+    dom.upAxisReload.textContent = `Reload as ${was}`;
+    _upAxisChoice = { onContinue, onReload: () => reloadModelWithUpAxis(stored, onReloaded) };
+    dom.upAxisOverlay.classList.add('visible');
+    return true;
+}
+
+function hideUpAxisWarning() {
+    dom.upAxisOverlay.classList.remove('visible');
+    _upAxisChoice = null;
+}
+
+function answerUpAxisWarning(reload) {
+    const choice = _upAxisChoice;
+    hideUpAxisWarning();
+    if (!choice) return;
+    if (reload) choice.onReload();
+    else choice.onContinue();
+}
+
+/**
+ * Loads the current OBJ, PLY or STL model files again with another up-axis.
+ * Work in the session was made on the model as loaded now, so it is cleared
+ * first, after the usual export / clear / cancel question.
+ * @param {'y-up'|'z-up'} upAxis
+ * @param {Function|null} onReloaded - runs once the model is set up again
+ */
+function reloadModelWithUpAxis(upAxis, onReloaded) {
+    const format = choosableUpAxisFormat();
+    const [primary, ...extras] = state.loadedModelFiles || [];
+    if (!format || !primary) return;
+    const load = () => {
+        if (onReloaded) onceModelSetupComplete(onReloaded);
+        if (format === 'obj') loadOBJModel(primary, extras, upAxis);
+        else if (format === 'ply') loadPLYModel(primary, extras[0] || null, upAxis);
+        else loadSTLModel(primary, upAxis);
+    };
+    if (!sessionHasContent()) {
+        load();
+        return;
+    }
+    askToClearSession('Reloading the model will clear it.', load);
+}
+
+/**
+ * Import ▾ → Annotations (.jsonld). The file is parsed first, so the up-axis
+ * it was made with can be checked against the loaded model.
+ * @param {File} file
+ */
+async function importAnnotationFile(file) {
+    let data;
+    try {
+        data = JSON.parse(await file.text());
+    } catch (e) {
+        importAnnotations(file);   // reports the unreadable file as before
+        return;
+    }
+    const importNow = () => importAnnotationData(data);
+    if (warnOnUpAxisMismatch(data, { kind: 'import', onContinue: importNow, onReloaded: importNow })) return;
+    importNow();
 }
 
 export function setupEventListeners() {
@@ -540,7 +648,7 @@ export function setupEventListeners() {
         dom.importInput.click();
     });
     dom.importInput.addEventListener('change', (e) => {
-        if (e.target.files[0]) importAnnotations(e.target.files[0]);
+        if (e.target.files[0]) importAnnotationFile(e.target.files[0]);
         e.target.value = ''; // Reset so the same file can be re-imported
     });
     // Survey points (CSV): disabled until a model is loaded (model-loader.js)
@@ -770,6 +878,14 @@ export function setupEventListeners() {
     // Annotation clear dialog - click overlay to dismiss
     dom.annotationClearOverlay.addEventListener('click', (e) => {
         if (e.target === dom.annotationClearOverlay) hideAnnotationClearDialog();
+    });
+
+    // Up-axis warning: reload with the stored up-axis, go on anyway, or close
+    dom.upAxisReload.addEventListener('click', () => answerUpAxisWarning(true));
+    dom.upAxisContinue.addEventListener('click', () => answerUpAxisWarning(false));
+    dom.upAxisDialogClose.addEventListener('click', hideUpAxisWarning);
+    dom.upAxisOverlay.addEventListener('click', (e) => {
+        if (e.target === dom.upAxisOverlay) hideUpAxisWarning();
     });
 
     // Logo click — refresh with confirmation if the session holds work
@@ -1338,6 +1454,11 @@ export function setupEventListeners() {
             // Close screenshot dropdown if open
             if (dom.screenshotDropdown.classList.contains('open')) {
                 dom.screenshotDropdown.classList.remove('open');
+                return;
+            }
+
+            if (dom.upAxisOverlay.classList.contains('visible')) {
+                hideUpAxisWarning();
                 return;
             }
 

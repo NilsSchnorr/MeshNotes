@@ -7,7 +7,6 @@ import { state, dom } from '../state.js';
 import { showStatus, escapeHtml } from '../utils/helpers.js';
 import { buildAnnotationBlob } from './export-json.js';
 import { buildShareUrl, buildDirectUrl } from '../core/url-params.js';
-import { getMetadataStats } from '../metadata/templates.js';
 import { captureViewState } from './view-state.js';
 
 const SHARE_API_URL = '/api/share';
@@ -295,20 +294,14 @@ export async function generateEphemeralLink() {
             formData.append('model', file, file.name);
         }
 
-        // Add annotations JSON-LD when there is anything worth preserving.
-        // The .jsonld also carries the Metadata Report, Model Information and
-        // survey alignments, so a model with metadata, model-info notes or an
-        // alignment but no annotations must still ship the file — otherwise
-        // that data is lost on reopen.
-        const hasMetadata = !!(state.modelInfo.metadata && getMetadataStats(state.modelInfo.metadata).filled > 0);
-        const hasModelInfo = !!(state.modelInfo.entries && state.modelInfo.entries.length > 0);
-        const hasAlignments = state.alignments.length > 0;
-        if (state.annotations.length > 0 || hasMetadata || hasModelInfo || hasAlignments) {
-            progressText.textContent = 'Preparing annotations & metadata...';
-            const annotationBlob = buildAnnotationBlob();
-            const annotationFilename = `${state.modelFileName || 'annotations'}.jsonld`;
-            formData.append('annotations', annotationBlob, annotationFilename);
-        }
+        // The annotations JSON-LD always ships, also without annotations: it
+        // carries the Metadata Report, Model Information and survey
+        // alignments, and the up-axis the model was loaded with, which the
+        // link needs to open an OBJ, PLY or STL model the same way.
+        progressText.textContent = 'Preparing annotations & metadata...';
+        const annotationBlob = buildAnnotationBlob();
+        const annotationFilename = `${state.modelFileName || 'annotations'}.jsonld`;
+        formData.append('annotations', annotationBlob, annotationFilename);
 
         // Upload to R2
         progressText.textContent = 'Uploading to meshnotes.org...';

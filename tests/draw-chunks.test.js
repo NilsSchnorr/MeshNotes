@@ -1,7 +1,7 @@
 // tests/draw-chunks.test.js - Draw splitting for large meshes (Firefox draw limit)
 // chunkLargeDraws() must cut a large mesh into draw calls that stay under the
-// limit, without changing the geometry, the face numbering the BVH build
-// produced, or what a raycast returns. Loads model-loader.js through
+// limit, without changing the geometry, the face numbering (file order, kept
+// by the indirect BVH build), or what a raycast returns. Loads model-loader.js through
 // tests/support/app-env.js. Run with: npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,6 +9,7 @@ import './support/app-env.js';
 
 const THREE = await import('three');
 const { computeBoundsTree } = await import('three-mesh-bvh');
+const { BVH_OPTIONS } = await import('../js/annotation-tools/face-order.js');
 const { chunkLargeDraws, setMeshMaterial, DRAW_CHUNK_FACES, WIREFRAME_FACE_LIMIT } =
     await import('../js/core/model-loader.js');
 
@@ -106,13 +107,13 @@ test('setMeshMaterial keeps the array form only for a split mesh', () => {
 test('splitting after the BVH build keeps face numbering and raycast results', () => {
     const n = 60;                                             // 7200 faces
     const reference = makeMesh(makeGrid(n));
-    reference.geometry.boundsTree = computeBoundsTree.call(reference.geometry);
+    reference.geometry.boundsTree = computeBoundsTree.call(reference.geometry, BVH_OPTIONS);
     const referenceIndex = Array.from(reference.geometry.index.array);
     const referenceHits = castRays(reference);
     assert.ok(referenceHits.filter(h => h !== 'miss').length > 150, 'the rays hit the grid');
 
     const mesh = makeMesh(makeGrid(n));
-    mesh.geometry.boundsTree = computeBoundsTree.call(mesh.geometry);
+    mesh.geometry.boundsTree = computeBoundsTree.call(mesh.geometry, BVH_OPTIONS);
     assert.equal(chunkLargeDraws(mesh, 1000), true);
     assert.deepEqual(Array.from(mesh.geometry.index.array), referenceIndex, 'index buffer unchanged');
     assert.deepEqual(castRays(mesh), referenceHits, 'accelerated raycast unchanged');
@@ -123,15 +124,23 @@ test('splitting after the BVH build keeps face numbering and raycast results', (
     assert.deepEqual(castRays(mesh), castRays(reference), 'brute-force raycast unchanged');
 });
 
-test('splitting BEFORE the BVH build would renumber faces (why the order matters)', () => {
+test('the indirect BVH build keeps file face order, whether the draw was split before or after it', () => {
     const n = 60;
-    const reference = makeMesh(makeGrid(n));
-    reference.geometry.boundsTree = computeBoundsTree.call(reference.geometry);
+    const fileOrder = Array.from(makeGrid(n).index.array);
 
-    const wrongOrder = makeMesh(makeGrid(n));
-    chunkLargeDraws(wrongOrder, 1000);
-    wrongOrder.geometry.boundsTree = computeBoundsTree.call(wrongOrder.geometry);
+    const after = makeMesh(makeGrid(n));
+    after.geometry.boundsTree = computeBoundsTree.call(after.geometry, BVH_OPTIONS);
+    chunkLargeDraws(after, 1000);
 
-    assert.notDeepEqual(Array.from(wrongOrder.geometry.index.array),
-        Array.from(reference.geometry.index.array));
+    const before = makeMesh(makeGrid(n));
+    chunkLargeDraws(before, 1000);
+    before.geometry.boundsTree = computeBoundsTree.call(before.geometry, BVH_OPTIONS);
+
+    assert.deepEqual(Array.from(after.geometry.index.array), fileOrder);
+    assert.deepEqual(Array.from(before.geometry.index.array), fileOrder);
+
+    // The in-place build used before 1.6.6 sorted the index buffer.
+    const legacy = makeMesh(makeGrid(n));
+    legacy.geometry.boundsTree = computeBoundsTree.call(legacy.geometry);
+    assert.notDeepEqual(Array.from(legacy.geometry.index.array), fileOrder);
 });

@@ -27,6 +27,7 @@ import {
     rowsFromControlPoints, picksFromControlPoints, createPickingSession, evaluatePicking, reviewRows, verdictText
 } from './picking.js';
 import { formatMetres } from './survey-display.js';
+import { touchAnnotation } from '../annotation-tools/history.js';
 
 // ============ Constants ============
 
@@ -525,10 +526,12 @@ export function defaultAfterRemoval(remaining, removedId, defaultAlignmentId) {
  * @param {{alignments: object[], annotations: object[], defaultAlignmentId: *}} session
  * @param {*} alignmentId
  * @param {'detach'|'delete'} mode
+ * @param {Date|string|number} [now] - time of the change; a detached point's
+ *   modified becomes it (now when absent)
  * @returns {{alignments: object[], defaultAlignmentId: *, detached: object[], deleted: object[], alignment: object|null}}
  *   alignment = the removed one (null when it did not exist; nothing changes then)
  */
-export function deleteAlignment({ alignments, annotations, defaultAlignmentId = null }, alignmentId, mode = 'detach') {
+export function deleteAlignment({ alignments, annotations, defaultAlignmentId = null }, alignmentId, mode = 'detach', now = undefined) {
     const alignment = (alignments || []).find(a => a.id === alignmentId) || null;
     if (!alignment) return { alignments: alignments || [], defaultAlignmentId, detached: [], deleted: [], alignment: null };
     const points = surveyPointsOf(annotations, alignmentId);
@@ -543,7 +546,10 @@ export function deleteAlignment({ alignments, annotations, defaultAlignmentId = 
     if (mode === 'delete') {
         out.deleted = points;
     } else {
-        for (const ann of points) ann.survey = detachSurvey(ann.survey);
+        for (const ann of points) {
+            ann.survey = detachSurvey(ann.survey);
+            touchAnnotation(ann, now);
+        }
         out.detached = points;
     }
     return out;

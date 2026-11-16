@@ -6,9 +6,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.6] — 2026-11-16
+
+Exported files are now valid and complete under JSON-LD processing, names and groups merge the same way whoever imports whose file, and share links open OBJ, PLY and STL models with the up-axis they were annotated with. Surface annotations follow the model file's face order on every device, an annotation's `modified` counts every change and its `created` stays put, one collection id names a record across its exports, and models opened from Zenodo or Figshare links keep their file names.
+
+### Fixed
+
+- **Exported files failed JSON-LD processing** — every group was written with a numeric `id`, which the W3C Web Annotation context maps to `@id`. A number is not a valid node identifier, so JSON-LD processors rejected the whole file. Groups now carry their IRI `urn:meshnotes:group:<uuid>`, and the stylesheet classes and each annotation's `styleClass` use `group-<uuid>`. Files written before keep their numbers until they are exported again.
+- **Metadata report and shared view lost in RDF** — the JSON-LD context gave `metadata` and `meshnotes:viewState` no type, so processors dropped everything inside them: sections, field values and the Getty AAT, PeriodO and gazetteer URIs, and the camera and lighting of a shared view. Both are now JSON literals in `ns/context-v1.jsonld` and come through whole. All existing files use the same context, so their metadata is repaired without exporting them again.
+- **Group history pointed at the wrong group** — an annotation's earlier groups were stored as session numbers, which mean nothing in another session; after an import and a new export they pointed at whichever group got that number. Earlier groups are now stored by UUID and by the name the group had then, so they stay readable after the group is renamed or deleted. Entries from older files keep their date, with the group marked unknown.
+- **Moving annotations while deleting a group left no history** — **Delete → Move annotations** now records each move in the annotation's group history.
+- **Share links opened OBJ, PLY and STL models sideways** — a link always loaded them Z-up, so a model annotated as Y-up opened turned by 90° and its annotations floated off it. The annotation file now records the up-axis the model was loaded with, and Quick Share, single-annotation and permanent links open the model with it. For files without it, the up-axis a survey alignment recorded is used; otherwise Z-up, as before.
+- **Surface annotations could show on the wrong triangles on another device** — a surface region stores the numbers of its faces. MeshNotes counted them in the order its acceleration structure (BVH) sorted the model's triangles, not in the order of the model file. Where the structure could not be built (a very large model on a device short of memory) the numbers meant other triangles, and no other software could resolve them at all. Face numbers now follow the model file's triangle order on every device. Regions in older files and autosaves are checked one by one against their stored centre on import and renumbered when needed; the import status names any region that could not be checked on this device. MeshNotes 1.6.5 and older show regions from files of this version on the wrong triangles; positions, labels and all other annotations are unaffected, and their re-export keeps the numbers, which this version then recognises again.
+- **An annotation's creation date moved** — the exported `created` was the time of the oldest remaining entry, so it moved later when that entry was deleted and became the export time when no entry was left; for a survey point it is also its import time. Annotations now keep the time they were made.
+- **Models from Zenodo and Figshare links lost their file name** — a model opened from a link whose URL ends in `/content` or a number was named `model.glb`, and that name went into the model id of every annotation, the export and share file names, the PDF report and the plates. The name now comes from the Zenodo URL, or else from the link's annotation file. The MTL and texture files of a Zenodo OBJ link get their real names too, which the material needs to find its texture.
+
+### Changed
+
+- **Name and group merge independently of the entries** — an import decided an annotation's name and group by which copy had the newer entries, so a rename or a move without a new entry was lost or kept depending on who imported whose file. Name and group now each follow the copy that changed them more recently, in both directions, and the other value is kept in the annotation's history. When neither copy records a change, the entries decide, as before.
+- **Group names and colours merge** — a group renamed or recoloured in one session kept its old name and colour in every session that imported the file. Groups now record when their name or colour changed, and an import takes the more recent ones. Visibility, opacity, label display and collapse stay as each user set them.
+- **Name and group history record who made the change** — the author from Settings, otherwise the last author entered.
+- **Quick Share always uploads the annotation file**, also when there are no annotations, metadata or alignments, so the link knows the up-axis.
+- **`modified` counts every change** — an annotation's exported `modified` followed only its entries, so renaming it, moving it to another group, moving a vertex or a box, switching its lock or surface projection, or a refit of its survey alignment left it unchanged. It now gives the latest change of any kind; a refit or a merge stamps moved survey points with the time of the winning fit.
+- **One collection id per record** — every export got a new collection id, so two exports of the same work looked like unrelated records. The id is now made at the first export, autosave or share and kept for every later one, and `generated` tells the versions apart. Loading another model or clearing the session starts a new record; a file imported into a session without work (a share link, an autosave restore, a colleague's file) continues that file's record.
+
+### Added
+
+- **Up-axis warning with reload** — importing an annotation file, or restoring an autosaved session, that was made with the model loaded under the other up-axis shows a warning with **Reload as Y-up** (or Z-up): the same model files are loaded again with the stored up-axis, and the import or restore runs afterwards. **Import anyway** or **Restore anyway** goes on without reloading. Work in the session is cleared first, after the usual export / clear question.
+- **Manual** — *Coordinate System* explains the stored up-axis and the warning, *Sharing → Quick Share* says that the annotation file always goes along, and *Collaborative Workflow* describes how names, groups and group colours merge.
+
+### Format
+
+- Annotation format v1, §10.2 (2026-11-16): errata for the group `id` (an IRI; the JSON Schema accepts a string or a number), for `metadata` (a JSON literal) and for the elements of `meshnotes:groupVersions` (`meshnotes:groupUuid` and `meshnotes:groupName` instead of a session number). New optional members: `meshnotes:modelUpAxis` on `modelSource`, `modified` on a group, `meshnotes:changedBy` in name and group history. `meshnotes:viewState` is documented. MeshNotes 1.6 and earlier read the new files with all annotations in place and in their groups.
+- Selector specification v1, §4.4 and §5 (erratum 2026-11-16): face identifiers `m_t` number the triangles in the order of the model file, with a per-format table. Annotation format v1, §4, §9 and §10.2: new optional `modelSource` member `meshnotes:faceOrder` (`"file"`), written when every surface region is in that order. Context and JSON Schema unchanged.
+- Annotation format v1, §5 and §10.2 (errata 2026-11-16): an annotation's `modified` is its latest change of any kind, as in the W3C model, and `created` is when it was made; files from earlier versions carry the narrower times.
+- Annotation format v1, §3 and §10.2: the collection `id` names the record across exports.
+
+### Internal
+
+- New pure module `js/annotation-tools/history.js` records and merges name and group history; `data.js` and `groups.js` record through it, `import-json.js` merges through it. Added to the service-worker precache.
+- `js/export/import-json.js`: `importAnnotationData()` imports an already parsed file (split from `importAnnotations()`); `storedModelUpAxis()` and `readStoredUpAxis()`; existing groups take name and colour by `modified`.
+- `js/export/w3c-format.js`: `groupIri()`, `groupStyleClass()` and the conversion of name and group history.
+- `js/ui/event-listeners.js`: the export / clear / cancel dialog is `askToClearSession()`, used by model loading and by the reload; new `warnOnUpAxisMismatch()`, `reloadModelWithUpAxis()` and `importAnnotationFile()`. `js/core/session-persistence.js` calls the check through `setUpAxisCheck()` (wired in `main.js`); its change fingerprint now also notices group moves, history entries and group edits.
+- New tests: `tests/history.test.js`, `tests/name-group-merge.test.js` and `tests/jsonld-format.test.js` (every node id is an IRI, the context's JSON literals, the stored up-axis).
+
+
 ## [1.6.5] — 2026-10-28
 
 A bug-fix release for the annotation window and the toolbar. Text typed into an entry is no longer lost when a link is added or when the window's own **Save** is used, the window grows while an entry is edited and stays inside the browser window, and choosing a tool clears an annotation selection.
+- Model BVHs are built with `indirect: true` (`BVH_OPTIONS`), which leaves the index buffer in file order; the build is not slower, and needs 4 bytes more per triangle for indexed models and less for models without an index (`tools/bvh-bench.mjs`). New module `js/annotation-tools/face-order.js` (added to the service-worker precache) converts face numbers of older files, from the indirect table or, for geometry with groups at build time, a temporary in-place build; `import-json.js` calls it before the merge, `export-json.js` writes the marker. `vendor/VERSIONS.md` notes that the conversion depends on the 0.8.2 sort order.
+- New `tests/face-order.test.js` with `tests/fixtures/bvh-legacy-order.json` (the old order is reproduced for indexed, non-indexed and grouped geometry; a stored 0.8.2 order; raycasts and brush report file triangles; the per-region decision; import and export). `tests/draw-chunks.test.js` builds with `BVH_OPTIONS`; its renumbering test now shows that the index buffer stays in file order.
+- `js/annotation-tools/history.js`: `touchAnnotation()`, `annotationTimes()`, `laterTime()`, `earlierTime()`. Annotations store `created` (data.js, survey imports) and `modified` (geometry drags and box edits, lock and projection switches, deleted entries, refits through `applyReplacement()`'s `changedAt`, detaching in `deleteAlignment()`); `w3c-format.js` writes and reads both, the merge takes the earlier `created` and the later `modified`, and the autosave signature includes `modified`.
+- `js/export/export-json.js`: `ensureCollectionId()` keeps the id in `state.collectionId`, reset by `setupLoadedModelInternal()` and `clearAnnotationsAndGroups()`; `mergeW3CCollection()` takes the file's id when the session has no work. `sessionHasWork()` moved to `js/utils/helpers.js` (used by autosave and import).
+- `js/core/url-params.js`: `fileNameFromUrl()` and `modelFileNameFor()`; `loadDirectFiles()` names the model after the annotation file is fetched. New `tests/url-params.test.js`.
 
 ### Fixed
 
@@ -394,6 +444,7 @@ Initial public release.
 - Apache-2.0 license
 
 
+[1.6.6]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.6
 [1.6.5]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.5
 [1.6.4]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.4
 [1.6.3]: https://github.com/NilsSchnorr/MeshNotes/releases/tag/v1.6.3

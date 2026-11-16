@@ -63,7 +63,10 @@
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "id": { "type": "number" },
+        "id": {
+          "$comment": "The group IRI urn:meshnotes:group:{uuid} (spec erratum 2026-11-16). Files written before it carry a producer-internal number, which stays valid.",
+          "type": ["string", "number"]
+        },
         "meshnotes:uuid": { "type": "string" },
         "schema:name": { "type": "string" },
         "schema:color": { "type": "string" },

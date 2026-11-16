@@ -154,7 +154,9 @@ test('a v1.5-shaped file imports exactly as before', () => {
     assert.equal(state.defaultAlignmentId, c.id);
     assert.deepEqual(Object.keys(state.groups[1]).sort(), ['color', 'id', 'name', 'opacity', 'uuid', 'visible']);
     const n1 = byUuid('n1');
-    assert.deepEqual(Object.keys(n1).sort(), ['entries', 'groupId', 'id', 'name', 'points', 'type', 'uuid']);
+    // created is kept since 1.6.6 (annotation format section 5).
+    assert.deepEqual(Object.keys(n1).sort(), ['created', 'entries', 'groupId', 'id', 'name', 'points', 'type', 'uuid']);
+    assert.equal(n1.created, T1);
     assert.deepEqual(n1.points[0], { x: 1, y: 3, z: -2 });   // Z-up file -> Y-up storage
     assert.deepEqual(local, localBefore);
 
@@ -311,4 +313,71 @@ test('merge: a survey point moved by hand on either side follows the entries rul
     assert.equal(q3.survey.placement, 'fit');
     // All three exist on both sides, so none is left for the caller.
     assert.deepEqual(result.realign, []);
+});
+
+test('merge: created is the earlier, modified the later of the two copies', () => {
+    const local = { ...plainAnnotation({ id: 1, uuid: 'm1' }), created: T2, modified: T3 };
+    const other = { ...plainAnnotation({ id: 1, uuid: 'm1' }), created: T1, modified: T5 };
+    const file = exportSession({ groups: [group(1, 'g1', 'Default')], annotations: [other] });
+    setSession({ groups: [group(1, 'g1', 'Default')], annotations: [local] });
+    mergeW3CCollection(file);
+    assert.equal(byUuid('m1').created, T1);
+    assert.equal(byUuid('m1').modified, T5);
+
+    // A copy without stored times (a file from before 1.6.6) takes the other's.
+    const bare = plainAnnotation({ id: 1, uuid: 'm2' });
+    const withTimes = { ...plainAnnotation({ id: 1, uuid: 'm2' }), created: T1, modified: T3 };
+    const file2 = exportSession({ groups: [group(1, 'g1', 'Default')], annotations: [withTimes] });
+    setSession({ groups: [group(1, 'g1', 'Default')], annotations: [bare] });
+    mergeW3CCollection(file2);
+    assert.equal(byUuid('m2').created, T1);
+    assert.equal(byUuid('m2').modified, T3);
+});
+
+// ---- Collection id = record id (annotation format section 3, 1.6.6) ----
+
+const COLLECTION_ID = /^urn:meshnotes:collection:[0-9a-f-]{36}$/;
+
+test('the collection id names the record: every export keeps it until a new record starts', () => {
+    setSession({ groups: [group(1, 'g1', 'Default')], annotations: [plainAnnotation({ id: 1, uuid: 'r1' })] });
+    state.collectionId = null;                       // as after a model load or Clear
+    const first = JSON.parse(buildAnnotationJSON());
+    assert.match(first.id, COLLECTION_ID);
+    assert.equal(first.first.id, `${first.id}/page/1`);
+    const second = JSON.parse(buildAnnotationJSON());
+    assert.equal(second.id, first.id, 'a later export (or autosave, or share) keeps the id');
+    state.collectionId = null;                       // Clear or another model
+    assert.notEqual(JSON.parse(buildAnnotationJSON()).id, first.id);
+});
+
+test('an import into a session without work takes the file\'s collection id; a merge keeps the session\'s', () => {
+    const fileSession = { groups: [group(1, 'g1', 'Default')], annotations: [plainAnnotation({ id: 1, uuid: 'r2' })] };
+    state.collectionId = null;
+    const file = exportSession(fileSession);
+    const fileId = file.id;
+
+    // Empty session (share link, autosave restore, first import): the record continues.
+    setSession({ groups: [group(1, 'g1', 'Default')] });
+    state.collectionId = null;
+    mergeW3CCollection(clone(file));
+    assert.equal(state.collectionId, fileId);
+    assert.equal(JSON.parse(buildAnnotationJSON()).id, fileId, 'the next export is a new version of the same record');
+
+    // A session with work of its own keeps its record.
+    setSession({ groups: [group(1, 'g1', 'Default')], annotations: [plainAnnotation({ id: 2, uuid: 'own' })] });
+    state.collectionId = 'urn:meshnotes:collection:11111111-1111-4111-8111-111111111111';
+    mergeW3CCollection(clone(file));
+    assert.equal(state.collectionId, 'urn:meshnotes:collection:11111111-1111-4111-8111-111111111111');
+
+    // Work but no id yet: the id is made at the next export, not taken from the file.
+    setSession({ groups: [group(1, 'g1', 'Default')], annotations: [plainAnnotation({ id: 3, uuid: 'own2' })] });
+    state.collectionId = null;
+    mergeW3CCollection(clone(file));
+    assert.equal(state.collectionId, null);
+
+    // An id that is not a MeshNotes collection id is not taken.
+    setSession({ groups: [group(1, 'g1', 'Default')] });
+    state.collectionId = null;
+    mergeW3CCollection({ ...clone(file), id: 'https://example.org/annotations/7' });
+    assert.equal(state.collectionId, null);
 });

@@ -20,6 +20,27 @@ export function saveLastAuthor(author) {
 
 // ============ Utility Functions ============
 
+/**
+ * Whether the session holds work: annotations, alignments (also when all
+ * their points are deleted), Model Information entries or a filled metadata
+ * field. Autosave saves only such a session, and an import into a session
+ * without work continues the imported file's record (its collection id).
+ * @returns {boolean}
+ */
+export function sessionHasWork() {
+    if (state.annotations.length > 0) return true;
+    if (state.alignments.length > 0) return true;
+    if (state.modelInfo && state.modelInfo.entries && state.modelInfo.entries.length > 0) return true;
+    const md = state.modelInfo && state.modelInfo.metadata;
+    if (md && md.sections) {
+        for (const s of md.sections) {
+            for (const f of (s.fields || [])) if (f.value && String(f.value).trim()) return true;
+            for (const f of (s.customFields || [])) if (f.value && String(f.value).trim()) return true;
+        }
+    }
+    return false;
+}
+
 export function escapeHtml(text) {
     if (!text) return '';
     return String(text)

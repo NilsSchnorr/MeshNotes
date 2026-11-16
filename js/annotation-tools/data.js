@@ -7,6 +7,7 @@ import { renderAnnotations } from './render.js';
 import { updateGroupsList, updateGroupSelect, deselectAnnotation } from './groups.js';
 import { clearTempDrawing } from './editing.js';
 import { renderSurveyBlock } from './survey-block.js';
+import { recordNameChange, recordGroupChange, touchAnnotation } from './history.js';
 import { hideAllToolPanels, restoreToolHelp, clearBoxEditState } from '../ui/tool-help.js';
 
 // What the Locked toggle covers, per type. The lock covers position only (for
@@ -805,6 +806,8 @@ function deleteEntry(entryId) {
     if (!state.editingAnnotation || !state.editingAnnotation.entries) return;
 
     state.editingAnnotation.entries = state.editingAnnotation.entries.filter(e => e.id !== entryId);
+    // A deleted entry leaves no time of its own behind.
+    touchAnnotation(state.editingAnnotation);
     renderEntriesList(state.editingAnnotation);
     updateGroupsList();
     showStatus('Entry deleted');
@@ -875,59 +878,27 @@ export function hideScalebarConfirm() {
 }
 
 /**
- * Creates a version snapshot of an annotation's name before changing it.
- * Only creates a version if the name actually changed.
+ * Records the annotation's name in its history before a rename (history.js).
+ * Only records when the name actually changes. The change is attributed to
+ * the session's author (Settings, else the last author typed).
  * @param {Object} ann - The annotation object
  * @param {string} newName - The new name value
- * @returns {boolean} True if name changed and version was created
+ * @returns {boolean} True if name changed and a history entry was added
  */
 function createAnnotationNameVersion(ann, newName) {
-    const oldName = ann.name || '';
-    
-    if (oldName === newName) {
-        return false; // No change
-    }
-    
-    // Initialize nameVersions array if needed
-    if (!ann.nameVersions) {
-        ann.nameVersions = [];
-    }
-    
-    // Save current name as a version
-    ann.nameVersions.push({
-        value: oldName,
-        savedAt: new Date().toISOString()
-    });
-    
-    return true;
+    return recordNameChange(ann, newName, { changedBy: getLastAuthor() });
 }
 
 /**
- * Creates a version snapshot of an annotation's group assignment before changing it.
- * Only creates a version if the group actually changed.
+ * Records the annotation's group (uuid and current name) in its history
+ * before it moves to another group (history.js). Only records when the
+ * group actually changes.
  * @param {Object} ann - The annotation object
  * @param {number} newGroupId - The new group ID
- * @returns {boolean} True if group changed and version was created
+ * @returns {boolean} True if group changed and a history entry was added
  */
 function createAnnotationGroupVersion(ann, newGroupId) {
-    const oldGroupId = ann.groupId;
-    
-    if (oldGroupId === newGroupId) {
-        return false; // No change
-    }
-    
-    // Initialize groupVersions array if needed
-    if (!ann.groupVersions) {
-        ann.groupVersions = [];
-    }
-    
-    // Save current group as a version
-    ann.groupVersions.push({
-        groupId: oldGroupId,
-        savedAt: new Date().toISOString()
-    });
-    
-    return true;
+    return recordGroupChange(ann, newGroupId, state.groups, { changedBy: getLastAuthor() });
 }
 
 export function saveAnnotation() {
@@ -988,18 +959,22 @@ export function saveAnnotation() {
                     state.editingAnnotation.points, state.editingAnnotation.type === 'polygon'
                 );
                 state.editingAnnotation.surfaceProjection = true;
+                touchAnnotation(state.editingAnnotation);
             } else if (!wantsProjection && hadProjection) {
                 delete state.editingAnnotation.projectedEdges;
                 state.editingAnnotation.surfaceProjection = false;
+                touchAnnotation(state.editingAnnotation);
             }
         }
 
         // Position lock. Only a change writes the field, so an annotation that
-        // was never locked gets no `locked` key. No timestamp changes: in a
-        // merge the lock follows the copy whose position wins.
+        // was never locked gets no `locked` key. The switch counts as a change
+        // (modified); in a merge the lock still follows the copy whose
+        // position wins.
         const wantsLocked = dom.annLocked.checked;
         if (wantsLocked !== (state.editingAnnotation.locked === true)) {
             state.editingAnnotation.locked = wantsLocked;
+            touchAnnotation(state.editingAnnotation);
             lockStatus = wantsLocked ? ' (position locked)' : ' (position unlocked)';
             // Locking a box that is unlocked for editing ends its edit mode.
             if (wantsLocked && state.boxEditUnlocked === state.editingAnnotation.id) {
@@ -1027,12 +1002,16 @@ export function saveAnnotation() {
         const description = dom.annDescription.value.trim();
         const author = dom.annAuthor.value.trim();
         saveLastAuthor(author);
+        const createdAt = new Date().toISOString();
 
         const newAnnotation = {
             id: generateInternalId(),
             uuid: generateUUID(),
             type,
             name,
+            // When the annotation was made: the time of its first entry, but
+            // kept when that entry is deleted later.
+            created: createdAt,
             // Annotation-level creator, frozen at creation: the author entered
             // on the first entry. Later entry edits never change this; the
             // ORCID is resolved at export time (authorToCreator).
@@ -1045,7 +1024,7 @@ export function saveAnnotation() {
                 description,
                 author,
                 language: getDefaultLanguage(),
-                timestamp: new Date().toISOString(),
+                timestamp: createdAt,
                 links: [...state.pendingLinks]
             }]
         };

@@ -16,7 +16,7 @@
     "annotationType": "meshnotes:annotationType",
     "surfaceProjection": "meshnotes:surfaceProjection",
     "modelInfo": "meshnotes:modelInfo",
-    "metadata": "meshnotes:metadata",
+    "metadata": { "@id": "meshnotes:metadata", "@type": "@json" },
 
     "meshnotes:rotation": { "@container": "@list" },
     "meshnotes:faces": { "@container": "@set" },
@@ -26,6 +26,8 @@
     "meshnotes:alignment": { "@type": "@id" },
     "meshnotes:defaultAlignment": { "@type": "@id" },
     "meshnotes:rawValues": { "@type": "@json" },
-    "meshnotes:attributes": { "@type": "@json" }
+    "meshnotes:attributes": { "@type": "@json" },
+    "meshnotes:metadata": { "@type": "@json" },
+    "meshnotes:viewState": { "@type": "@json" }
   }
 }

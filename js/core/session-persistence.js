@@ -22,7 +22,7 @@ import { state, APP_VERSION } from '../state.js';
 import { buildAnnotationJSON } from '../export/export-json.js';
 import { importAnnotations } from '../export/import-json.js';
 import { parseUrlParams } from './url-params.js';
-import { showStatus } from '../utils/helpers.js';
+import { showStatus, sessionHasWork } from '../utils/helpers.js';
 import { PLACEMENT } from '../survey/alignment.js';
 
 // ---- IndexedDB (single store, single "current session" slot) ----------------
@@ -85,20 +85,10 @@ function isLocalSession() {
     try { return parseUrlParams().mode === 'local'; } catch (e) { return true; }
 }
 
-// Is there in-progress work worth protecting?
+// Is there in-progress work worth protecting? (helpers.js sessionHasWork(),
+// which the import uses as well to decide whether a file starts the record.)
 function hasWork() {
-    if (state.annotations.length > 0) return true;
-    // An alignment is work too, even when all its imported points are deleted.
-    if (state.alignments.length > 0) return true;
-    if (state.modelInfo && state.modelInfo.entries && state.modelInfo.entries.length > 0) return true;
-    const md = state.modelInfo && state.modelInfo.metadata;
-    if (md && md.sections) {
-        for (const s of md.sections) {
-            for (const f of (s.fields || [])) if (f.value && String(f.value).trim()) return true;
-            for (const f of (s.customFields || [])) if (f.value && String(f.value).trim()) return true;
-        }
-    }
-    return false;
+    return sessionHasWork();
 }
 
 // A cheap structural + content fingerprint so the idle interval can skip
@@ -109,10 +99,13 @@ function hasWork() {
 // a refine, a re-align or a rename) and the default. Lock toggles and moves
 // touch no timestamp, so a fold of the lock and moved-by-hand flags and a
 // weighted sum of every stored coordinate (points, box size and rotation)
-// catch them, including plain drags. Anything it misses is still captured by
-// the on-hide flush.
+// catch them, including plain drags. A move to another group shows in the
+// fold of group ids and the length of the name and group histories, a group's
+// new name or colour in its modified stamp, and the latest annotation
+// modified time catches any change that sets it (a lock or projection switch,
+// a deleted entry). Anything it misses is still captured by the on-hide flush.
 function workSignature() {
-    let entries = 0, textLen = 0, flags = 0, geometry = 0;
+    let entries = 0, textLen = 0, flags = 0, geometry = 0, membership = 0, history = 0, changed = '';
     for (const a of state.annotations) {
         entries += a.entries ? a.entries.length : 0;
         if (a.entries) {
@@ -123,13 +116,16 @@ function workSignature() {
         flags = (flags * 31 + (a.locked === true ? 1 : 0) + (manual ? 2 : 0)) | 0;
         geometry += coordinateSum(a.points);
         if (a.boxData) geometry += coordinateSum([a.boxData.size, a.boxData.rotation]);
+        membership = (membership * 31 + (Number(a.groupId) || 0)) | 0;
+        history += (a.nameVersions ? a.nameVersions.length : 0) + (a.groupVersions ? a.groupVersions.length : 0);
+        if (typeof a.modified === 'string' && a.modified > changed) changed = a.modified;
     }
     const mi = (state.modelInfo && state.modelInfo.entries) ? state.modelInfo.entries.length : 0;
-    const groupFlags = state.groups.map(g => (g.collapsed ? 'c' : '') + (g.labelsVisible === false ? 'l' : '')).join(',');
+    const groupFlags = state.groups.map(g => (g.collapsed ? 'c' : '') + (g.labelsVisible === false ? 'l' : '') + (g.modified || '')).join(',');
     const alignments = state.alignments.map(a => a.modified).join(',');
     return [state.annotations.length, state.groups.length, entries, mi, textLen,
         groupFlags, state.alignments.length, alignments, state.defaultAlignmentId,
-        flags, geometry].join(':');
+        flags, geometry, membership, history, changed].join(':');
 }
 
 // Weighted per axis, so a move that trades x for y still changes the sum.
@@ -185,13 +181,25 @@ function flushIfIdle() {
 
 // ---- Restore ----------------------------------------------------------------
 
+// Late-bound up-axis check (warnOnUpAxisMismatch in event-listeners.js, wired
+// in main.js): the UI cannot be imported here without an import cycle.
+let _upAxisCheck = null;
+export function setUpAxisCheck(fn) { _upAxisCheck = fn; }
+
+// Set once the model was reloaded from the up-axis warning of a restore. The
+// reloaded model's hash brings maybeOfferRestore() back, which then restores
+// without asking again: the warning already asked.
+let _restoreAfterReload = false;
+
 // Fired (via model-loader's hash-ready hook) once a reopened model's hash is
 // known. Offers to restore an autosaved session bound to this exact model — but
 // only into a fresh workspace. If annotations or alignments are already present
 // (e.g. a file imported while a large model was still hashing), nothing was
 // lost, so we stay silent. A saved session that holds only alignments is
 // offered like any other; the restore brings the alignments back through the
-// normal import.
+// normal import. A session saved with the model (OBJ, PLY, STL) loaded under
+// the other up-axis would not sit on it: a warning offers to reload the model
+// with the saved up-axis, or to restore anyway.
 export async function maybeOfferRestore() {
     if (!isLocalSession()) return;
     if (!state.modelHash) return;
@@ -201,6 +209,24 @@ export async function maybeOfferRestore() {
     try { rec = await idbGet(SLOT); } catch (e) { return; }
     if (!rec || rec.modelHash !== state.modelHash) return;
 
+    const afterReload = _restoreAfterReload;
+    _restoreAfterReload = false;
+    if (afterReload) {
+        await restoreSession(rec);
+        return;
+    }
+
+    if (_upAxisCheck) {
+        let data = null;
+        try { data = JSON.parse(rec.jsonld); } catch (e) { data = null; }
+        const warned = !!data && _upAxisCheck(data, {
+            kind: 'restore',
+            onContinue: () => { restoreSession(rec); },
+            onReloaded: () => { _restoreAfterReload = true; }
+        });
+        if (warned) return;   // closing the warning keeps the slot
+    }
+
     const ok = confirm(
         'Restore your last unsaved session for this model?\n\n' +
         'MeshNotes automatically saved your annotations before the app last ' +
@@ -208,6 +234,11 @@ export async function maybeOfferRestore() {
     );
     if (!ok) return; // keep the slot — a later reload can still recover it
 
+    await restoreSession(rec);
+}
+
+// Imports a saved session and empties the slot.
+async function restoreSession(rec) {
     try {
         const blob = new Blob([rec.jsonld], { type: 'application/ld+json' });
         importAnnotations(blob, () => {

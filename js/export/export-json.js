@@ -1,9 +1,10 @@
 // js/export/export-json.js - W3C Web Annotation Collection export
 import { state, APP_VERSION } from '../state.js';
 import { generateUUID, getModelMimeType, showStatus } from '../utils/helpers.js';
-import { convertToW3CAnnotation, authorToCreator } from './w3c-format.js';
+import { convertToW3CAnnotation, authorToCreator, groupIri, groupStyleClass } from './w3c-format.js';
 import { wktPointZ } from '../utils/coords.js';
 import { alignmentsToJsonLd } from '../survey/alignment.js';
+import { exportFaceOrder } from '../annotation-tools/face-order.js';
 
 // Optional hook invoked after a successful manual JSON-LD export. Used by
 // session persistence (wired in main.js) to clear the autosave slot: once the
@@ -12,6 +13,20 @@ import { alignmentsToJsonLd } from '../survey/alignment.js';
 // session-persistence.js, which imports buildAnnotationJSON from here.
 let _onAnnotationsExported = null;
 export function setOnAnnotationsExported(fn) { _onAnnotationsExported = fn; }
+
+/**
+ * The id of the session's record, urn:meshnotes:collection:{uuid}: made at the
+ * first export (download, autosave, share) and kept for every later one, so
+ * all versions of the same work share it and `generated` tells them apart
+ * (annotation format section 3). A model load and Clear start a new record
+ * (state.collectionId = null); an import into a session without work takes
+ * the file's id (import-json.js).
+ * @returns {string}
+ */
+export function ensureCollectionId() {
+    if (!state.collectionId) state.collectionId = `urn:meshnotes:collection:${generateUUID()}`;
+    return state.collectionId;
+}
 
 /**
  * Builds the W3C Web Annotation Collection JSON string.
@@ -23,12 +38,12 @@ export function setOnAnnotationsExported(fn) { _onAnnotationsExported = fn; }
  * @returns {string} Clean JSON-LD string
  */
 export function buildAnnotationJSON(options = {}) {
-    const collectionId = `urn:meshnotes:collection:${generateUUID()}`;
+    const collectionId = ensureCollectionId();
 
     // Convert groups to stylesheet
     const stylesheet = {
         type: 'CssStylesheet',
-        value: state.groups.map(g => `.group-${g.id} { color: ${g.color}; }`).join('\n')
+        value: state.groups.map(g => `.${groupStyleClass(g)} { color: ${g.color}; }`).join('\n')
     };
 
     // Convert all annotations to W3C format
@@ -70,12 +85,23 @@ export function buildAnnotationJSON(options = {}) {
             // MeshNotes always exports Z-up coordinates for interoperability
             // with photogrammetry/archaeology tools.
             'upAxis': 'Z',
+            // The up-axis the model file was loaded with ('y-up' or 'z-up';
+            // glTF is always 'y-up', OBJ/PLY/STL are the user's choice). Not
+            // the frame of the coordinates (upAxis above): a reader must load
+            // the model this way for the annotations to sit on it. Share
+            // links reuse it; written while a model is loaded, like frameOrigin.
+            'meshnotes:modelUpAxis': state.modelFrameOrigin ? state.modelUpAxis : undefined,
             // Real-world unit of the coordinates, when the user declared one in
             // settings ('units' is the unset placeholder and is omitted).
             'unit': (state.measurementUnit && state.measurementUnit !== 'units') ? state.measurementUnit : undefined,
             // SHA-256 of the primary model file, binding annotations to this exact
             // mesh (omitted if not yet computed).
             'schema:sha256': state.modelHash || undefined,
+            // "file": every surface region's face numbers follow the model
+            // file's triangle order (selector spec section 5). Left out when
+            // there is no region, or one could not be checked on import, so
+            // the next reader checks those again (face-order.js).
+            'meshnotes:faceOrder': exportFaceOrder(state.annotations),
             // Centring offset of the loaded model, in the Z-up export frame:
             // exported coordinate + frameOrigin = the model's scene coordinate
             // (Z-up). A shift only: glTF node rotations and scales are part of
@@ -93,14 +119,19 @@ export function buildAnnotationJSON(options = {}) {
         // per-annotation share links; omitted from normal export/share.
         'meshnotes:viewState': options.viewState || undefined,
 
-        // Groups metadata (custom extension). The sidebar flags are written
+        // Groups metadata (custom extension). The id is the group's IRI
+        // (urn:meshnotes:group:<uuid>); the session number written before 1.6.6
+        // was not a valid JSON-LD node id. The sidebar flags are written
         // only when they differ from the default (labels shown, expanded), so
         // groups that never changed them export as before.
         'meshnotes:groups': state.groups.map(g => ({
-            id: g.id,
+            id: groupIri(g),
             'meshnotes:uuid': g.uuid,
             'schema:name': g.name,
             'schema:color': g.color,
+            // When the name or colour last changed (absent: never), so a merge
+            // can take the newer name and colour.
+            modified: g.modified || undefined,
             'meshnotes:visible': g.visible,
             'meshnotes:opacity': g.opacity !== undefined ? g.opacity : 1.0,
             'meshnotes:labelsVisible': g.labelsVisible === false ? false : undefined,
